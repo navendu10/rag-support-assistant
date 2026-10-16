@@ -1,0 +1,19 @@
+# Base configuration shared by every session. Secrets live in .env, never here.
+# Any value can be overridden with an environment variable using "__" for nesting,
+# e.g. LLM__SMALL_MODEL=openai/gpt-oss-20b
+
+weaviate:
+  url: http://localhost:8080
+  grpc_port: 50051
+
+embedding:
+  model_name: BAAI/bge-small-en-v1.5
+  dimension: 384
+
+llm:
+  # Small, fast model for routing, query rewriting and cheap checks.
+  small_model: openai/gpt-oss-20b
+  # Larger model for final answers and agent tool calling.
+  large_model: openai/gpt-oss-120b
+  temperature: 0.0
+  timeout_seconds: 30
