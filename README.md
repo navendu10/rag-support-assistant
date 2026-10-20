@@ -37,25 +37,33 @@ pre-commit install
 Copy-Item .env.example .env        # then put your key in .env
 docker compose up -d               # start Weaviate
 python scripts/check_setup.py      # all checks should PASS
+python scripts/generate_data.py    # build the fictional knowledge base
 pytest
 ```
 
 Full details and troubleshooting: [docs/setup.md](docs/setup.md).
+
+## Data
+
+A deterministic, template-generated knowledge base of 53 documents: 8 product manuals,
+regional return policies, store policies, 30 help-centre FAQs, 4 internal playbooks and
+one marketplace listing. Each family is designed to trigger specific RAG failures. A
+40-question golden set measures them. See [docs/data.md](docs/data.md).
 
 ## Session status
 
 | # | Session | Status |
 |---|---------|--------|
 | 0 | Foundations: repo, tooling, config, Weaviate, setup check | ✅ Done |
-| 1 | Data generators and naive RAG baseline | ⏳ Planned |
-| 2 | Failure 1: bad chunking | ⏳ Planned |
-| 3 | Failure 2: product-code confusion (hybrid search) | ⏳ Planned |
-| 4 | Failure 3: poor ranking (reranking) | ⏳ Planned |
-| 5 | Failure 4: vague queries and wrong region | ⏳ Planned |
-| 6 | Failure 5: internal-document leaks | ⏳ Planned |
-| 7 | Weaviate API keys and access control | ⏳ Planned |
-| 8 | Failure 6: hallucination (grounding and citations) | ⏳ Planned |
-| 9 | Failure 7: prompt injection | ⏳ Planned |
+| 1 | Dummy knowledge base and golden test set | ✅ Done |
+| 2 | Naive RAG baseline: reproduce all seven failures | ⏳ Planned |
+| 3 | Fix 1: bad chunking | ⏳ Planned |
+| 4 | Fix 2: product-code confusion (hybrid search) | ⏳ Planned |
+| 5 | Fix 3: poor ranking (reranking) | ⏳ Planned |
+| 6 | Fix 4: vague queries, wrong region and stale documents | ⏳ Planned |
+| 7 | Fix 5: internal-document leaks (access control, Weaviate API keys) | ⏳ Planned |
+| 8 | Fix 6: hallucination (grounding, citations, handoff) | ⏳ Planned |
+| 9 | Fix 7: prompt injection | ⏳ Planned |
 | 10 | LangGraph RAG flow | ⏳ Planned |
 | 11 | Agent tools: order lookup and warranty check (SQLite) | ⏳ Planned |
 | 12 | Ticket creation with human approval | ⏳ Planned |
@@ -64,7 +72,7 @@ Full details and troubleshooting: [docs/setup.md](docs/setup.md).
 | 15 | Tracing and caching | ⏳ Planned |
 | 16 | FastAPI service and Streamlit UI | ⏳ Planned |
 
-Session titles after Session 0 are provisional. The session log is in
+Session titles after Session 1 are provisional. The session log is in
 [docs/sessions.md](docs/sessions.md) and the failure catalogue is in
 [docs/failures/](docs/failures/README.md).
 

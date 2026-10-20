@@ -13,3 +13,10 @@ fix, and before/after numbers.
 | 5 | Internal-document leaks | Staff-only margin notes quoted to a customer | Access-level metadata and filtering | _pending_ |
 | 6 | Hallucination | Confident answer with no supporting source | Grounded prompts, citations, abstain when unsure | _pending_ |
 | 7 | Prompt injection | A document or message says "ignore previous instructions" | Context sanitising, instruction hierarchy, output checks | _pending_ |
+
+**Stale documents** (an outdated UK returns policy beside the current one) are tracked
+under their own golden tag, `stale`. They are fixed alongside failure 4 by using the
+`effective_date` metadata.
+
+How the knowledge base triggers each failure, and which golden items measure it, is
+described in [docs/data.md](../data.md).
