@@ -29,11 +29,14 @@ engineers, so clarity matters as much as correctness.
 
 ```
 configs/base.yaml          shared config; configs/stages/ holds per-session overrides
-data/generators/           scripts that create fictional docs, catalogue, orders
-data/generated/            generator output (git-ignored)
+data/generators/           deterministic templates for the knowledge base (import as `generators`;
+                           facts.py is the single source of truth for every fact)
+data/generated/            generator output + manifest.json (git-ignored; see docs/data.md)
 data/golden/               hand-checked evaluation sets (committed)
+data/users.json            test users (committed)
 src/rag_assistant/
   config.py                typed settings (YAML < .env < env vars)
+  schemas.py               DocMetadata, User, GoldenItem models and loaders
   ingestion/ retrieval/ query/ security/ generation/ graph/
   agent/ mcp_server/ cache/ eval/ api/ ui/
 scripts/                   CLI entry points (check_setup.py, ...)
@@ -53,6 +56,8 @@ pre-commit install
 docker compose up -d                          # start Weaviate
 docker compose ps                             # check health
 python scripts/check_setup.py                 # end-to-end environment check
+python scripts/generate_data.py               # rebuild data/generated/ (deterministic)
+python scripts/data_report.py                 # summary of docs and golden set
 ruff check . ; ruff format .                  # lint and format
 pytest                                        # all tests
 pytest tests/unit                             # fast tests only (what CI runs)

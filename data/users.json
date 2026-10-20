@@ -1,0 +1,6 @@
+[
+  {"user_id": "cust_in_01", "name": "Priya Sharma", "role": "customer", "region": "IN"},
+  {"user_id": "cust_uk_01", "name": "Oliver Bennett", "role": "customer", "region": "UK"},
+  {"user_id": "cust_us_01", "name": "Maya Johnson", "role": "customer", "region": "US"},
+  {"user_id": "agent_01", "name": "Support Agent 01", "role": "agent", "region": "ALL"}
+]
