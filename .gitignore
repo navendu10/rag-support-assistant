@@ -15,6 +15,7 @@ build/
 dist/
 
 # Tool caches
+.cache/
 .pytest_cache/
 .ruff_cache/
 .coverage
@@ -23,6 +24,9 @@ htmlcov/
 # Generated data (recreate with data/generators/)
 data/generated/*
 !data/generated/.gitkeep
+
+# Filtered evaluation runs (only full runs are committed)
+results/*/subset/
 
 # Editors and OS
 .vscode/

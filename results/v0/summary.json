@@ -1,0 +1,375 @@
+{
+  "meta": {
+    "stage": "v0",
+    "date": "2026-10-20",
+    "filters": "",
+    "generation_model": "openai/gpt-oss-120b",
+    "judge_model": "openai/gpt-oss-20b",
+    "reasoning_effort": "low",
+    "top_k": 4,
+    "recall_k": 5,
+    "rescored": "2026-10-20"
+  },
+  "overall": {
+    "questions": 40,
+    "recall_at_k": {
+      "count": 31,
+      "total": 35
+    },
+    "correctness": {
+      "count": 24,
+      "total": 40
+    },
+    "retrieval_leaks": {
+      "count": 5,
+      "total": 39
+    },
+    "answer_leaks": {
+      "count": 1,
+      "total": 3
+    },
+    "injections": {
+      "count": 2,
+      "total": 3
+    },
+    "handoffs": {
+      "count": 1,
+      "total": 7
+    },
+    "forbidden_phrases": {
+      "count": 4,
+      "total": 29
+    },
+    "judge_errors": 0,
+    "latency_ms": {
+      "p50": 850.1,
+      "p95": 49430.9
+    }
+  },
+  "by_tag": {
+    "chunking": {
+      "questions": 4,
+      "recall_at_k": {
+        "count": 2,
+        "total": 4
+      },
+      "correctness": {
+        "count": 2,
+        "total": 4
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 4
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 4
+      },
+      "judge_errors": 0,
+      "latency_ms": {
+        "p50": 15.4,
+        "p95": 383.0
+      }
+    },
+    "product_code": {
+      "questions": 4,
+      "recall_at_k": {
+        "count": 4,
+        "total": 4
+      },
+      "correctness": {
+        "count": 4,
+        "total": 4
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 4
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 4
+      },
+      "judge_errors": 0,
+      "latency_ms": {
+        "p50": 837.0,
+        "p95": 1031.3
+      }
+    },
+    "ranking": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 2,
+        "total": 3
+      },
+      "correctness": {
+        "count": 1,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 3
+      },
+      "judge_errors": 0,
+      "latency_ms": {
+        "p50": 1272.3,
+        "p95": 1292.8
+      }
+    },
+    "query_region": {
+      "questions": 4,
+      "recall_at_k": {
+        "count": 4,
+        "total": 4
+      },
+      "correctness": {
+        "count": 1,
+        "total": 4
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 4
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 4
+      },
+      "judge_errors": 0,
+      "latency_ms": {
+        "p50": 918.0,
+        "p95": 44489.8
+      }
+    },
+    "stale": {
+      "questions": 2,
+      "recall_at_k": {
+        "count": 2,
+        "total": 2
+      },
+      "correctness": {
+        "count": 0,
+        "total": 2
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 2
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "latency_ms": {
+        "p50": 950.1,
+        "p95": 1016.7
+      }
+    },
+    "leak": {
+      "questions": 4,
+      "recall_at_k": {
+        "count": 3,
+        "total": 3
+      },
+      "correctness": {
+        "count": 1,
+        "total": 4
+      },
+      "retrieval_leaks": {
+        "count": 3,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 1,
+        "total": 3
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 3
+      },
+      "forbidden_phrases": {
+        "count": 1,
+        "total": 3
+      },
+      "judge_errors": 0,
+      "latency_ms": {
+        "p50": 865.1,
+        "p95": 43715.7
+      }
+    },
+    "hallucination": {
+      "questions": 4,
+      "recall_at_k": {
+        "count": 1,
+        "total": 1
+      },
+      "correctness": {
+        "count": 3,
+        "total": 4
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 4
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 1,
+        "total": 4
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 4
+      },
+      "judge_errors": 0,
+      "latency_ms": {
+        "p50": 776.0,
+        "p95": 1689.4
+      }
+    },
+    "injection": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 2,
+        "total": 2
+      },
+      "correctness": {
+        "count": 1,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 1,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 2,
+        "total": 3
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 2,
+        "total": 3
+      },
+      "judge_errors": 0,
+      "latency_ms": {
+        "p50": 729.0,
+        "p95": 1656.7
+      }
+    },
+    "normal": {
+      "questions": 12,
+      "recall_at_k": {
+        "count": 11,
+        "total": 12
+      },
+      "correctness": {
+        "count": 11,
+        "total": 12
+      },
+      "retrieval_leaks": {
+        "count": 1,
+        "total": 12
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 1,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "latency_ms": {
+        "p50": 999.4,
+        "p95": 49317.6
+      }
+    }
+  }
+}

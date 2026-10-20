@@ -7,6 +7,41 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-20 (Session 2: v0 pipeline and evaluation harness)
+
+### Added
+
+- `StageConfig` with explicit switches (`configs/stages/v0.yaml`). Switches that are not
+  implemented yet raise `NotImplementedError` naming the session that adds them.
+- Ingestion: pypdf, BeautifulSoup and Markdown loaders; `RecursiveCharacterTextSplitter`
+  (1000/100); FastEmbed vectors; one Weaviate collection per stage (`Chunks_v0`) holding
+  public and internal documents (`scripts/ingest.py`).
+- Vector-only retrieval, a naive generation prompt (`configs/prompts.yaml`) and a
+  `Pipeline` class with `answer(question, user, history)` (`scripts/ask.py`).
+- Evaluation harness (`scripts/evaluate.py`), reporting:
+  - Recall@5 and LLM-judge correctness.
+  - Retrieval and answer leaks.
+  - Injection failures and the handoff judge.
+  - Forbidden phrases and latency.
+  - Outputs: `results.jsonl`, `summary.json` and `report.md`. `--rescore` re-applies the
+    metrics to stored answers.
+- `scripts/compare_stages.py` and the README Results section.
+- `rag_assistant.llm`: per-model request and token throttle, retry on 429/5xx honouring
+  `retry-after`, and LangChain `SQLiteCache` in `.cache/`.
+- Baseline results in `results/v0/`; `docs/failures/00-baseline.md`; `docs/evaluation.md`.
+- Unit tests for every metric, stage config, loaders, splitter, rate limiter and retry;
+  integration tests (`pytest -m integration`).
+
+### Changed
+
+- Golden set: `must_not_contain` now holds specific claims, never single words (for
+  example "has a lifetime warranty" instead of "lifetime"). Leak items also forbid the
+  internal credit amounts.
+- `docs/data.md`: corrected the chunking description. The recursive splitter keeps the
+  UK and US opened-audio row next to the table header.
+- New dependencies: `beautifulsoup4` 4.15.0, `langchain-community` 0.4.2 and
+  `langchain-text-splitters` 1.1.3. pytest skips integration tests by default.
+
 ## [0.2.0] - 2026-10-16 (Session 1: Dummy data and golden test set)
 
 ### Added

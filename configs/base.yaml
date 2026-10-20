@@ -17,3 +17,31 @@ llm:
   large_model: openai/gpt-oss-120b
   temperature: 0.0
   timeout_seconds: 30
+  # gpt-oss models think before answering; "low" roughly halves token use.
+  # Keep this fixed across stages so comparisons stay fair.
+  reasoning_effort: low
+  max_completion_tokens: 2048
+
+# Client-side throttling per model. Groq free tier (checked 2026-10-20):
+# 30 requests/min, 8,000 tokens/min, 1,000 requests/day, 200K tokens/day.
+rate_limit:
+  requests_per_minute: 25
+  tokens_per_minute: 7000
+  expected_output_tokens: 500   # reserved per request before the real usage is known
+  max_retries: 6
+  backoff_base_seconds: 2
+  backoff_max_seconds: 60
+  max_retry_after_seconds: 120  # longer waits mean the daily quota is spent: stop
+
+cache:
+  enabled: true
+  path: .cache/llm_cache.sqlite
+
+paths:
+  generated_dir: data/generated
+  golden_file: data/golden/questions.jsonl
+  users_file: data/users.json
+  results_dir: results
+
+eval:
+  recall_k: 5

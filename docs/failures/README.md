@@ -4,6 +4,9 @@ Each failure is reproduced on purpose, measured on a golden set, fixed and re-me
 Every entry gets its own page (`NN-name.md`) with: symptom, how to reproduce, root cause,
 fix, and before/after numbers.
 
+**Baseline:** [00-baseline.md](00-baseline.md) has v0's numbers, one real example per
+failure, and an honest account of what did and did not reproduce.
+
 | # | Failure | Example symptom | Planned fix | Page |
 |---|---------|-----------------|-------------|------|
 | 1 | Bad chunking | Answer misses the half of a policy that landed in another chunk | Structure-aware chunking with overlap | _pending_ |

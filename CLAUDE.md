@@ -37,6 +37,11 @@ data/users.json            test users (committed)
 src/rag_assistant/
   config.py                typed settings (YAML < .env < env vars)
   schemas.py               DocMetadata, User, GoldenItem models and loaders
+  llm.py                   Groq models: throttle, retry on 429, SQLite cache (.cache/)
+  pipeline.py              Pipeline.from_stage(name).answer(question, user, history)
+configs/stages/<stage>.yaml  StageConfig switches; unimplemented values raise NotImplementedError
+configs/prompts.yaml       all prompt templates (answer + judges)
+results/<stage>/           committed full evaluation runs (results.jsonl, summary.json, report.md)
   ingestion/ retrieval/ query/ security/ generation/ graph/
   agent/ mcp_server/ cache/ eval/ api/ ui/
 scripts/                   CLI entry points (check_setup.py, ...)
@@ -58,6 +63,11 @@ docker compose ps                             # check health
 python scripts/check_setup.py                 # end-to-end environment check
 python scripts/generate_data.py               # rebuild data/generated/ (deterministic)
 python scripts/data_report.py                 # summary of docs and golden set
+python scripts/ingest.py --stage v0           # (re)build the stage's Weaviate collection
+python scripts/ask.py --stage v0 --user cust_uk_01 "question"
+python scripts/evaluate.py --stage v0 [--tag leak] [--limit 5]   # results/<stage>/
+python scripts/compare_stages.py              # before/after table for README
+pytest -m integration                         # needs Weaviate + Groq (skipped by default)
 ruff check . ; ruff format .                  # lint and format
 pytest                                        # all tests
 pytest tests/unit                             # fast tests only (what CI runs)

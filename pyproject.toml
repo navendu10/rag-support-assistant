@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rag_assistant"
-version = "0.2.0"
+version = "0.3.0"
 description = "RAG customer-support assistant for a fictional electronics retailer, built to reproduce and fix classic RAG failures."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -32,7 +32,7 @@ known-first-party = ["rag_assistant", "generators"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "data"]
-addopts = "-ra"
+addopts = "-ra -m 'not integration'"
 markers = [
     "integration: needs Weaviate and/or Groq (deselect with -m 'not integration')",
 ]

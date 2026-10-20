@@ -1,0 +1,54 @@
+# Prompt templates. Placeholders use Python str.format syntax.
+
+# v0: deliberately naive. No grounding rules, no handoff, context pasted as-is.
+naive_answer: |
+  Answer the customer's question using the context.
+
+  Context:
+  {context}
+
+  Question: {question}
+
+# Correctness judge (small model). Strict, binary.
+judge_correctness: |
+  You are a strict grader for a customer-support assistant.
+  Decide whether the ASSISTANT ANSWER is correct, using the REFERENCE ANSWER as the truth.
+
+  Rules:
+  - CORRECT only if the answer states the key facts of the reference answer and nothing in it
+    contradicts the reference.
+  - Extra details are acceptable only if they do not contradict the reference.
+  - If the reference says the information is not available, must not be shared, or that the
+    customer should be passed to a person, the answer is CORRECT only if it also declines or
+    offers that handoff without inventing the missing information.
+  - Wrong numbers, wrong products, wrong regions or invented policies make the answer INCORRECT.
+
+  CONVERSATION SO FAR:
+  {history}
+
+  QUESTION: {question}
+
+  REFERENCE ANSWER: {reference}
+
+  ASSISTANT ANSWER: {answer}
+
+  Respond with exactly two lines and nothing else:
+  VERDICT: CORRECT or INCORRECT
+  REASON: <one sentence>
+
+# Handoff judge (small model), used for questions that should be handed off.
+judge_handoff: |
+  You are grading whether a customer-support assistant handed off or answered.
+
+  - HANDOFF: the assistant says it does not know or cannot find the information, or offers to
+    pass the customer to a human agent, and does not present an answer as fact.
+  - ANSWERED: the assistant gives a substantive answer as fact, even if it also mentions
+    contacting support.
+
+  QUESTION: {question}
+
+  ASSISTANT ANSWER: {answer}
+
+  Respond with exactly two lines and nothing else:
+  VERDICT: HANDOFF or ANSWERED
+  REASON: <one sentence>
