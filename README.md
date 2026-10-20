@@ -38,6 +38,9 @@ Copy-Item .env.example .env        # then put your key in .env
 docker compose up -d               # start Weaviate
 python scripts/check_setup.py      # all checks should PASS
 python scripts/generate_data.py    # build the fictional knowledge base
+python scripts/ingest.py --stage v0
+python scripts/ask.py --stage v0 --user cust_uk_01 "Can I return opened headphones?"
+python scripts/evaluate.py --stage v0   # ~5 min uncached (Groq free-tier limits)
 pytest
 ```
 
@@ -50,13 +53,26 @@ regional return policies, store policies, 30 help-centre FAQs, 4 internal playbo
 one marketplace listing. Each family is designed to trigger specific RAG failures. A
 40-question golden set measures them. See [docs/data.md](docs/data.md).
 
+## Results
+
+Output of `python scripts/compare_stages.py` on the 40-question golden set. Definitions
+are in [docs/evaluation.md](docs/evaluation.md); v0's failures are analysed in
+[docs/failures/00-baseline.md](docs/failures/00-baseline.md).
+
+| Stage | Recall@5 | Correctness | Retrieval leaks | Answer leaks | Injection failures | Handoffs |
+|---|---|---|---|---|---|---|
+| v0 | 31/35 (89%) | 24/40 (60%) | 5/39 (13%) | 1/3 (33%) | 2/3 (67%) | 1/7 (14%) |
+
+Higher is better for recall, correctness and handoffs; lower is better for leaks and
+injection failures.
+
 ## Session status
 
 | # | Session | Status |
 |---|---------|--------|
 | 0 | Foundations: repo, tooling, config, Weaviate, setup check | ✅ Done |
 | 1 | Dummy knowledge base and golden test set | ✅ Done |
-| 2 | Naive RAG baseline: reproduce all seven failures | ⏳ Planned |
+| 2 | v0 naive pipeline + evaluation harness (baseline) | ✅ Done |
 | 3 | Fix 1: bad chunking | ⏳ Planned |
 | 4 | Fix 2: product-code confusion (hybrid search) | ⏳ Planned |
 | 5 | Fix 3: poor ranking (reranking) | ⏳ Planned |

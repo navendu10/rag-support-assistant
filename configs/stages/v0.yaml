@@ -1,0 +1,18 @@
+# Stage v0: the deliberately naive baseline. Every guard is off.
+# Each switch is implemented in a later session; until then any other value
+# raises NotImplementedError (see rag_assistant.config.UNIMPLEMENTED_SWITCHES).
+name: v0
+description: Naive baseline - fixed-size chunks, vector-only search, no guards
+chunking: fixed          # structure -> Session 3
+chunk_size: 1000
+chunk_overlap: 100
+search: vector           # hybrid -> Session 4
+alpha: null              # hybrid weighting -> Session 4
+rerank: false            # Session 5
+query_rewrite: false     # Session 6
+use_history: false       # Session 6
+region_filter: false     # Session 6
+access_control: false    # Session 7
+grounding: false         # Session 8
+injection_guard: false   # Session 9
+top_k: 4

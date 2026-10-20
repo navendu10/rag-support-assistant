@@ -10,8 +10,18 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import BaseModel, Field, HttpUrl, SecretStr, field_validator
+import yaml
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -20,7 +30,10 @@ from pydantic_settings import (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG_PATH = PROJECT_ROOT / "configs" / "base.yaml"
+CONFIGS_DIR = PROJECT_ROOT / "configs"
+DEFAULT_CONFIG_PATH = CONFIGS_DIR / "base.yaml"
+STAGES_DIR = CONFIGS_DIR / "stages"
+PROMPTS_PATH = CONFIGS_DIR / "prompts.yaml"
 DEFAULT_ENV_PATH = PROJECT_ROOT / ".env"
 CONFIG_PATH_ENV_VAR = "RAG_CONFIG_FILE"
 
@@ -61,6 +74,61 @@ class LLMSettings(BaseModel):
     large_model: str = Field(min_length=1)
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     timeout_seconds: float = Field(default=30, gt=0)
+    reasoning_effort: Literal["low", "medium", "high"] | None = "low"
+    max_completion_tokens: int = Field(default=2048, gt=0)
+
+    @property
+    def generation_model(self) -> str:
+        """Model that writes answers (the large model)."""
+        return self.large_model
+
+    @property
+    def judge_model(self) -> str:
+        """Model that grades answers (the small model)."""
+        return self.small_model
+
+
+class RateLimitSettings(BaseModel):
+    """Client-side limits that keep us under Groq's free tier (per model)."""
+
+    requests_per_minute: int = Field(default=25, gt=0)
+    tokens_per_minute: int = Field(default=7000, gt=0)
+    expected_output_tokens: int = Field(default=500, ge=0)
+    max_retries: int = Field(default=6, ge=0)
+    backoff_base_seconds: float = Field(default=2.0, gt=0)
+    backoff_max_seconds: float = Field(default=60.0, gt=0)
+    max_retry_after_seconds: float = Field(default=120.0, gt=0)
+
+
+class CacheSettings(BaseModel):
+    """LangChain SQLite response cache."""
+
+    enabled: bool = True
+    path: Path = Path(".cache/llm_cache.sqlite")
+
+    @property
+    def resolved_path(self) -> Path:
+        """Absolute cache path (relative paths are under the project root)."""
+        return self.path if self.path.is_absolute() else PROJECT_ROOT / self.path
+
+
+class PathSettings(BaseModel):
+    """Where data, golden sets and results live (relative to the project root)."""
+
+    generated_dir: Path = Path("data/generated")
+    golden_file: Path = Path("data/golden/questions.jsonl")
+    users_file: Path = Path("data/users.json")
+    results_dir: Path = Path("results")
+
+    def resolve(self, path: Path) -> Path:
+        """Resolve a configured path against the project root."""
+        return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+class EvalSettings(BaseModel):
+    """Evaluation harness settings."""
+
+    recall_k: int = Field(default=5, gt=0)
 
 
 class Settings(BaseSettings):
@@ -78,6 +146,10 @@ class Settings(BaseSettings):
     weaviate: WeaviateSettings
     embedding: EmbeddingSettings
     llm: LLMSettings
+    rate_limit: RateLimitSettings = Field(default_factory=RateLimitSettings)
+    cache: CacheSettings = Field(default_factory=CacheSettings)
+    paths: PathSettings = Field(default_factory=PathSettings)
+    eval: EvalSettings = Field(default_factory=EvalSettings)
 
     @field_validator("groq_api_key")
     @classmethod
@@ -135,3 +207,92 @@ def load_settings(
 def get_settings() -> Settings:
     """Return the process-wide settings, loading them on first use."""
     return load_settings()
+
+
+# ------------------------------------------------------------------ Stages
+
+
+class StageConfig(BaseModel):
+    """On/off switches for one pipeline stage (``configs/stages/<name>.yaml``).
+
+    v0 is the naive baseline. Each later session implements one or more switches;
+    until then, ``ensure_supported`` rejects any non-v0 value.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    name: str = Field(pattern=r"^[A-Za-z0-9_]+$")
+    description: str = ""
+    chunking: Literal["fixed", "structure"]
+    chunk_size: int = Field(gt=0)
+    chunk_overlap: int = Field(ge=0)
+    search: Literal["vector", "hybrid"]
+    alpha: float | None = Field(default=None, ge=0.0, le=1.0)
+    rerank: bool
+    query_rewrite: bool
+    use_history: bool
+    region_filter: bool
+    access_control: bool
+    grounding: bool
+    injection_guard: bool
+    top_k: int = Field(gt=0, le=50)
+
+    @model_validator(mode="after")
+    def _overlap_smaller_than_chunk(self) -> StageConfig:
+        """Chunk overlap must be smaller than the chunk size."""
+        if self.chunk_overlap >= self.chunk_size:
+            raise ValueError("chunk_overlap must be smaller than chunk_size")
+        return self
+
+    @property
+    def collection_name(self) -> str:
+        """Weaviate collection for this stage, e.g. ``Chunks_v0``."""
+        return f"Chunks_{self.name}"
+
+    def ensure_supported(self) -> None:
+        """Raise ``NotImplementedError`` for any switch a later session will add."""
+        problems = [
+            f"{switch}={getattr(self, switch)!r} arrives in Session {session} ({feature})"
+            for switch, (supported, session, feature) in UNIMPLEMENTED_SWITCHES.items()
+            if getattr(self, switch) != supported
+        ]
+        if problems:
+            raise NotImplementedError(
+                f"Stage '{self.name}' uses features that are not implemented yet: "
+                + "; ".join(problems)
+            )
+
+
+# switch -> (only supported value so far, session that adds the rest, feature)
+UNIMPLEMENTED_SWITCHES: dict[str, tuple[object, int, str]] = {
+    "chunking": ("fixed", 3, "structure-aware chunking"),
+    "search": ("vector", 4, "hybrid search"),
+    "alpha": (None, 4, "hybrid search weighting"),
+    "rerank": (False, 5, "reranking"),
+    "query_rewrite": (False, 6, "query rewriting"),
+    "use_history": (False, 6, "conversation history"),
+    "region_filter": (False, 6, "region and date filtering"),
+    "access_control": (False, 7, "access control"),
+    "grounding": (False, 8, "grounded answers and handoff"),
+    "injection_guard": (False, 9, "prompt-injection defences"),
+}
+
+
+def load_stage(name: str, stages_dir: Path = STAGES_DIR) -> StageConfig:
+    """Load, validate and check support for ``configs/stages/<name>.yaml``."""
+    path = stages_dir / f"{name}.yaml"
+    if not path.is_file():
+        raise FileNotFoundError(f"Stage config not found: {path}")
+    stage = StageConfig.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+    if stage.name != name:
+        raise ValueError(f"{path.name} declares name '{stage.name}', expected '{name}'")
+    stage.ensure_supported()
+    return stage
+
+
+def load_prompts(path: Path = PROMPTS_PATH) -> dict[str, str]:
+    """Load the prompt templates from ``configs/prompts.yaml``."""
+    prompts = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(prompts, dict) or not all(isinstance(v, str) for v in prompts.values()):
+        raise ValueError(f"{path} must map prompt names to strings")
+    return prompts

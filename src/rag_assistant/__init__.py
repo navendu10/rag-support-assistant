@@ -1,3 +1,3 @@
 """RAG customer-support assistant for a fictional electronics retailer."""
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

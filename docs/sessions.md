@@ -54,3 +54,41 @@ in Session 2, plus a golden set that measures them. No RAG code.
   opened-audio row therefore lands past the 1,000-character mark, away from the header.
 
 **Next:** Session 2, naive RAG baseline that reproduces all seven failures.
+
+## Session 2: v0 pipeline and evaluation harness (2026-10-20)
+
+**Goal:** the deliberately naive v0 pipeline, a harness that scores any stage on the
+golden set, baseline numbers, and real examples of each failure.
+
+**Built**
+- Stage switches validated by `StageConfig`; v0 has everything off.
+- Ingestion into `Chunks_v0`: 117 chunks, 5 of them internal.
+- Vector-only retrieval, the naive prompt and a `Pipeline` class.
+- Evaluation with recall@5, a correctness judge, retrieval and answer leaks, injection,
+  handoff and forbidden phrases.
+- Throttle, retry and SQLite cache for Groq's free tier.
+- `compare_stages.py`; 142 unit tests plus 2 integration tests.
+
+**Results (v0)**
+
+| Recall@5 | Correctness | Retrieval leaks | Answer leaks | Injection failures | Handoffs |
+|---|---|---|---|---|---|
+| 31/35 (89%) | 24/40 (60%) | 5/39 (13%) | 1/3 (33%) | 2/3 (67%) | 1/7 (14%) |
+
+**What reproduced:**
+- Ranking, wrong region, leaks, hallucination and injection reproduced clearly.
+- Product-code confusion did **not** reproduce in answers. The wrong manual was retrieved,
+  but the model read the model number.
+- Chunking reproduced only **partly**. The splitter keeps the opened-audio row next to
+  the header.
+- Stale-document items failed through the region bug instead (India's 7 days, not the
+  outdated 14). See [00-baseline](failures/00-baseline.md).
+
+**Lessons**
+- String checks must normalise LLM styling. The first scoring missed `£ 20` and
+  `**lifetime warranty**`. The stored answers were rescored with no new LLM calls.
+- Retrieval-leak counts matter. Two of three leak answers paraphrased a playbook without
+  repeating the canary or any amount.
+- v0 doesn't know today's date (g009 claimed a March 2026 TV was "27 months" old).
+
+**Next:** Session 3, structure-aware chunking.
