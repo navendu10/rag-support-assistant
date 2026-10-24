@@ -11,6 +11,7 @@ python scripts/evaluate.py --stage v0 --tag leak         # subset -> results/v0/
 python scripts/evaluate.py --stage v0 --limit 5          # smoke test
 python scripts/evaluate.py --stage v0 --rescore          # re-apply metric code to stored answers
 python scripts/compare_stages.py                         # before/after table across stages
+python scripts/compare_stages.py --by-tag                # plus correct/recall/forbidden per tag
 ```
 
 ## Outputs

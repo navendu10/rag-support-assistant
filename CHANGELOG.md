@@ -7,6 +7,39 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-24 (Session 3: structure-aware chunking)
+
+### Added
+
+- Stage v1 (`configs/stages/v1.yaml`): v0 plus `chunking: structure`, ingested into its own
+  `Chunks_v1` collection.
+- Structure-preserving parsers (`ingestion/parsers.py`):
+  - PDF: `pymupdf4llm` with page markers and artefact clean-up.
+  - HTML: `markdownify`, keeping hidden text as v0 did.
+  - Markdown: as is.
+- Structure-aware chunker (`ingestion/structure_chunker.py`):
+  - Splits on h1-h3 headings and never cuts a table; tables are found as runs of `|`
+    lines.
+  - Sub-splits long prose (1200 max, 150 overlap) and merges sections under 200
+    characters.
+  - Adds `[Title > Section > Subsection]` context headers and full metadata inheritance,
+    including `section` and `page`.
+- `scripts/show_chunks.py --stage --doc [--grep]` and `compare_stages.py --by-tag`.
+- `min_chunk_chars` stage setting; `product_code`, `effective_date`, `section` and `page`
+  on every chunk (stored in Weaviate for evaluation; not used for retrieval).
+- Unit tests for parsing, chunking rules, bounds, metadata, determinism and
+  `show_chunks`.
+- `results/v1/`, `docs/failures/01-chunking.md`,
+  `docs/adr/0003-pymupdf4llm-for-pdf-parsing.md`.
+
+### Changed
+
+- `chunking` is no longer a "not implemented" switch.
+- `ingestion.pipeline.chunk_documents()` is shared by ingestion and `show_chunks`.
+  v0 output is unchanged (117 chunks).
+- New dependencies: `pymupdf4llm`, `pymupdf` and `pymupdf-layout` 1.28.2 (AGPL-3.0; the
+  2.0 releases are empty placeholders), and `markdownify` 1.2.3.
+
 ## [0.3.0] - 2026-10-20 (Session 2: v0 pipeline and evaluation harness)
 
 ### Added

@@ -57,11 +57,15 @@ one marketplace listing. Each family is designed to trigger specific RAG failure
 
 Output of `python scripts/compare_stages.py` on the 40-question golden set. Definitions
 are in [docs/evaluation.md](docs/evaluation.md); v0's failures are analysed in
-[docs/failures/00-baseline.md](docs/failures/00-baseline.md).
+[docs/failures/00-baseline.md](docs/failures/00-baseline.md), and v1 (structure-aware
+chunking) in [docs/failures/01-chunking.md](docs/failures/01-chunking.md). v1 fixes the
+chunks themselves (no table is split any more), but end-to-end correctness is flat. The
+injection improvement is an accidental side effect, not a defence.
 
 | Stage | Recall@5 | Correctness | Retrieval leaks | Answer leaks | Injection failures | Handoffs |
 |---|---|---|---|---|---|---|
 | v0 | 31/35 (89%) | 24/40 (60%) | 5/39 (13%) | 1/3 (33%) | 2/3 (67%) | 1/7 (14%) |
+| v1 | 30/35 (86%) | 23/40 (58%) | 4/39 (10%) | 0/3 (0%) | 0/3 (0%) | 1/7 (14%) |
 
 Higher is better for recall, correctness and handoffs; lower is better for leaks and
 injection failures.
@@ -73,7 +77,7 @@ injection failures.
 | 0 | Foundations: repo, tooling, config, Weaviate, setup check | ✅ Done |
 | 1 | Dummy knowledge base and golden test set | ✅ Done |
 | 2 | v0 naive pipeline + evaluation harness (baseline) | ✅ Done |
-| 3 | Fix 1: bad chunking | ⏳ Planned |
+| 3 | Fix 1: bad chunking (structure-aware chunking, stage v1) | ✅ Done |
 | 4 | Fix 2: product-code confusion (hybrid search) | ⏳ Planned |
 | 5 | Fix 3: poor ranking (reranking) | ⏳ Planned |
 | 6 | Fix 4: vague queries, wrong region and stale documents | ⏳ Planned |

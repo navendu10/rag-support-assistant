@@ -39,6 +39,8 @@ src/rag_assistant/
   schemas.py               DocMetadata, User, GoldenItem models and loaders
   llm.py                   Groq models: throttle, retry on 429, SQLite cache (.cache/)
   pipeline.py              Pipeline.from_stage(name).answer(question, user, history)
+  ingestion/               loaders (v0 text) + parsers (v1 Markdown), chunker (fixed) +
+                           structure_chunker (headings, whole tables, context headers)
 configs/stages/<stage>.yaml  StageConfig switches; unimplemented values raise NotImplementedError
 configs/prompts.yaml       all prompt templates (answer + judges)
 results/<stage>/           committed full evaluation runs (results.jsonl, summary.json, report.md)
@@ -53,6 +55,8 @@ docs/                      architecture, setup, sessions log, failures/, adr/
 ## Environment: Windows 11, PowerShell, Python 3.12 in `.venv`
 
 Use PowerShell syntax (`;` not `&&` in Windows PowerShell 5.1; `$env:VAR`).
+The tool shell may not have `.venv` activated (`python` can resolve to the global
+interpreter). Call `.\.venv\Scripts\python.exe` explicitly when in doubt.
 
 ```powershell
 .\.venv\Scripts\Activate.ps1                 # activate venv
@@ -66,7 +70,8 @@ python scripts/data_report.py                 # summary of docs and golden set
 python scripts/ingest.py --stage v0           # (re)build the stage's Weaviate collection
 python scripts/ask.py --stage v0 --user cust_uk_01 "question"
 python scripts/evaluate.py --stage v0 [--tag leak] [--limit 5]   # results/<stage>/
-python scripts/compare_stages.py              # before/after table for README
+python scripts/compare_stages.py [--by-tag]   # before/after table for README
+python scripts/show_chunks.py --stage v1 --doc returns-uk-2026-print [--grep text]
 pytest -m integration                         # needs Weaviate + Groq (skipped by default)
 ruff check . ; ruff format .                  # lint and format
 pytest                                        # all tests

@@ -44,7 +44,6 @@ def test_v0_loads_with_expected_switches() -> None:
 
 
 OTHER_VALUES = {
-    "chunking": "structure",
     "search": "hybrid",
     "alpha": 0.5,
     "rerank": True,
@@ -71,6 +70,34 @@ def test_unimplemented_switch_raises_naming_session(
 def test_every_switch_has_a_session() -> None:
     """The switch table covers exactly the toggles tested above."""
     assert set(UNIMPLEMENTED_SWITCHES) == set(OTHER_VALUES)
+
+
+def test_v1_differs_from_v0_only_in_chunking() -> None:
+    """v1 isolates the chunking fix: every other switch matches v0."""
+    v0, v1 = load_stage("v0"), load_stage("v1")
+    chunking_fields = {"name", "description", "chunking", "chunk_size", "chunk_overlap"}
+    chunking_fields.add("min_chunk_chars")
+    same = {k: v for k, v in v0.model_dump().items() if k not in chunking_fields}
+    assert same == {k: v for k, v in v1.model_dump().items() if k not in chunking_fields}
+    assert (v1.chunking, v1.chunk_size, v1.chunk_overlap, v1.min_chunk_chars) == (
+        "structure",
+        1200,
+        150,
+        200,
+    )
+    assert v1.collection_name == "Chunks_v1"
+
+
+def test_structure_chunking_is_implemented() -> None:
+    """chunking=structure no longer raises (it was the Session 3 switch)."""
+    assert "chunking" not in UNIMPLEMENTED_SWITCHES
+    load_stage("v1").ensure_supported()
+
+
+def test_min_chunk_chars_must_be_below_chunk_size() -> None:
+    """The merge threshold must be smaller than the chunk size."""
+    with pytest.raises(ValidationError):
+        StageConfig.model_validate({**_v0_dict(), "min_chunk_chars": 1000})
 
 
 def test_numeric_settings_may_change(tmp_path: Path) -> None:

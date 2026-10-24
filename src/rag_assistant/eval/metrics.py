@@ -47,6 +47,8 @@ class RetrievedRef(BaseModel):
     audience: str
     region: str
     score: float
+    section: str | None = None
+    page: int | None = None
 
 
 class ItemChecks(BaseModel):
