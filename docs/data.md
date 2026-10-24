@@ -83,6 +83,9 @@ Where the metadata is stored depends on the format:
   - Consequence: "opened headphones" questions for the UK and US can still find their row
     next to the header. The trap mainly hits other opened categories, such as laptops and
     smartwatches.
+  - From v1 on (`chunking: structure`), every return-window table is kept whole in one
+    chunk with a `[Title > Section]` header. See
+    [01-chunking](failures/01-chunking.md).
 - **Product codes:**
   - The XR-2200 and XR-2000 manuals come from one template, and more than 85% of their words
     are shared.

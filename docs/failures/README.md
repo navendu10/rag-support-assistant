@@ -7,9 +7,11 @@ fix, and before/after numbers.
 **Baseline:** [00-baseline.md](00-baseline.md) has v0's numbers, one real example per
 failure, and an honest account of what did and did not reproduce.
 
+**Fixes so far:** [01-chunking.md](01-chunking.md) (stage v1).
+
 | # | Failure | Example symptom | Planned fix | Page |
 |---|---------|-----------------|-------------|------|
-| 1 | Bad chunking | Answer misses the half of a policy that landed in another chunk | Structure-aware chunking with overlap | _pending_ |
+| 1 | Bad chunking | Answer misses the half of a policy that landed in another chunk | Structure-aware chunking with overlap | [01-chunking](01-chunking.md) |
 | 2 | Product-code confusion | "XB-200" retrieves "XB-2000" docs | Hybrid (BM25 + vector) search, metadata filters | _pending_ |
 | 3 | Poor ranking | Right chunk retrieved but ranked 8th | Cross-encoder reranking | _pending_ |
 | 4 | Vague queries and wrong region | "How long is the warranty?" answered with the US policy for a UK customer | Query rewriting, clarification, region filters | _pending_ |

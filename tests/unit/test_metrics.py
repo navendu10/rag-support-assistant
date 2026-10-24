@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from rag_assistant.eval.compare import comparison_table, load_summaries
+from rag_assistant.eval.compare import comparison_table, load_summaries, tag_comparison_table
 from rag_assistant.eval.metrics import (
     ItemChecks,
     Judgement,
@@ -358,3 +358,20 @@ def test_select_items() -> None:
     assert [i.id for i in select_items(items, tag="normal")] == ["g001", "g002"]
     assert [i.id for i in select_items(items, limit=1)] == ["g001"]
     assert [i.id for i in select_items(items, tag="leak", limit=5)] == ["g003"]
+
+
+def test_tag_comparison_table_columns_per_stage() -> None:
+    """--by-tag shows each metric for every stage, side by side, per failure tag."""
+    rows = _rows()
+    by_tag = summarise_by_tag(rows)
+    summaries = [
+        {"meta": {"stage": stage}, "overall": summarise_rows(rows), "by_tag": by_tag}
+        for stage in ("v0", "v1")
+    ]
+    table = tag_comparison_table(summaries).splitlines()
+    assert table[0] == (
+        "| Tag | n | Correct v0 | Correct v1 | Recall@5 v0 | Recall@5 v1 | "
+        "Forbidden phrase v0 | Forbidden phrase v1 |"
+    )
+    assert table[2] == "| normal | 1 | 1/1 | 1/1 | 1/1 | 1/1 | n/a | n/a |"
+    assert table[4].startswith("| hallucination | 1 | 0/1 | 0/1 | n/a | n/a |")

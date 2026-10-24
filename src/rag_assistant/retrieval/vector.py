@@ -25,6 +25,8 @@ class RetrievedChunk:
     audience: str
     region: str
     score: float
+    section: str = ""
+    page: int | None = None
 
 
 class VectorRetriever:
@@ -55,4 +57,6 @@ def _to_chunk(props: dict, distance: float | None) -> RetrievedChunk:
         audience=str(props["audience"]),
         region=str(props["region"]),
         score=1.0 - (distance if distance is not None else 1.0),
+        section=str(props.get("section") or ""),
+        page=int(props["page"]) if props.get("page") is not None else None,
     )

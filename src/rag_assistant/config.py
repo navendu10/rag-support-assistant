@@ -226,6 +226,7 @@ class StageConfig(BaseModel):
     chunking: Literal["fixed", "structure"]
     chunk_size: int = Field(gt=0)
     chunk_overlap: int = Field(ge=0)
+    min_chunk_chars: int = Field(default=200, ge=0, description="structure chunking only")
     search: Literal["vector", "hybrid"]
     alpha: float | None = Field(default=None, ge=0.0, le=1.0)
     rerank: bool
@@ -242,6 +243,8 @@ class StageConfig(BaseModel):
         """Chunk overlap must be smaller than the chunk size."""
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError("chunk_overlap must be smaller than chunk_size")
+        if self.min_chunk_chars >= self.chunk_size:
+            raise ValueError("min_chunk_chars must be smaller than chunk_size")
         return self
 
     @property
@@ -264,8 +267,8 @@ class StageConfig(BaseModel):
 
 
 # switch -> (only supported value so far, session that adds the rest, feature)
+# (chunking: fixed|structure is fully implemented since Session 3.)
 UNIMPLEMENTED_SWITCHES: dict[str, tuple[object, int, str]] = {
-    "chunking": ("fixed", 3, "structure-aware chunking"),
     "search": ("vector", 4, "hybrid search"),
     "alpha": (None, 4, "hybrid search weighting"),
     "rerank": (False, 5, "reranking"),

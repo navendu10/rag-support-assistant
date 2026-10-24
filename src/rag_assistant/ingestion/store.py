@@ -24,6 +24,10 @@ PROPERTIES = [
     Property(name="audience", data_type=DataType.TEXT),
     Property(name="region", data_type=DataType.TEXT),
     Property(name="doc_type", data_type=DataType.TEXT),
+    Property(name="product_code", data_type=DataType.TEXT),
+    Property(name="effective_date", data_type=DataType.TEXT),
+    Property(name="section", data_type=DataType.TEXT),
+    Property(name="page", data_type=DataType.INT),
 ]
 
 
@@ -60,6 +64,11 @@ def recreate_collection(client: weaviate.WeaviateClient, name: str) -> Collectio
     )
 
 
+def _properties(chunk: Chunk) -> dict[str, object]:
+    """Chunk fields as Weaviate properties, leaving out empty (None) values."""
+    return {key: value for key, value in asdict(chunk).items() if value is not None}
+
+
 def insert_chunks(
     collection: Collection, chunks: Sequence[Chunk], vectors: Sequence[list[float]]
 ) -> int:
@@ -68,7 +77,7 @@ def insert_chunks(
         raise ValueError("chunks and vectors must have the same length")
     for start in range(0, len(chunks), INSERT_BATCH):
         objects = [
-            DataObject(properties=asdict(chunk), vector=vector)
+            DataObject(properties=_properties(chunk), vector=vector)
             for chunk, vector in zip(
                 chunks[start : start + INSERT_BATCH],
                 vectors[start : start + INSERT_BATCH],

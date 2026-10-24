@@ -1,0 +1,18 @@
+# Stage v1: v0 plus structure-aware parsing and chunking (Session 3).
+# Only the chunking settings differ from v0, so the comparison isolates this fix.
+name: v1
+description: v0 + structure-aware parsing and chunking (headings, whole tables, context headers)
+chunking: structure      # v0: fixed
+chunk_size: 1200         # max section body before sub-splitting (v0: 1000)
+chunk_overlap: 150       # overlap when a long section is sub-split (v0: 100)
+min_chunk_chars: 200     # shorter sections are merged into the next one
+search: vector           # hybrid -> Session 4
+alpha: null              # hybrid weighting -> Session 4
+rerank: false            # Session 5
+query_rewrite: false     # Session 6
+use_history: false       # Session 6
+region_filter: false     # Session 6
+access_control: false    # Session 7
+grounding: false         # Session 8
+injection_guard: false   # Session 9
+top_k: 4

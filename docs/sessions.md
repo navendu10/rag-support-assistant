@@ -92,3 +92,60 @@ golden set, baseline numbers, and real examples of each failure.
 - v0 doesn't know today's date (g009 claimed a March 2026 TV was "27 months" old).
 
 **Next:** Session 3, structure-aware chunking.
+
+## Session 3: Structure-aware chunking (2026-10-24)
+
+**Goal:** implement `chunking: structure` and evaluate it as stage v1, with everything
+else identical to v0, so the comparison isolates the chunking fix.
+
+**Built**
+- `configs/stages/v1.yaml`: v0 plus `chunking: structure`, `chunk_size: 1200`,
+  `chunk_overlap: 150` and `min_chunk_chars: 200`. It has its own `Chunks_v1` collection.
+- Structure-preserving parsers:
+  - PDF: `pymupdf4llm`, with page markers and removal of `**`, `<br>` and `<u>`.
+  - HTML: `markdownify`, with hidden text kept.
+  - Markdown: as is.
+- Structure-aware chunker:
+  - Splits on h1-h3 headings and never cuts a table (tables are runs of `|` lines).
+  - Sub-splits long prose and merges short sections.
+  - Adds `[Title > Section]` headers; every chunk inherits all metadata plus `section`
+    and `page`.
+- `scripts/show_chunks.py`, which prints whatever fields a chunk has, for v0 and v1.
+  `compare_stages.py --by-tag`.
+- ADR 0003 (pymupdf4llm, AGPL; pinned to 1.28.2 because the 2.0 releases of
+  `pymupdf4llm` and `pymupdf-layout` are empty placeholders).
+- 174 unit tests.
+
+**Results**
+
+| Stage | Recall@5 | Correctness | Retrieval leaks | Answer leaks | Injection failures | Handoffs |
+|---|---|---|---|---|---|---|
+| v0 | 31/35 (89%) | 24/40 (60%) | 5/39 (13%) | 1/3 (33%) | 2/3 (67%) | 1/7 (14%) |
+| v1 | 30/35 (86%) | 23/40 (58%) | 4/39 (10%) | 0/3 (0%) | 0/3 (0%) | 1/7 (14%) |
+
+**What happened** (details in [01-chunking](failures/01-chunking.md))
+- **Chunk level: fixed.**
+  - 0 of 7 return-window tables are split, against 7 of 7 in v0.
+  - All 162 chunks have a context header, and all 91 PDF chunks have a page.
+- **End to end: flat.** Small prose sections ("Refunds") now beat the whole-table chunk
+  for vague return questions. When tables do win, near-identical regional tables crowd
+  the top 4.
+  - query_region recall fell 4/4 → 2/4.
+  - chunking-tag forbidden hits rose 0/4 → 2/4. For example, g003 told an Indian
+    customer the UK's 30 days.
+- **Injection failures 2/3 → 0/3, by accident.** The hidden instruction still reaches the
+  model, but it now sits beside a clearly stated 6-month warranty. This isn't a defence;
+  Session 9 is still needed.
+- **Judge noise.** g037 was marked INCORRECT although it matches its reference. g021 and
+  g031 were marked down for omitting details from long reference answers.
+
+**Lessons**
+- Keeping tables whole makes regional variants into near-duplicate chunks. Chunking and
+  region handling interact.
+- Large table chunks embed as one diluted vector. That isn't truncation: the largest is
+  461 of bge-small's 512 tokens.
+- Always check the latest PyPI release before pinning it: here, "latest" was an empty
+  package.
+- The tool's PowerShell may not use `.venv`. Call `.venv\Scripts\python.exe` explicitly.
+
+**Next:** Session 4, hybrid search (BM25 + vectors) for product codes and exact terms.

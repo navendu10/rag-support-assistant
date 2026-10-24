@@ -74,6 +74,8 @@ def evaluate_item(
                 audience=c.audience,
                 region=c.region,
                 score=round(c.score, 4),
+                section=c.section or None,
+                page=c.page,
             )
             for c in answer.retrieved[:recall_k]
         ],
