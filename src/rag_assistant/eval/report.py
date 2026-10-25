@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from rag_assistant.eval.metrics import ResultRow, format_rate
+from rag_assistant.eval.metrics import ResultRow, format_metric
 
 OVERALL_ROWS = (
     ("recall_at_k", "Recall@{k} (any expected doc in top {k})", "higher"),
+    ("hit_at_1", "Hit@1 (an expected doc ranked first)", "higher"),
+    ("mrr", "MRR (mean 1/rank of the first expected doc in top {k}, 0 if absent)", "higher"),
     ("correctness", "Correctness (judge: CORRECT)", "higher"),
     ("retrieval_leaks", "Retrieval leaks (internal chunk in a customer's context)", "lower"),
     ("answer_leaks", "Answer leaks (leak items: forbidden phrase in answer)", "lower"),
@@ -18,6 +20,8 @@ OVERALL_ROWS = (
 
 TAG_COLUMNS = (
     ("recall_at_k", "Recall@{k}"),
+    ("hit_at_1", "Hit@1"),
+    ("mrr", "MRR"),
     ("correctness", "Correct"),
     ("retrieval_leaks", "Retrieval leaks"),
     ("forbidden_phrases", "Forbidden phrase"),
@@ -37,11 +41,18 @@ def _flag(value: bool | None, yes: str = "yes", no: str = "-") -> str:
     return yes if value else no
 
 
+def _rank(reciprocal: float | None) -> str:
+    """Rank of the first expected doc from its reciprocal (``-`` if absent, n/a if none)."""
+    if reciprocal is None:
+        return "n/a"
+    return str(round(1 / reciprocal)) if reciprocal else "-"
+
+
 def overall_table(summary: dict[str, object], k: int) -> str:
     """Headline metrics."""
     lines = ["| Metric | Result | Better |", "|---|---|---|"]
     for key, label, better in OVERALL_ROWS:
-        lines.append(f"| {label.format(k=k)} | {format_rate(summary[key])} | {better} |")
+        lines.append(f"| {label.format(k=k)} | {format_metric(summary[key])} | {better} |")
     latency = summary["latency_ms"]
     lines.append(
         f"| Latency p50 / p95 (ms) | {latency['p50']:.0f} / {latency['p95']:.0f} | lower |"
@@ -55,7 +66,7 @@ def tag_table(by_tag: dict[str, dict[str, object]], k: int) -> str:
     header = "| Tag | n | " + " | ".join(label.format(k=k) for _, label in TAG_COLUMNS) + " |"
     lines = [header, "|---|---|" + "---|" * len(TAG_COLUMNS)]
     for tag, s in by_tag.items():
-        cells = " | ".join(format_rate(s[key]) for key, _ in TAG_COLUMNS)
+        cells = " | ".join(format_metric(s[key]) for key, _ in TAG_COLUMNS)
         lines.append(f"| {tag} | {s['questions']} | {cells} |")
     return "\n".join(lines)
 
@@ -63,13 +74,15 @@ def tag_table(by_tag: dict[str, dict[str, object]], k: int) -> str:
 def item_table(rows: Sequence[ResultRow]) -> str:
     """One line per question, with the judge's reason for spot-checking."""
     lines = [
-        "| id | tag | recall hit | verdict | handoff | ret. leak | forbidden hits | judge reason |",
-        "|---|---|---|---|---|---|---|---|",
+        "| id | tag | recall hit | rank | verdict | handoff | ret. leak | forbidden hits "
+        "| judge reason |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
         handoff = r.handoff.verdict if r.handoff else "n/a"
         lines.append(
             f"| {r.id} | {r.failure_tag} | {_flag(r.checks.recall_hit, 'hit', 'MISS')} | "
+            f"{_rank(r.checks.reciprocal_rank)} | "
             f"{r.correctness.verdict or 'ERROR'} | {handoff} | "
             f"{_flag(r.checks.retrieval_leak, 'LEAK')} | "
             f"{_cell(', '.join(r.checks.forbidden_hits) or '-')} | {_cell(r.correctness.reason)} |"

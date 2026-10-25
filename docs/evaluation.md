@@ -10,8 +10,10 @@ python scripts/evaluate.py --stage v0                    # full run -> results/v
 python scripts/evaluate.py --stage v0 --tag leak         # subset -> results/v0/subset/ (ignored)
 python scripts/evaluate.py --stage v0 --limit 5          # smoke test
 python scripts/evaluate.py --stage v0 --rescore          # re-apply metric code to stored answers
+python scripts/evaluate.py --stage v0 --only-missing     # answer only new golden questions, then merge
 python scripts/compare_stages.py                         # before/after table across stages
-python scripts/compare_stages.py --by-tag                # plus correct/recall/forbidden per tag
+python scripts/compare_stages.py --by-tag                # plus one per-tag table per metric
+python scripts/sweep_alpha.py --stage v2                 # hybrid alpha/fusion sweep (retrieval only)
 ```
 
 ## Outputs
@@ -26,6 +28,12 @@ python scripts/compare_stages.py --by-tag                # plus correct/recall/f
 the current code and the current `must_not_contain` lists. It makes no LLM calls and
 keeps the stored answers, judge verdicts and latencies. Use it after fixing a metric, so
 that cached re-runs don't overwrite the real latencies.
+
+`--only-missing` is for a golden set that has grown. It answers only the questions with no
+row in the stored `results.jsonl`, rescores the stored rows and merges everything in golden
+order. A plain re-run would also work, since the cache makes old questions free, but every
+old row would then record a cache-hit latency. `summary.json` notes the added ids under
+`meta.extended`. Session 4 used it to bring v0 and v1 from 40 to 44 questions.
 
 Full runs are committed, so the git history records progress from stage to stage. Filtered
 runs (`--tag`, `--limit`) go to `results/<stage>/subset/`, which is git-ignored and never
@@ -48,6 +56,8 @@ and "comes with a lifetime warranty". See [00-baseline](failures/00-baseline.md#
 | Metric | Computed over | Definition | Better |
 |---|---|---|---|
 | **Recall@5** | items with at least one `expected_doc_id`; others are reported as n/a | A **hit** if any expected doc_id is among the top 5 retrieved chunks. The rate is hits / eligible items. Five chunks are retrieved even though generation only uses `top_k` (4 in v0). | higher |
+| **Hit@1** | same items as recall | A hit if the **first** retrieved chunk comes from an expected doc. | higher |
+| **MRR** | same items as recall | Mean reciprocal rank: the mean of 1/rank of the first chunk from an expected doc in the top 5, or 0 if there is none. Ranks 1, 2, 3, 4 and 5 score 1, 0.5, 0.33, 0.25 and 0.2. | higher |
 | **Correctness** | all items | The judge returns `CORRECT` or `INCORRECT` against `reference_answer` (rubric below). Unparseable judge output counts as not correct and is reported as a judge error. | higher |
 | **Retrieval leak** | every question from a **customer** | At least one of the `top_k` **context** chunks (what the LLM actually saw) has `audience=internal`. Agents are excluded (n/a). | lower |
 | **Answer leak** | `leak`-tagged items from customers | The answer contains any `must_not_contain` phrase (the canary or internal credit amounts). | lower |
@@ -55,6 +65,34 @@ and "comes with a lifetime warranty". See [00-baseline](failures/00-baseline.md#
 | **Forbidden phrase** | items with a non-empty `must_not_contain` | The answer contains any of its forbidden phrases. This is how stale ("14 days") and wrong-region answers are counted per tag. | lower |
 | **Handoff** | `expect_handoff` items | A second judge call returns `HANDOFF` or `ANSWERED` (rubric below). The rate is HANDOFF / eligible items. | higher |
 | **Latency** | all items | Retrieval, generation and total wall-clock time in ms; the report shows p50 and p95 of the total. Cached LLM calls make reruns much faster, so compare latency only between uncached runs. | lower |
+
+### Why hit@1 and MRR as well as recall
+
+Recall@5 only asks whether the right document is *somewhere* in the top 5. A fix that
+moves it from fifth to first leaves recall unchanged, so ranking improvements, and
+regressions, stay invisible. Hit@1 is the strict version. MRR gives partial credit by rank:
+
+| Question | Retrieved doc_ids (top 5) | Expected | First expected rank | Hit@1 | RR |
+|---|---|---|---|---|---|
+| A | xr-2200, xr-2200, xr-2000, … | xr-2200 | 1 | yes | 1.0 |
+| B | faq-021, wm-700, … | wm-700 | 2 | no | 0.5 |
+| C | faq-030, faq-002, uk-2026, … | uk-2026 | 3 | no | 0.33 |
+| D | five unrelated chunks | in-2026 | none | no | 0 |
+
+MRR over A-D is (1 + 0.5 + 0.33 + 0) / 4 = 0.46. Ranks count **chunks**, not distinct
+documents, because chunks are what fill the context. All three metrics are computed from
+the stored `retrieved` doc_ids, so `--rescore` adds them to old runs without LLM calls.
+
+`report.md` shows hit@1 and MRR overall and per tag, plus the rank of each question's
+first expected chunk (`-` when it is absent).
+
+### The alpha sweep's ctx diagnostic
+
+`scripts/sweep_alpha.py` adds one more number, **ctx**. It counts how many of the stage's
+`top_k` context chunks come from an expected document, summed over a group of questions.
+It is a sweep-only diagnostic, not a stored metric. Ranking metrics stop at the first
+expected chunk, so they can't see a competing product's chunk taking a later context slot.
+ctx can. See [02-hybrid-search](failures/02-hybrid-search.md#the-alpha-sweep).
 
 ### Why there are two leak metrics
 

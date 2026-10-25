@@ -6,8 +6,8 @@ chunking: structure      # v0: fixed
 chunk_size: 1200         # max section body before sub-splitting (v0: 1000)
 chunk_overlap: 150       # overlap when a long section is sub-split (v0: 100)
 min_chunk_chars: 200     # shorter sections are merged into the next one
-search: vector           # hybrid -> Session 4
-alpha: null              # hybrid weighting -> Session 4
+search: vector           # hybrid since Session 4 (see v2)
+hybrid: null             # hybrid search settings (v2)
 rerank: false            # Session 5
 query_rewrite: false     # Session 6
 use_history: false       # Session 6

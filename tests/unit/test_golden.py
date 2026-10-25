@@ -67,8 +67,8 @@ def test_golden_ids_are_unique_and_sequential(golden: list[GoldenItem]) -> None:
 
 
 def test_golden_size(golden: list[GoldenItem]) -> None:
-    """About forty items."""
-    assert 35 <= len(golden) <= 45
+    """40 items from Session 1 plus 4 product-code items from Session 4."""
+    assert len(golden) == 44
 
 
 def test_tag_minimums(golden: list[GoldenItem]) -> None:
@@ -132,6 +132,22 @@ def test_required_questions(golden: list[GoldenItem]) -> None:
 
     cable = _find(golden, "Does the QuickCharge cable have a lifetime warranty?")
     assert "has a lifetime warranty" in cable.must_not_contain
+
+
+SESSION_4_PRODUCT_CODE = {
+    "How long do I hold the reset button on the XR-2000?": ["manual-xr-2000"],
+    "What does error E-74 mean on the WM-700?": ["manual-wm-700"],
+    "What's the maximum Wi-Fi speed of the xr2200?": ["manual-xr-2200", "faq-005"],
+    "What is the USB-C output of the PB-20K?": ["manual-pb-20k"],
+}
+
+
+def test_session_4_product_code_questions(golden: list[GoldenItem]) -> None:
+    """Session 4 adds four product_code items, one writing the code without its hyphen."""
+    for question, expected in SESSION_4_PRODUCT_CODE.items():
+        item = _find(golden, question)
+        assert (item.failure_tag, item.expected_doc_ids) == ("product_code", expected)
+    assert Counter(g.failure_tag for g in golden)["product_code"] == 8
 
 
 def test_leak_items_guard_canary_and_amounts(

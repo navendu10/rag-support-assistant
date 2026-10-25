@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from dataclasses import asdict
 
 import weaviate
-from weaviate.classes.config import Configure, DataType, Property
+from weaviate.classes.config import Configure, DataType, Property, Tokenization
 from weaviate.classes.data import DataObject
 from weaviate.collections import Collection
 
@@ -16,17 +16,21 @@ from rag_assistant.ingestion.chunker import Chunk
 
 INSERT_BATCH = 100
 
+# Tokenization decides how keyword (BM25) search and filters see a value:
+# WORD splits on anything that is not a letter or digit, so a question containing
+# "XR-2200" matches product_code "XR-2200" as "xr" + "2200"; FIELD keeps the whole
+# value as one token, which is what exact filters on ids, regions and audiences need.
 PROPERTIES = [
-    Property(name="text", data_type=DataType.TEXT),
-    Property(name="doc_id", data_type=DataType.TEXT),
-    Property(name="title", data_type=DataType.TEXT),
+    Property(name="text", data_type=DataType.TEXT, tokenization=Tokenization.WORD),
+    Property(name="doc_id", data_type=DataType.TEXT, tokenization=Tokenization.FIELD),
+    Property(name="title", data_type=DataType.TEXT, tokenization=Tokenization.WORD),
     Property(name="chunk_index", data_type=DataType.INT),
-    Property(name="audience", data_type=DataType.TEXT),
-    Property(name="region", data_type=DataType.TEXT),
-    Property(name="doc_type", data_type=DataType.TEXT),
-    Property(name="product_code", data_type=DataType.TEXT),
-    Property(name="effective_date", data_type=DataType.TEXT),
-    Property(name="section", data_type=DataType.TEXT),
+    Property(name="audience", data_type=DataType.TEXT, tokenization=Tokenization.FIELD),
+    Property(name="region", data_type=DataType.TEXT, tokenization=Tokenization.FIELD),
+    Property(name="doc_type", data_type=DataType.TEXT, tokenization=Tokenization.FIELD),
+    Property(name="product_code", data_type=DataType.TEXT, tokenization=Tokenization.WORD),
+    Property(name="effective_date", data_type=DataType.TEXT, tokenization=Tokenization.FIELD),
+    Property(name="section", data_type=DataType.TEXT, tokenization=Tokenization.WORD),
     Property(name="page", data_type=DataType.INT),
 ]
 

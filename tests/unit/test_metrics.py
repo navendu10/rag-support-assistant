@@ -14,15 +14,21 @@ from rag_assistant.eval.metrics import (
     ResultRow,
     check_item,
     find_forbidden,
+    first_expected_rank,
+    format_mean,
+    format_metric,
     format_rate,
+    hit_at_1,
+    mean_value,
     parse_verdict,
     recall_hit,
+    reciprocal_rank,
     retrieval_leak,
     summarise_by_tag,
     summarise_rows,
 )
 from rag_assistant.eval.report import render_report
-from rag_assistant.eval.runner import rescore_row, select_items
+from rag_assistant.eval.runner import merge_rows, missing_items, rescore_row, select_items
 from rag_assistant.schemas import GoldenItem, User
 
 CUSTOMER = User(user_id="c", name="C", role="customer", region="UK")
@@ -57,6 +63,64 @@ def test_recall_hit_any_expected_doc() -> None:
 def test_recall_not_applicable_without_expected_docs() -> None:
     """Questions with no expected docs are excluded (None)."""
     assert recall_hit([], ["x"]) is None
+
+
+# ------------------------------------------------------------ hit@1 and MRR
+
+
+def test_first_expected_rank_uses_chunk_positions() -> None:
+    """Ranks are 1-based positions in the retrieved chunk list; repeats don't matter."""
+    assert first_expected_rank(["b"], ["a", "a", "b", "b"]) == 3
+    assert first_expected_rank(["a", "b"], ["x", "b", "a"]) == 2
+    assert first_expected_rank(["a"], ["x", "y"]) is None
+
+
+def test_hit_at_1() -> None:
+    """Hit@1 needs an expected doc in first place; n/a without expected docs."""
+    assert hit_at_1(["a"], ["a", "x"]) is True
+    assert hit_at_1(["a"], ["x", "a"]) is False
+    assert hit_at_1(["a"], []) is False
+    assert hit_at_1([], ["a"]) is None
+
+
+@pytest.mark.parametrize(
+    ("retrieved", "expected"),
+    [
+        (["a", "x", "x", "x", "x"], 1.0),
+        (["x", "a", "x", "x", "x"], 0.5),
+        (["x", "x", "a", "x", "x"], 1 / 3),
+        (["x", "x", "x", "x", "a"], 0.2),
+        (["x", "x", "x", "x", "x"], 0.0),
+    ],
+)
+def test_reciprocal_rank_hand_computed(retrieved: list[str], expected: float) -> None:
+    """1/rank of the first expected doc, 0 when it is absent from the top 5."""
+    assert reciprocal_rank(["a"], retrieved) == pytest.approx(expected)
+
+
+def test_reciprocal_rank_not_applicable_without_expected_docs() -> None:
+    """No expected docs: n/a, like recall."""
+    assert reciprocal_rank([], ["a"]) is None
+
+
+def test_mrr_is_the_mean_of_reciprocal_ranks() -> None:
+    """Ranks 1, 3 and absent: (1 + 1/3 + 0) / 3 = 0.444; None values are skipped."""
+    assert mean_value([1.0, 1 / 3, 0.0, None]) == {"value": 0.444, "total": 3}
+    assert mean_value([None]) == {"value": 0.0, "total": 0}
+
+
+def test_format_mean_and_metric() -> None:
+    """Means render with two decimals; format_metric dispatches on the summary shape."""
+    assert format_mean({"value": 0.444, "total": 3}) == "0.44"
+    assert format_mean({"value": 0.0, "total": 0}) == "n/a"
+    assert format_metric({"value": 0.5, "total": 2}) == "0.50"
+    assert format_metric({"count": 1, "total": 2}) == "1/2 (50%)"
+
+
+def test_check_item_fills_rank_metrics() -> None:
+    """check_item computes hit@1 and the reciprocal rank from the retrieved doc_ids."""
+    checks = check_item(_item(expected_doc_ids=["doc-a"]), CUSTOMER, ["x", "doc-a"], [], "")
+    assert (checks.recall_hit, checks.hit_at_1, checks.reciprocal_rank) == (True, False, 0.5)
 
 
 # ------------------------------------------------------- forbidden phrases
@@ -223,6 +287,8 @@ def _row(**overrides: object) -> ResultRow:
             answer_leak=None,
             injection_fail=None,
             forbidden_hits=[],
+            hit_at_1=True,
+            reciprocal_rank=1.0,
         ),
         "correctness": Judgement(verdict="CORRECT", reason="ok"),
         "handoff": None,
@@ -239,6 +305,8 @@ def _rows() -> list[ResultRow]:
         answer_leak=False,
         injection_fail=None,
         forbidden_hits=[],
+        hit_at_1=False,
+        reciprocal_rank=0.0,
     )
     halluc_checks = ItemChecks(
         recall_hit=None,
@@ -274,6 +342,8 @@ def test_summarise_rows() -> None:
     s = summarise_rows(_rows())
     assert s["questions"] == 3
     assert s["recall_at_k"] == {"count": 1, "total": 2}  # g003 is n/a
+    assert s["hit_at_1"] == {"count": 1, "total": 2}
+    assert s["mrr"] == {"value": 0.5, "total": 2}
     assert s["correctness"] == {"count": 1, "total": 3}  # judge error counts as not correct
     assert s["retrieval_leaks"] == {"count": 1, "total": 3}
     assert s["answer_leaks"] == {"count": 0, "total": 1}
@@ -319,7 +389,20 @@ def test_report_and_compare_render(tmp_path: Path) -> None:
     payload = {"meta": meta, "overall": summary, "by_tag": by_tag}
     (tmp_path / "v0" / "summary.json").write_text(json.dumps(payload), encoding="utf-8")
     table = comparison_table(load_summaries(tmp_path))
-    assert table.splitlines()[2].startswith("| v0 | 1/2 (50%) | 1/3 (33%) | 1/3 (33%)")
+    lines = table.splitlines()
+    assert lines[0].startswith("| Stage | Recall@5 | Hit@1 | MRR | Correctness |")
+    assert lines[2].startswith("| v0 | 1/2 (50%) | 1/2 (50%) | 0.50 | 1/3 (33%) | 1/3 (33%)")
+    assert "Hit@1 (an expected doc ranked first) | 1/2 (50%)" in report
+    assert "| g001 | normal | hit | 1 | CORRECT |" in report
+    assert "| g002 | leak | MISS | - | INCORRECT |" in report
+
+
+def test_compare_marks_metrics_an_old_summary_lacks() -> None:
+    """A summary written before hit@1/MRR existed shows '-' rather than crashing."""
+    overall = summarise_rows(_rows())
+    del overall["hit_at_1"], overall["mrr"]
+    table = comparison_table([{"meta": {"stage": "old"}, "overall": overall, "by_tag": {}}])
+    assert table.splitlines()[2].startswith("| old | 1/2 (50%) | - | - |")
 
 
 def test_rescore_row_refreshes_checks_only() -> None:
@@ -341,6 +424,7 @@ def test_rescore_row_refreshes_checks_only() -> None:
     fresh = rescore_row(stale, item, CUSTOMER)
     assert fresh.checks.answer_leak is True
     assert fresh.checks.forbidden_hits == ["GBP 20"]
+    assert (fresh.checks.hit_at_1, fresh.checks.reciprocal_rank) == (None, None)
     assert (fresh.answer, fresh.correctness, fresh.latency_ms) == (
         stale.answer,
         stale.correctness,
@@ -360,18 +444,60 @@ def test_select_items() -> None:
     assert [i.id for i in select_items(items, tag="leak", limit=5)] == ["g003"]
 
 
+def test_rescore_adds_rank_metrics_to_an_old_row() -> None:
+    """A row stored before hit@1/MRR existed loads, and rescoring fills them in."""
+    old = json.loads(_row().model_dump_json())
+    del old["checks"]["hit_at_1"], old["checks"]["reciprocal_rank"]
+    old["retrieved"] = [
+        {"doc_id": d, "chunk_index": 0, "audience": "public", "region": "ALL", "score": 0.5}
+        for d in ("x", "x", "doc-a")
+    ]
+    row = ResultRow.model_validate(old)
+    assert row.checks.reciprocal_rank is None
+    fresh = rescore_row(row, _item(expected_doc_ids=["doc-a"]), CUSTOMER)
+    assert (fresh.checks.hit_at_1, fresh.checks.reciprocal_rank) == (False, pytest.approx(1 / 3))
+
+
+def test_missing_items_and_merge_keep_golden_order() -> None:
+    """--only-missing answers new items only and merges them back in golden order."""
+    items = [_item(id=f"g00{n}") for n in (1, 2, 3)]
+    stored = [_row(id="g001"), _row(id="g003"), _row(id="g009")]  # g009 was removed
+    assert [i.id for i in missing_items(items, stored)] == ["g002"]
+    merged = merge_rows(items, stored, [_row(id="g002", answer="new")])
+    assert [r.id for r in merged] == ["g001", "g002", "g003"]
+    assert merged[1].answer == "new"
+
+
 def test_tag_comparison_table_columns_per_stage() -> None:
-    """--by-tag shows each metric for every stage, side by side, per failure tag."""
+    """--by-tag prints one table per metric: tags down, stages across."""
     rows = _rows()
     by_tag = summarise_by_tag(rows)
     summaries = [
         {"meta": {"stage": stage}, "overall": summarise_rows(rows), "by_tag": by_tag}
         for stage in ("v0", "v1")
     ]
-    table = tag_comparison_table(summaries).splitlines()
-    assert table[0] == (
-        "| Tag | n | Correct v0 | Correct v1 | Recall@5 v0 | Recall@5 v1 | "
-        "Forbidden phrase v0 | Forbidden phrase v1 |"
-    )
-    assert table[2] == "| normal | 1 | 1/1 | 1/1 | 1/1 | 1/1 | n/a | n/a |"
-    assert table[4].startswith("| hallucination | 1 | 0/1 | 0/1 | n/a | n/a |")
+    tables = tag_comparison_table(summaries).split("\n\n")
+    assert [t.splitlines()[0] for t in tables] == [
+        f"| {label} by tag | n | v0 | v1 |"
+        for label in ("Correct", "Recall@5", "Hit@1", "MRR", "Forbidden phrase")
+    ]
+    correct, recall, _, mrr, forbidden = (t.splitlines() for t in tables)
+    assert correct[2:] == [
+        "| normal | 1 | 1/1 | 1/1 |",
+        "| leak | 1 | 0/1 | 0/1 |",
+        "| hallucination | 1 | 0/1 | 0/1 |",
+    ]
+    assert recall[4] == "| hallucination | 1 | n/a | n/a |"
+    assert mrr[2:4] == ["| normal | 1 | 1.00 | 1.00 |", "| leak | 1 | 0.00 | 0.00 |"]
+    assert forbidden[3] == "| leak | 1 | 0/1 | 0/1 |"
+
+
+def test_tag_table_marks_a_tag_missing_from_a_stage() -> None:
+    """A tag one stage never saw shows '-' in that stage's column."""
+    rows = _rows()
+    summaries = [
+        {"meta": {"stage": "v0"}, "by_tag": summarise_by_tag(rows[:1])},
+        {"meta": {"stage": "v1"}, "by_tag": summarise_by_tag(rows)},
+    ]
+    correct = tag_comparison_table(summaries).split("\n\n")[0].splitlines()
+    assert correct[3] == "| leak | 1 | - | 0/1 |"

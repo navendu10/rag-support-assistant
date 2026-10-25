@@ -27,11 +27,14 @@ from generators.common import (
 from generators.facts import (
     AB_PRO_BATTERY_HOURS,
     AB_PRO_BATTERY_WITH_CASE_HOURS,
+    PB_20K_USB_C_OUTPUT_W,
     STORE_NAME,
     WM_700_E47,
     WM_700_E74,
+    XR_2000_MAX_SPEED_MBPS,
     XR_2000_RESET_LED,
     XR_2000_RESET_SECONDS,
+    XR_2200_MAX_SPEED_MBPS,
     XR_2200_RESET_LED,
     XR_2200_RESET_SECONDS,
 )
@@ -241,7 +244,7 @@ def _router(
 XR_2200 = _router(
     "XR-2200",
     "Wi-Fi 6 (802.11ax)",
-    "Up to 3000 Mbps (AX3000)",
+    f"Up to {XR_2200_MAX_SPEED_MBPS} Mbps (AX3000)",
     "WPA2 and WPA3",
     XR_2200_RESET_SECONDS,
     XR_2200_RESET_LED,
@@ -251,7 +254,7 @@ XR_2200 = _router(
 XR_2000 = _router(
     "XR-2000",
     "Wi-Fi 5 (802.11ac)",
-    "Up to 1200 Mbps (AC1200)",
+    f"Up to {XR_2000_MAX_SPEED_MBPS} Mbps (AC1200)",
     "WPA2",
     XR_2000_RESET_SECONDS,
     XR_2000_RESET_LED,
@@ -465,7 +468,7 @@ PB_20K = Manual(
     specs=(
         ("Model", "PB-20K"),
         ("Capacity", "20,000 mAh (74 Wh)"),
-        ("USB-C output", "Up to 65 W (Power Delivery)"),
+        ("USB-C output", f"Up to {PB_20K_USB_C_OUTPUT_W} W (Power Delivery)"),
         ("USB-A output", "2 x 18 W"),
         ("Recharge time", "About 3.5 hours with a 65 W charger"),
         ("Weight", "400 g"),

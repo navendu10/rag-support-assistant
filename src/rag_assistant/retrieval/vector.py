@@ -16,7 +16,10 @@ from rag_assistant.embeddings import Embedder
 
 @dataclass(frozen=True)
 class RetrievedChunk:
-    """A chunk returned by search, with its similarity score (1 - cosine distance)."""
+    """A chunk returned by search with its score, higher is better.
+
+    Vector search scores 1 - cosine distance; hybrid search uses Weaviate's fused score.
+    """
 
     text: str
     doc_id: str
@@ -44,11 +47,19 @@ class VectorRetriever:
             limit=k,
             return_metadata=MetadataQuery(distance=True),
         )
-        return [_to_chunk(obj.properties, obj.metadata.distance) for obj in response.objects]
+        return [
+            to_chunk(obj.properties, 1.0 - _or_one(obj.metadata.distance))
+            for obj in response.objects
+        ]
 
 
-def _to_chunk(props: dict, distance: float | None) -> RetrievedChunk:
-    """Convert a Weaviate object into a ``RetrievedChunk``."""
+def _or_one(distance: float | None) -> float:
+    """Treat a missing distance as the worst cosine distance (1.0)."""
+    return 1.0 if distance is None else distance
+
+
+def to_chunk(props: dict, score: float) -> RetrievedChunk:
+    """Convert a Weaviate object's properties and score into a ``RetrievedChunk``."""
     return RetrievedChunk(
         text=str(props["text"]),
         doc_id=str(props["doc_id"]),
@@ -56,7 +67,7 @@ def _to_chunk(props: dict, distance: float | None) -> RetrievedChunk:
         chunk_index=int(props["chunk_index"]),
         audience=str(props["audience"]),
         region=str(props["region"]),
-        score=1.0 - (distance if distance is not None else 1.0),
+        score=score,
         section=str(props.get("section") or ""),
         page=int(props["page"]) if props.get("page") is not None else None,
     )

@@ -6,8 +6,8 @@ description: Naive baseline - fixed-size chunks, vector-only search, no guards
 chunking: fixed          # structure -> Session 3
 chunk_size: 1000
 chunk_overlap: 100
-search: vector           # hybrid -> Session 4
-alpha: null              # hybrid weighting -> Session 4
+search: vector           # hybrid since Session 4 (see v2)
+hybrid: null             # hybrid search settings (v2)
 rerank: false            # Session 5
 query_rewrite: false     # Session 6
 use_history: false       # Session 6

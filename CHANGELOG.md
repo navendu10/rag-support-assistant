@@ -7,6 +7,54 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-25 (Session 4: hybrid search)
+
+### Added
+
+- Stage v2 (`configs/stages/v2.yaml`): v1 plus `search: hybrid`, ingested into
+  `Chunks_v2`.
+  - It uses dynamic alpha: 0.25 when the question contains a product or error code, and
+    1.0 (pure vector) otherwise.
+  - Fusion is `relative_score`, over `text`, `title` and `product_code^2`.
+- Hybrid retrieval (`retrieval/hybrid.py`):
+  - Calls Weaviate `query.hybrid` with our FastEmbed vector passed explicitly.
+  - Keyword text has canonicalised codes ("xr2200" -> "XR-2200").
+- Code detection (`retrieval/codes.py`): one pattern per manifest product code, with
+  optional hyphens, plus `E-NN` error codes. `retrieval/factory.py` picks the retriever
+  for a stage.
+- `HybridConfig` stage settings: `alpha_strategy`, `alpha`, `code_alpha`, `default_alpha`,
+  `fusion` and `query_properties` with optional `^N` boosts, all validated.
+- `scripts/sweep_alpha.py` (retrieval only):
+  - Reports recall@5, hit@1, MRR and a context diagnostic per question group, for every
+    fixed alpha and dynamic pair.
+  - Writes `results/v2/alpha_sweep.md`.
+- Evaluation:
+  - Hit@1 and MRR for every stage, in `results.jsonl`, `summary.json`, `report.md` and
+    `compare_stages.py`.
+  - `report.md` gains a rank column.
+  - `evaluate.py --only-missing` answers only new golden items and merges them, keeping
+    stored latencies.
+- Golden set: four product_code items (g041-g044). That makes 44 items, 8 of them
+  product_code.
+- Tests:
+  - Unit tests for code detection, alpha selection, query planning, hybrid config,
+    hit@1/MRR, the sweep and `--only-missing` merging.
+  - An integration test that the XR-2200 manual ranks first in v2 and the XR-2000 manual
+    stays out of its context.
+- `results/v2/` and `docs/failures/02-hybrid-search.md`.
+
+### Changed
+
+- `StageConfig`: a nested `hybrid:` block replaces the top-level `alpha`. `search` is no
+  longer a "not implemented" switch.
+- Weaviate properties now declare tokenization: `word` for text, title, section and
+  product_code, and `field` for doc_id, region, audience, doc_type and effective_date.
+- `compare_stages.py --by-tag` prints one table per metric (tags down, stages across).
+- v0 and v1 results were extended to the 44-question set and rescored with hit@1 and MRR.
+  No old answer, verdict or latency changed.
+- The router speeds and the PB-20K USB-C output moved into `generators/facts.py`. The
+  generated files are byte-identical.
+
 ## [0.4.0] - 2026-10-24 (Session 3: structure-aware chunking)
 
 ### Added
