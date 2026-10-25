@@ -51,24 +51,30 @@ Full details and troubleshooting: [docs/setup.md](docs/setup.md).
 A deterministic, template-generated knowledge base of 53 documents: 8 product manuals,
 regional return policies, store policies, 30 help-centre FAQs, 4 internal playbooks and
 one marketplace listing. Each family is designed to trigger specific RAG failures. A
-40-question golden set measures them. See [docs/data.md](docs/data.md).
+44-question golden set measures them. See [docs/data.md](docs/data.md).
 
 ## Results
 
-Output of `python scripts/compare_stages.py` on the 40-question golden set. Definitions
-are in [docs/evaluation.md](docs/evaluation.md); v0's failures are analysed in
-[docs/failures/00-baseline.md](docs/failures/00-baseline.md), and v1 (structure-aware
-chunking) in [docs/failures/01-chunking.md](docs/failures/01-chunking.md). v1 fixes the
-chunks themselves (no table is split any more), but end-to-end correctness is flat. The
-injection improvement is an accidental side effect, not a defence.
+Output of `python scripts/compare_stages.py` on the 44-question golden set (every stage is
+scored on the same questions). Definitions are in [docs/evaluation.md](docs/evaluation.md).
+Each stage has its own write-up:
 
-| Stage | Recall@5 | Correctness | Retrieval leaks | Answer leaks | Injection failures | Handoffs |
-|---|---|---|---|---|---|---|
-| v0 | 31/35 (89%) | 24/40 (60%) | 5/39 (13%) | 1/3 (33%) | 2/3 (67%) | 1/7 (14%) |
-| v1 | 30/35 (86%) | 23/40 (58%) | 4/39 (10%) | 0/3 (0%) | 0/3 (0%) | 1/7 (14%) |
+- v0, the baseline: [00-baseline](docs/failures/00-baseline.md).
+- v1, structure-aware chunking: [01-chunking](docs/failures/01-chunking.md). It fixes the
+  chunks themselves, so no table is split any more, but end-to-end correctness is flat.
+  The injection improvement is an accidental side effect, not a defence.
+- v2, hybrid search: [02-hybrid-search](docs/failures/02-hybrid-search.md). It removes
+  every competing product's chunk from the context of code questions (7/9 → 0/9). The
+  headline numbers don't move, because v1 already answered those questions correctly.
 
-Higher is better for recall, correctness and handoffs; lower is better for leaks and
-injection failures.
+| Stage | Recall@5 | Hit@1 | MRR | Correctness | Retrieval leaks | Answer leaks | Injection failures | Handoffs |
+|---|---|---|---|---|---|---|---|---|
+| v0 | 35/39 (90%) | 24/39 (62%) | 0.72 | 28/44 (64%) | 5/43 (12%) | 1/3 (33%) | 2/3 (67%) | 1/7 (14%) |
+| v1 | 34/39 (87%) | 22/39 (56%) | 0.68 | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 0/3 (0%) | 1/7 (14%) |
+| v2 | 34/39 (87%) | 22/39 (56%) | 0.68 | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 0/3 (0%) | 2/7 (29%) |
+
+Higher is better for recall, hit@1, MRR, correctness and handoffs; lower is better for
+leaks and injection failures.
 
 ## Session status
 
@@ -78,7 +84,7 @@ injection failures.
 | 1 | Dummy knowledge base and golden test set | ✅ Done |
 | 2 | v0 naive pipeline + evaluation harness (baseline) | ✅ Done |
 | 3 | Fix 1: bad chunking (structure-aware chunking, stage v1) | ✅ Done |
-| 4 | Fix 2: product-code confusion (hybrid search) | ⏳ Planned |
+| 4 | Fix 2: product-code confusion (hybrid search, stage v2) | ✅ Done |
 | 5 | Fix 3: poor ranking (reranking) | ⏳ Planned |
 | 6 | Fix 4: vague queries, wrong region and stale documents | ⏳ Planned |
 | 7 | Fix 5: internal-document leaks (access control, Weaviate API keys) | ⏳ Planned |

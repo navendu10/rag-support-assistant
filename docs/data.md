@@ -26,7 +26,7 @@ data/
   generated/             output (git-ignored)
     manuals/  policies/  faqs/  playbooks/  marketplace/
     manifest.json        all 53 documents, sorted by doc_id
-  golden/questions.jsonl 40 hand-written evaluation items (committed)
+  golden/questions.jsonl 44 hand-written evaluation items (committed)
   users.json             the four test users (committed)
 ```
 
@@ -92,6 +92,10 @@ Where the metadata is stored depends on the format:
   - Only the Wi-Fi standard, speed, security and reset steps differ: 10 seconds / LED blinks
     amber, against 30 seconds / LED turns solid red.
   - WM-700 errors E-47 and E-74 are near-identical tokens with different meanings.
+  - From v2 on (`search: hybrid`), questions that contain a code get keyword-heavy hybrid
+    search. Codes are detected from this manifest's `product_code` values, with or without
+    the hyphen, plus an `E-NN` pattern for error codes. See
+    [02-hybrid-search](failures/02-hybrid-search.md).
 - **Ranking:** the VM-55Q manual's troubleshooting row "Lines on screen → check the HDMI
   cable" closely matches a "lines on my TV" query. The fact that answers it (panel defects
   are covered for 24 months) appears only in the warranty policy. FAQ threads about the same
@@ -130,6 +134,8 @@ listed for them.
 | US returns | sealed 30 days; opened audio 15 days; other opened 15 days + 10% restocking fee | `returns-us-2026`, `-print` |
 | XR-2200 factory reset | hold reset 10 seconds until the LED blinks amber | `manual-xr-2200` |
 | XR-2000 factory reset | hold reset 30 seconds until the LED turns solid red | `manual-xr-2000` |
+| XR-2200 / XR-2000 maximum wireless speed | up to 3000 Mbps (AX3000) / up to 1200 Mbps (AC1200) | `manual-xr-2200` / `manual-xr-2000`; both in `faq-005` |
+| PowerBank 20K USB-C output | up to 65 W (Power Delivery) | `manual-pb-20k` |
 | WM-700 E-47 / E-74 | drain pump blocked / door lock fault | `manual-wm-700` (E-47 also in `faq-021`) |
 | VM-55Q warranty | panel defects (lines on screen, dead pixels) 24 months; other parts 12 months | `policy-warranty` |
 | Standard warranty | 12 months, all parts | `policy-warranty` |
@@ -171,6 +177,11 @@ region, and agents must have `ALL`.
 | `expect_handoff` | whether the assistant should hand the user to a human |
 | `must_not_contain` | specific claims or internal facts that must not appear in the answer (case-insensitive). Never single words: a correct "it does **not** have a lifetime warranty" contains "lifetime", so the entry is "has a lifetime warranty". The canary code is the one single-token exception |
 
+Items g001-g040 were written in Session 1. Session 4 added four product_code items
+(g041-g044) so that ranking metrics have more code questions to measure. They cover the
+XR-2000 reset hold time, WM-700 E-74, the XR-2200's maximum speed and the PB-20K's USB-C
+output. All four are grounded in the facts table above.
+
 The decisive document is the only one listed whenever a less useful document would
 otherwise count as a hit. For example, the TV "lines on the screen" item lists only
 `policy-warranty`, so retrieving just the manual counts as a ranking failure.
@@ -178,7 +189,7 @@ otherwise count as a hit. For example, the TV "lines on the screen" item lists o
 | Tag | Items | Examples |
 |---|---|---|
 | chunking | 4 | "Can I return opened headphones?" (UK) |
-| product_code | 4 | "How do I factory reset the XR-2200?"; WM-700 E-74 vs E-47 |
+| product_code | 8 | "How do I factory reset the XR-2200?"; WM-700 E-74 vs E-47; "What's the maximum Wi-Fi speed of the xr2200?" (no hyphen); PB-20K USB-C output |
 | ranking | 3 | "My TV has lines on the screen, I bought it last March" |
 | query_region | 4 | "Can I return it?" after an AeroBuds Pro chat (UK) |
 | stale | 2 | opened earbuds in the UK; must not say "14 days" |
@@ -192,7 +203,9 @@ otherwise count as a hit. For example, the TV "lines on the screen" item lists o
 - `tests/unit/test_data_generation.py` covers:
   - Determinism, including rebuilding in place.
   - Document counts.
-  - Every required fact.
+  - Every required fact, including the router speeds and the PB-20K output added in
+    Session 4. These facts moved into `facts.py`, and the generated files stayed
+    byte-identical.
   - Phrase exclusivity, which enforces "no contradictions".
   - "student" appearing nowhere.
   - The playbook canary and internal audience.
@@ -206,4 +219,5 @@ otherwise count as a hit. For example, the TV "lines on the screen" item lists o
   - Known users.
   - Customers never expecting internal documents.
   - Reference answers that obey their own `must_not_contain`.
-  - The required questions from the session brief.
+  - The required questions from the session brief, and the four Session 4 product_code
+    items (44 items in total, 8 product_code).

@@ -19,7 +19,8 @@ from rag_assistant.embeddings import Embedder
 from rag_assistant.generation.naive import NaiveGenerator
 from rag_assistant.ingestion.store import open_client
 from rag_assistant.llm import make_chat_model
-from rag_assistant.retrieval.vector import RetrievedChunk, VectorRetriever
+from rag_assistant.retrieval.factory import Retriever, make_retriever
+from rag_assistant.retrieval.vector import RetrievedChunk
 from rag_assistant.schemas import Turn, User
 
 
@@ -47,7 +48,7 @@ class Pipeline:
     def __init__(
         self,
         stage: StageConfig,
-        retriever: VectorRetriever,
+        retriever: Retriever,
         generator: NaiveGenerator,
         client: weaviate.WeaviateClient | None = None,
     ) -> None:
@@ -70,8 +71,11 @@ class Pipeline:
                 f"Collection {stage.collection_name} not found. "
                 f"Run: python scripts/ingest.py --stage {stage.name}"
             )
-        retriever = VectorRetriever(
-            client.collections.get(stage.collection_name), Embedder(settings.embedding)
+        retriever = make_retriever(
+            stage,
+            client.collections.get(stage.collection_name),
+            Embedder(settings.embedding),
+            settings.paths.resolve(settings.paths.generated_dir) / "manifest.json",
         )
         generator = NaiveGenerator(
             make_chat_model(settings, settings.llm.generation_model),
@@ -99,7 +103,7 @@ class Pipeline:
             self._client = None
 
     def retrieve(self, question: str, k: int) -> list[RetrievedChunk]:
-        """v0: vector search on the raw latest message only."""
+        """Search (vector or hybrid, per the stage) on the raw latest message only."""
         return self._retriever.search(question, k)
 
     def answer(

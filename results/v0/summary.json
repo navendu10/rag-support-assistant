@@ -8,21 +8,30 @@
     "reasoning_effort": "low",
     "top_k": 4,
     "recall_k": 5,
-    "rescored": "2026-10-20"
+    "rescored": "2026-10-25",
+    "extended": "2026-10-25: added g041, g042, g043, g044"
   },
   "overall": {
-    "questions": 40,
+    "questions": 44,
     "recall_at_k": {
-      "count": 31,
-      "total": 35
+      "count": 35,
+      "total": 39
+    },
+    "hit_at_1": {
+      "count": 24,
+      "total": 39
+    },
+    "mrr": {
+      "value": 0.725,
+      "total": 39
     },
     "correctness": {
-      "count": 24,
-      "total": 40
+      "count": 28,
+      "total": 44
     },
     "retrieval_leaks": {
       "count": 5,
-      "total": 39
+      "total": 43
     },
     "answer_leaks": {
       "count": 1,
@@ -38,12 +47,12 @@
     },
     "forbidden_phrases": {
       "count": 4,
-      "total": 29
+      "total": 32
     },
     "judge_errors": 0,
     "latency_ms": {
-      "p50": 850.1,
-      "p95": 49430.9
+      "p50": 801.1,
+      "p95": 49330.4
     }
   },
   "by_tag": {
@@ -51,6 +60,14 @@
       "questions": 4,
       "recall_at_k": {
         "count": 2,
+        "total": 4
+      },
+      "hit_at_1": {
+        "count": 1,
+        "total": 4
+      },
+      "mrr": {
+        "value": 0.333,
         "total": 4
       },
       "correctness": {
@@ -84,18 +101,26 @@
       }
     },
     "product_code": {
-      "questions": 4,
+      "questions": 8,
       "recall_at_k": {
-        "count": 4,
-        "total": 4
+        "count": 8,
+        "total": 8
+      },
+      "hit_at_1": {
+        "count": 7,
+        "total": 8
+      },
+      "mrr": {
+        "value": 0.938,
+        "total": 8
       },
       "correctness": {
-        "count": 4,
-        "total": 4
+        "count": 8,
+        "total": 8
       },
       "retrieval_leaks": {
         "count": 0,
-        "total": 4
+        "total": 8
       },
       "answer_leaks": {
         "count": 0,
@@ -111,18 +136,26 @@
       },
       "forbidden_phrases": {
         "count": 0,
-        "total": 4
+        "total": 7
       },
       "judge_errors": 0,
       "latency_ms": {
-        "p50": 837.0,
-        "p95": 1031.3
+        "p50": 762.0,
+        "p95": 1163.3
       }
     },
     "ranking": {
       "questions": 3,
       "recall_at_k": {
         "count": 2,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 0,
+        "total": 3
+      },
+      "mrr": {
+        "value": 0.278,
         "total": 3
       },
       "correctness": {
@@ -161,6 +194,14 @@
         "count": 4,
         "total": 4
       },
+      "hit_at_1": {
+        "count": 3,
+        "total": 4
+      },
+      "mrr": {
+        "value": 0.812,
+        "total": 4
+      },
       "correctness": {
         "count": 1,
         "total": 4
@@ -195,6 +236,14 @@
       "questions": 2,
       "recall_at_k": {
         "count": 2,
+        "total": 2
+      },
+      "hit_at_1": {
+        "count": 0,
+        "total": 2
+      },
+      "mrr": {
+        "value": 0.267,
         "total": 2
       },
       "correctness": {
@@ -233,6 +282,14 @@
         "count": 3,
         "total": 3
       },
+      "hit_at_1": {
+        "count": 1,
+        "total": 3
+      },
+      "mrr": {
+        "value": 0.611,
+        "total": 3
+      },
       "correctness": {
         "count": 1,
         "total": 4
@@ -267,6 +324,14 @@
       "questions": 4,
       "recall_at_k": {
         "count": 1,
+        "total": 1
+      },
+      "hit_at_1": {
+        "count": 0,
+        "total": 1
+      },
+      "mrr": {
+        "value": 0.5,
         "total": 1
       },
       "correctness": {
@@ -305,6 +370,14 @@
         "count": 2,
         "total": 2
       },
+      "hit_at_1": {
+        "count": 2,
+        "total": 2
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 2
+      },
       "correctness": {
         "count": 1,
         "total": 3
@@ -339,6 +412,14 @@
       "questions": 12,
       "recall_at_k": {
         "count": 11,
+        "total": 12
+      },
+      "hit_at_1": {
+        "count": 10,
+        "total": 12
+      },
+      "mrr": {
+        "value": 0.875,
         "total": 12
       },
       "correctness": {

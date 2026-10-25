@@ -34,7 +34,7 @@ def _write_stage(tmp_path: Path, **overrides: object) -> str:
 def test_v0_loads_with_expected_switches() -> None:
     """v0 is the naive baseline: fixed chunks, vector search, every guard off, top_k 4."""
     stage = load_stage("v0")
-    assert (stage.chunking, stage.search, stage.alpha) == ("fixed", "vector", None)
+    assert (stage.chunking, stage.search, stage.hybrid) == ("fixed", "vector", None)
     assert (stage.chunk_size, stage.chunk_overlap, stage.top_k) == (1000, 100, 4)
     for switch in ("rerank", "query_rewrite", "use_history", "region_filter"):
         assert getattr(stage, switch) is False
@@ -44,8 +44,6 @@ def test_v0_loads_with_expected_switches() -> None:
 
 
 OTHER_VALUES = {
-    "search": "hybrid",
-    "alpha": 0.5,
     "rerank": True,
     "query_rewrite": True,
     "use_history": True,

@@ -149,3 +149,67 @@ else identical to v0, so the comparison isolates the chunking fix.
 - The tool's PowerShell may not use `.venv`. Call `.venv\Scripts\python.exe` explicitly.
 
 **Next:** Session 4, hybrid search (BM25 + vectors) for product codes and exact terms.
+
+## Session 4: Hybrid search for product and error codes (2026-10-25)
+
+**Goal:** implement `search: hybrid` and evaluate it as stage v2, identical to v1 except
+for the search settings. Also strengthen the evaluation so ranking changes are visible.
+
+**Built**
+- Evaluation:
+  - Hit@1 and MRR for every stage. They are computed from stored doc_ids, so v0 and v1 got
+    them via `--rescore`.
+  - Four new product_code golden items (g041-g044, 44 in total).
+  - `evaluate.py --only-missing` brought v0 and v1 to 44 questions with 8 new LLM answers,
+    keeping every stored latency.
+- `retrieval/codes.py` detects the manifest's product codes, with or without hyphens,
+  plus `E-NN` error codes. It ignores "Wi-Fi 6", years and product names.
+- `retrieval/hybrid.py`: Weaviate `query.hybrid` with an explicit FastEmbed vector, dynamic
+  alpha and canonicalised codes in the keyword text. `retrieval/factory.py` picks vector or
+  hybrid per stage.
+- `HybridConfig` (nested `hybrid:` block) with validation. Explicit Weaviate tokenization:
+  `word` for product_code, `field` for region and audience.
+- `scripts/sweep_alpha.py` writes `results/v2/alpha_sweep.md`. It needs no LLM calls.
+- 242 unit tests and 4 integration tests.
+
+**Sweep and choice** (details in [02-hybrid-search](failures/02-hybrid-search.md))
+- For the 9 questions with a code, recall, hit@1 and MRR are identical at every alpha,
+  because v1 already ranks the right chunk first. What changes is the context: expected-doc
+  chunks in the top 4 go from 26/36 (vector) to 34/36 (alpha 0.25).
+- For the 30 questions without a code, keyword weight hurts. At alpha 0 recall falls
+  25 → 19 of 30. At 0.75, g012, g017 and g020 lose their whole answer context.
+- Chosen: dynamic, `code_alpha: 0.25`, `default_alpha: 1.0`, `relative_score`.
+
+**Results**
+
+| Stage | Recall@5 | Hit@1 | MRR | Correctness | Retrieval leaks | Answer leaks | Injection failures | Handoffs |
+|---|---|---|---|---|---|---|---|---|
+| v0 | 35/39 (90%) | 24/39 (62%) | 0.72 | 28/44 (64%) | 5/43 (12%) | 1/3 (33%) | 2/3 (67%) | 1/7 (14%) |
+| v1 | 34/39 (87%) | 22/39 (56%) | 0.68 | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 0/3 (0%) | 1/7 (14%) |
+| v2 | 34/39 (87%) | 22/39 (56%) | 0.68 | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 0/3 (0%) | 2/7 (29%) |
+
+**What happened**
+- **Retrieval: fixed for codes.** In v1, 7 of 9 coded questions had another product's
+  chunk in context, for example the XR-2000 reset steps for "How do I factory reset the
+  XR-2200?". In v2, none do.
+- **End to end: flat.** No per-tag count moved by more than one question. v1 already
+  answered every coded question correctly.
+- **g023 handoff ANSWERED → HANDOFF.** v1 invented a "no price-matching" policy; v2 handed
+  off. That's one item, likely answer variance.
+- **query_region and stale MRR moved (0.33 → 0.38, 0.42 → 0.33)** without any alpha
+  change. The UK 2026 Markdown, its PDF twin and the 2025 PDF score identically, and
+  hybrid search breaks the ties in a different order.
+- **Hit@1 shows Session 3's ranking regression:** v0 24/39 → v1 22/39. For g012 and g015,
+  a short FAQ now outranks the regional policy.
+
+**Lessons**
+- Recall@k can't see ranking or context contamination; hit@1, MRR and a context-level
+  check can.
+- A strong generator hides retrieval bugs. Correct answers don't mean clean context.
+- Keyword search is a per-question tool. A single global alpha trades code questions
+  against vague ones.
+- v2's total latency is mostly cache hits (prompts unchanged since v1). Compare retrieval
+  latency only: about 11 ms for both.
+
+**Next:** Session 5, reranking, for questions whose right document is retrieved but
+ranked low (g009-g011).

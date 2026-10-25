@@ -26,6 +26,8 @@ from generators.facts import (
     STORE_NAME,
     WM_700_E47,
     WM_700_E74,
+    XR_2000_MAX_SPEED_MBPS,
+    XR_2200_MAX_SPEED_MBPS,
 )
 from rag_assistant.schemas import DocMetadata
 
@@ -107,9 +109,11 @@ FAQS: tuple[Faq, ...] = (
     qa(
         5,
         "Which VoltCart router should I buy?",
-        "The XR-2200 is our Wi-Fi 6 router with speeds up to 3000 Mbps and WPA3 security, ideal "
+        f"The XR-2200 is our Wi-Fi 6 router with speeds up to {XR_2200_MAX_SPEED_MBPS} Mbps "
+        "and WPA3 security, ideal "
         "for busy homes with many devices.",
-        "The XR-2000 is our Wi-Fi 5 router with speeds up to 1200 Mbps, a good fit for smaller "
+        f"The XR-2000 is our Wi-Fi 5 router with speeds up to {XR_2000_MAX_SPEED_MBPS} Mbps, "
+        "a good fit for smaller "
         "homes. Both have four Gigabit LAN ports.",
     ),
     qa(

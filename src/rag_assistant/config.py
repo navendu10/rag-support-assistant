@@ -8,6 +8,7 @@ the environment with ``__`` as a delimiter, e.g. ``LLM__SMALL_MODEL``.
 from __future__ import annotations
 
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -212,6 +213,59 @@ def get_settings() -> Settings:
 # ------------------------------------------------------------------ Stages
 
 
+# TEXT properties that keyword (BM25) search may use; they match ingestion/store.py.
+KEYWORD_PROPERTIES = ("text", "title", "product_code", "section")
+_QUERY_PROPERTY = re.compile(r"^(?P<name>[a-z_]+)(?:\^(?P<boost>\d+(?:\.\d+)?))?$")
+
+
+class HybridConfig(BaseModel):
+    """Settings for ``search: hybrid`` (BM25 keyword search fused with vector search).
+
+    ``alpha`` weights the two: 1.0 is pure vector, 0.0 is pure keyword. With
+    ``alpha_strategy: dynamic`` the retriever uses ``code_alpha`` when the question
+    contains a product or error code and ``default_alpha`` otherwise.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    alpha_strategy: Literal["fixed", "dynamic"] = "fixed"
+    alpha: float | None = Field(default=None, ge=0.0, le=1.0, description="fixed only")
+    code_alpha: float | None = Field(default=None, ge=0.0, le=1.0, description="dynamic only")
+    default_alpha: float | None = Field(default=None, ge=0.0, le=1.0, description="dynamic only")
+    fusion: Literal["relative_score", "ranked"] = "relative_score"
+    query_properties: tuple[str, ...] = ("text", "title", "product_code^2")
+
+    @field_validator("query_properties")
+    @classmethod
+    def _known_properties(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Each entry is a keyword-searchable property, optionally boosted (``name^2``)."""
+        if not value:
+            raise ValueError("query_properties must not be empty")
+        names = []
+        for entry in value:
+            match = _QUERY_PROPERTY.match(entry)
+            if match is None or match["name"] not in KEYWORD_PROPERTIES:
+                raise ValueError(
+                    f"query property {entry!r} must be one of {KEYWORD_PROPERTIES}, "
+                    "optionally with a boost such as '^2'"
+                )
+            names.append(match["name"])
+        if len(set(names)) != len(names):
+            raise ValueError("query_properties lists a property twice")
+        return value
+
+    @model_validator(mode="after")
+    def _alphas_match_strategy(self) -> HybridConfig:
+        """fixed needs ``alpha`` only; dynamic needs ``code_alpha`` and ``default_alpha`` only."""
+        dynamic = (self.code_alpha, self.default_alpha)
+        if self.alpha_strategy == "fixed":
+            if self.alpha is None or dynamic != (None, None):
+                raise ValueError("alpha_strategy fixed needs alpha and no code/default_alpha")
+        elif self.alpha is not None or None in dynamic:
+            raise ValueError("alpha_strategy dynamic needs code_alpha and default_alpha, no alpha")
+        return self
+
+
 class StageConfig(BaseModel):
     """On/off switches for one pipeline stage (``configs/stages/<name>.yaml``).
 
@@ -228,7 +282,7 @@ class StageConfig(BaseModel):
     chunk_overlap: int = Field(ge=0)
     min_chunk_chars: int = Field(default=200, ge=0, description="structure chunking only")
     search: Literal["vector", "hybrid"]
-    alpha: float | None = Field(default=None, ge=0.0, le=1.0)
+    hybrid: HybridConfig | None = None
     rerank: bool
     query_rewrite: bool
     use_history: bool
@@ -245,6 +299,13 @@ class StageConfig(BaseModel):
             raise ValueError("chunk_overlap must be smaller than chunk_size")
         if self.min_chunk_chars >= self.chunk_size:
             raise ValueError("min_chunk_chars must be smaller than chunk_size")
+        return self
+
+    @model_validator(mode="after")
+    def _hybrid_settings_match_search(self) -> StageConfig:
+        """``search: hybrid`` needs a ``hybrid`` block; ``search: vector`` must not have one."""
+        if (self.search == "hybrid") != (self.hybrid is not None):
+            raise ValueError("set a hybrid: block exactly when search is hybrid")
         return self
 
     @property
@@ -267,10 +328,8 @@ class StageConfig(BaseModel):
 
 
 # switch -> (only supported value so far, session that adds the rest, feature)
-# (chunking: fixed|structure is fully implemented since Session 3.)
+# (chunking since Session 3 and search: vector|hybrid since Session 4 are implemented.)
 UNIMPLEMENTED_SWITCHES: dict[str, tuple[object, int, str]] = {
-    "search": ("vector", 4, "hybrid search"),
-    "alpha": (None, 4, "hybrid search weighting"),
     "rerank": (False, 5, "reranking"),
     "query_rewrite": (False, 6, "query rewriting"),
     "use_history": (False, 6, "conversation history"),

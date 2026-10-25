@@ -39,6 +39,11 @@ XR_2200_RESET_SECONDS = 10
 XR_2200_RESET_LED = "blinks amber"
 XR_2000_RESET_SECONDS = 30
 XR_2000_RESET_LED = "turns solid red"
+XR_2200_MAX_SPEED_MBPS = 3000
+XR_2000_MAX_SPEED_MBPS = 1200
+
+# PowerBank 20K: the USB-C Power Delivery output.
+PB_20K_USB_C_OUTPUT_W = 65
 
 # WashPro WM-700 error codes that are easy to confuse.
 WM_700_E47 = "Drain pump blocked"

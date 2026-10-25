@@ -41,6 +41,8 @@ src/rag_assistant/
   pipeline.py              Pipeline.from_stage(name).answer(question, user, history)
   ingestion/               loaders (v0 text) + parsers (v1 Markdown), chunker (fixed) +
                            structure_chunker (headings, whole tables, context headers)
+  retrieval/               vector (near_vector), hybrid (BM25 + vector, dynamic alpha),
+                           codes (product/error code detection), factory (pick per stage)
 configs/stages/<stage>.yaml  StageConfig switches; unimplemented values raise NotImplementedError
 configs/prompts.yaml       all prompt templates (answer + judges)
 results/<stage>/           committed full evaluation runs (results.jsonl, summary.json, report.md)
@@ -70,7 +72,9 @@ python scripts/data_report.py                 # summary of docs and golden set
 python scripts/ingest.py --stage v0           # (re)build the stage's Weaviate collection
 python scripts/ask.py --stage v0 --user cust_uk_01 "question"
 python scripts/evaluate.py --stage v0 [--tag leak] [--limit 5]   # results/<stage>/
+python scripts/evaluate.py --stage v0 --only-missing   # answer new golden items only, merge
 python scripts/compare_stages.py [--by-tag]   # before/after table for README
+python scripts/sweep_alpha.py --stage v2 [--alphas 0,0.5,1] [--fusion ranked]  # no LLM calls
 python scripts/show_chunks.py --stage v1 --doc returns-uk-2026-print [--grep text]
 pytest -m integration                         # needs Weaviate + Groq (skipped by default)
 ruff check . ; ruff format .                  # lint and format

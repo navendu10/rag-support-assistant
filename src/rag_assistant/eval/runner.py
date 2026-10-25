@@ -107,17 +107,13 @@ def write_outputs(out_dir: Path, meta: dict[str, object], rows: list[ResultRow])
     return summary
 
 
-def run_evaluation(
+def answer_items(
     stage: StageConfig,
     settings: Settings,
-    tag: str | None = None,
-    limit: int | None = None,
+    items: Sequence[GoldenItem],
     progress: Callable[[str], None] = print,
-) -> RunOutput:
-    """Evaluate ``stage`` on the golden set (optionally filtered) and write the outputs."""
-    items = select_items(
-        load_golden(settings.paths.resolve(settings.paths.golden_file)), tag, limit
-    )
+) -> list[ResultRow]:
+    """Answer and score ``items`` with the stage's pipeline, printing one line each."""
     users = {u.user_id: u for u in load_users(settings.paths.resolve(settings.paths.users_file))}
     judge = Judge(make_chat_model(settings, settings.llm.judge_model), load_prompts())
     recall_k = settings.eval.recall_k
@@ -131,6 +127,21 @@ def run_evaluation(
                 f"[{n:>2}/{len(items)}] {item.id} {item.failure_tag:<13} recall={hit:<4} "
                 f"{row.correctness.verdict or 'JUDGE-ERROR'}"
             )
+    return rows
+
+
+def run_evaluation(
+    stage: StageConfig,
+    settings: Settings,
+    tag: str | None = None,
+    limit: int | None = None,
+    progress: Callable[[str], None] = print,
+) -> RunOutput:
+    """Evaluate ``stage`` on the golden set (optionally filtered) and write the outputs."""
+    items = select_items(
+        load_golden(settings.paths.resolve(settings.paths.golden_file)), tag, limit
+    )
+    rows = answer_items(stage, settings, items, progress)
     filters = ", ".join(
         part for part in (f"tag={tag}" if tag else "", f"limit={limit}" if limit else "") if part
     )
@@ -142,11 +153,34 @@ def run_evaluation(
         "judge_model": settings.llm.judge_model,
         "reasoning_effort": settings.llm.reasoning_effort,
         "top_k": stage.top_k,
-        "recall_k": recall_k,
+        "recall_k": settings.eval.recall_k,
     }
     out_dir = output_dir(settings, stage, filtered=bool(filters))
     summary = write_outputs(out_dir, meta, rows)
     return RunOutput(out_dir, summary, rows)
+
+
+def load_rows(out_dir: Path) -> list[ResultRow]:
+    """Read the stored ``results.jsonl`` of a run."""
+    return [
+        ResultRow.model_validate_json(line)
+        for line in (out_dir / "results.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def merge_rows(
+    items: Sequence[GoldenItem], stored: Sequence[ResultRow], new: Sequence[ResultRow]
+) -> list[ResultRow]:
+    """Stored and newly answered rows in golden-set order (rows for removed items drop out)."""
+    by_id = {row.id: row for row in [*stored, *new]}
+    return [by_id[item.id] for item in items if item.id in by_id]
+
+
+def missing_items(items: Sequence[GoldenItem], stored: Sequence[ResultRow]) -> list[GoldenItem]:
+    """Golden items that have no row in ``stored`` yet."""
+    done = {row.id for row in stored}
+    return [item for item in items if item.id not in done]
 
 
 def rescore_row(row: ResultRow, item: GoldenItem, user: User) -> ResultRow:
@@ -161,18 +195,42 @@ def rescore_row(row: ResultRow, item: GoldenItem, user: User) -> ResultRow:
     return row.model_copy(update={"checks": checks, "must_not_contain": item.must_not_contain})
 
 
+def _rescored_full_run(
+    stage: StageConfig, settings: Settings
+) -> tuple[Path, list[GoldenItem], list[ResultRow], dict]:
+    """Load a stage's full run, rescore every stored row and return it with its metadata."""
+    out_dir = output_dir(settings, stage, filtered=False)
+    items = load_golden(settings.paths.resolve(settings.paths.golden_file))
+    by_id = {i.id: i for i in items}
+    users = {u.user_id: u for u in load_users(settings.paths.resolve(settings.paths.users_file))}
+    stored = [
+        rescore_row(r, by_id[r.id], users[r.user_id]) for r in load_rows(out_dir) if r.id in by_id
+    ]
+    meta = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))["meta"]
+    return out_dir, items, stored, meta
+
+
 def rescore(stage: StageConfig, settings: Settings) -> RunOutput:
     """Re-apply the current metric code to an existing full run, with no LLM calls."""
-    out_dir = output_dir(settings, stage, filtered=False)
-    stored = [
-        ResultRow.model_validate_json(line)
-        for line in (out_dir / "results.jsonl").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    items = {i.id: i for i in load_golden(settings.paths.resolve(settings.paths.golden_file))}
-    users = {u.user_id: u for u in load_users(settings.paths.resolve(settings.paths.users_file))}
-    rows = [rescore_row(r, items[r.id], users[r.user_id]) for r in stored]
-    meta = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))["meta"]
+    out_dir, _, rows, meta = _rescored_full_run(stage, settings)
     meta["rescored"] = date.today().isoformat()
+    summary = write_outputs(out_dir, meta, rows)
+    return RunOutput(out_dir, summary, rows)
+
+
+def evaluate_missing(
+    stage: StageConfig, settings: Settings, progress: Callable[[str], None] = print
+) -> RunOutput:
+    """Answer only the golden items a stored full run lacks, then rescore and merge.
+
+    Stored rows keep their real answers and latencies, so adding questions does not
+    replace them with cache-hit timings.
+    """
+    out_dir, items, stored, meta = _rescored_full_run(stage, settings)
+    todo = missing_items(items, stored)
+    new = answer_items(stage, settings, todo, progress) if todo else []
+    rows = merge_rows(items, stored, new)
+    if todo:
+        meta["extended"] = f"{date.today().isoformat()}: added {', '.join(i.id for i in todo)}"
     summary = write_outputs(out_dir, meta, rows)
     return RunOutput(out_dir, summary, rows)

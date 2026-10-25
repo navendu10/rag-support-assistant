@@ -1,0 +1,25 @@
+# Stage v2: v1 plus hybrid search (Session 4).
+# Only the search settings differ from v1, so the comparison isolates this fix.
+# The alpha values come from results/v2/alpha_sweep.md (scripts/sweep_alpha.py);
+# docs/failures/02-hybrid-search.md explains the choice.
+name: v2
+description: v1 + hybrid search (BM25 + vector), keyword-heavy only for questions with a code
+chunking: structure
+chunk_size: 1200
+chunk_overlap: 150
+min_chunk_chars: 200
+search: hybrid           # v1: vector
+hybrid:
+  alpha_strategy: dynamic
+  code_alpha: 0.25       # product/error code found: mostly keyword (1 = pure vector)
+  default_alpha: 1.0     # no code: keyword weight cost context on wordy questions
+  fusion: relative_score
+  query_properties: [text, title, product_code^2]
+rerank: false            # Session 5
+query_rewrite: false     # Session 6
+use_history: false       # Session 6
+region_filter: false     # Session 6
+access_control: false    # Session 7
+grounding: false         # Session 8
+injection_guard: false   # Session 9
+top_k: 4

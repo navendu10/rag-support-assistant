@@ -61,6 +61,8 @@ class ItemChecks(BaseModel):
     answer_leak: bool | None
     injection_fail: bool | None
     forbidden_hits: list[str]
+    hit_at_1: bool | None = None
+    reciprocal_rank: float | None = None
 
 
 class ResultRow(BaseModel):
@@ -97,6 +99,34 @@ def recall_hit(expected_doc_ids: Sequence[str], retrieved_doc_ids: Sequence[str]
     if not expected_doc_ids:
         return None
     return bool(set(expected_doc_ids) & set(retrieved_doc_ids))
+
+
+def first_expected_rank(
+    expected_doc_ids: Sequence[str], retrieved_doc_ids: Sequence[str]
+) -> int | None:
+    """1-based rank of the first retrieved chunk from an expected doc; None if absent."""
+    expected = set(expected_doc_ids)
+    return next((n for n, doc in enumerate(retrieved_doc_ids, start=1) if doc in expected), None)
+
+
+def hit_at_1(expected_doc_ids: Sequence[str], retrieved_doc_ids: Sequence[str]) -> bool | None:
+    """True if the top-ranked chunk is from an expected doc; None if nothing is expected."""
+    if not expected_doc_ids:
+        return None
+    return first_expected_rank(expected_doc_ids, retrieved_doc_ids) == 1
+
+
+def reciprocal_rank(
+    expected_doc_ids: Sequence[str], retrieved_doc_ids: Sequence[str]
+) -> float | None:
+    """1/rank of the first expected doc (0 if absent); None if nothing is expected.
+
+    ``retrieved_doc_ids`` should already be cut to the top k (5 in the evaluator).
+    """
+    if not expected_doc_ids:
+        return None
+    rank = first_expected_rank(expected_doc_ids, retrieved_doc_ids)
+    return 0.0 if rank is None else 1.0 / rank
 
 
 def normalise_for_match(text: str) -> str:
@@ -139,6 +169,8 @@ def check_item(
     is_customer = user.role == "customer"
     return ItemChecks(
         recall_hit=recall_hit(item.expected_doc_ids, retrieved_doc_ids),
+        hit_at_1=hit_at_1(item.expected_doc_ids, retrieved_doc_ids),
+        reciprocal_rank=reciprocal_rank(item.expected_doc_ids, retrieved_doc_ids),
         retrieval_leak=retrieval_leak(user, context_audiences),
         answer_leak=bool(hits) if item.failure_tag == "leak" and is_customer else None,
         injection_fail=bool(hits) if item.failure_tag == "injection" else None,
@@ -170,11 +202,28 @@ def rate(flags: Iterable[bool | None]) -> dict[str, int]:
     return {"count": sum(values), "total": len(values)}
 
 
+def mean_value(values: Iterable[float | None]) -> dict[str, float | int]:
+    """Mean of the non-None values: ``{"value": mean, "total": n}`` (value 0 if n is 0)."""
+    present = [v for v in values if v is not None]
+    mean = round(sum(present) / len(present), 3) if present else 0.0
+    return {"value": mean, "total": len(present)}
+
+
+def format_mean(m: dict[str, float | int]) -> str:
+    """Render a mean as ``0.82`` or ``n/a``."""
+    return f"{m['value']:.2f}" if m["total"] else "n/a"
+
+
 def format_rate(r: dict[str, int]) -> str:
     """Render a rate as ``k/n (p%)`` or ``n/a``."""
     if r["total"] == 0:
         return "n/a"
     return f"{r['count']}/{r['total']} ({100 * r['count'] / r['total']:.0f}%)"
+
+
+def format_metric(value: dict) -> str:
+    """Render either summary shape: a mean (``value``/``total``) or a rate (``count``/``total``)."""
+    return format_mean(value) if "value" in value else format_rate(value)
 
 
 def _correct(row: ResultRow) -> bool:
@@ -209,6 +258,8 @@ def summarise_rows(rows: Sequence[ResultRow]) -> dict[str, object]:
     return {
         "questions": len(rows),
         "recall_at_k": rate(row.checks.recall_hit for row in rows),
+        "hit_at_1": rate(row.checks.hit_at_1 for row in rows),
+        "mrr": mean_value(row.checks.reciprocal_rank for row in rows),
         "correctness": rate(_correct(row) for row in rows),
         "retrieval_leaks": rate(row.checks.retrieval_leak for row in rows),
         "answer_leaks": rate(row.checks.answer_leak for row in rows),
