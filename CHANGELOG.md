@@ -7,6 +7,68 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-28 (Session 5: cross-encoder reranking)
+
+### Added
+
+- Stage v3 (`configs/stages/v3.yaml`): v2 plus `rerank: true`.
+  - Model `Xenova/ms-marco-MiniLM-L-6-v2`, with `fetch_k: 20`.
+  - `rerank_fusion: blend` with `rerank_blend_weight: 0.5`: 0.5 × sigmoid(logit) plus
+    0.5 × the normalised search score.
+  - `min_score: null`, and it searches v2's collection (`index: Chunks_v2`).
+- Reranker (`retrieval/rerank.py`):
+  - A FastEmbed `TextCrossEncoder`, loaded once and warmed up.
+  - Orderings `replace` / `rrf` / `blend`.
+  - Every chunk keeps the raw logit and a 0-1 `rerank_score`.
+  - The scorer can be injected for tests.
+- Reranker input variants (`retrieval/rerank_input.py`): no header, linearised tables
+  and 4-row table groups. They are implemented for the sweep; v3 uses the chunk as stored.
+- Stage settings `rerank_model`, `fetch_k`, `min_score`, `rerank_fusion`,
+  `rerank_blend_weight`, and `index` for reusing another stage's collection. `load_stage`
+  checks that the owning stage exists and has identical ingestion settings.
+- Evaluation:
+  - Candidate recall@20 and a per-question miss type (`search miss` / `ranking miss` /
+    `in context`).
+  - Per-step latency (retrieve, rerank, generation) as mean and p95. Generation excludes
+    throttle and retry waits and counts uncached calls only.
+  - An **LLM leak judge** (`judge_leak`) for customer leak items, kept beside the string
+    check, with `evaluate.py --add-leak-judge` to back-fill stored runs.
+- Scripts (none makes LLM calls):
+  - `compare_rerankers.py` → `results/v3/reranker_comparison.md`
+  - `rerank_score_distribution.py` → `results/v3/score_distribution.md`
+  - `sweep_rerank.py` → `results/v3/rerank_sweep.md`
+- Tests:
+  - Unit tests for reranking, fusion, input variants, the sweep helpers, config
+    validation, index reuse, the ingest skip, wait accounting, latency summaries and the
+    leak judge.
+  - An integration test that the TV-lines warranty chunk is in v3's context.
+- `results/v3/`, `docs/failures/03-reranking.md` and `docs/adr/0004-reranker-model.md`.
+- [Issue #6](https://github.com/navendu10/rag-support-assistant/issues/6): merged
+  sections get the wrong context header (42 of 162 chunks). Logged, not fixed.
+
+### Changed
+
+- `rerank` is no longer a "not implemented" switch. `min_score` is (Session 8).
+- `ingest.py` skips stages that reuse another stage's index, and `ingest()` refuses them.
+- `llm.ThrottledTransport` counts HTTP attempts and wait seconds per model, and
+  `llm.timed_calls` turns them into per-call timings.
+- `Pipeline` records `retrieve`, `rerank`, `generate` (excluding waits), `generate_wait` and
+  `generate_requests`.
+- v0-v2 were back-filled with the leak judge from their stored answers: 3/3 customer leaks
+  in every stage, against 0-1/3 found by the string check.
+  - **Their reported leak rate rose because the metric improved, not because anything
+    regressed.** No answer was regenerated, and the string-check figures are unchanged.
+    The new judge catches paraphrased leaks the string check missed, e.g. g019's
+    description of the internal fraud checks.
+  - The reports' total-latency row is relabelled "wall clock, throttle waits and cache
+    hits included". It was re-rendered from the stored `summary.json`, and no value
+    changed.
+
+### Fixed
+
+- `eval.sweep.score_group` cuts runs to the top 5 before scoring. Runs holding all 20
+  reranker candidates had been scored as recall@20. Session 4's sweep was unaffected.
+
 ## [0.5.0] - 2026-10-25 (Session 4: hybrid search)
 
 ### Added

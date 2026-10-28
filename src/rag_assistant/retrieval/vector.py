@@ -19,6 +19,7 @@ class RetrievedChunk:
     """A chunk returned by search with its score, higher is better.
 
     Vector search scores 1 - cosine distance; hybrid search uses Weaviate's fused score.
+    Reranked chunks also carry the cross-encoder's raw logit and its sigmoid (0-1).
     """
 
     text: str
@@ -30,6 +31,8 @@ class RetrievedChunk:
     score: float
     section: str = ""
     page: int | None = None
+    rerank_logit: float | None = None
+    rerank_score: float | None = None
 
 
 class VectorRetriever:

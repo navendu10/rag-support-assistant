@@ -266,6 +266,16 @@ class HybridConfig(BaseModel):
         return self
 
 
+# How reranked candidates are ordered: by the cross-encoder alone, by reciprocal rank
+# fusion with the search rank, or by a weighted blend of the two normalised scores.
+RerankFusion = Literal["replace", "rrf", "blend"]
+
+# Fields that decide what ingestion stores; a stage reusing an index must match them.
+INGESTION_FIELDS = ("chunking", "chunk_size", "chunk_overlap", "min_chunk_chars")
+# Reranked stages are scored on recall@5, so at least 5 candidates are needed.
+MIN_FETCH_K = 5
+
+
 class StageConfig(BaseModel):
     """On/off switches for one pipeline stage (``configs/stages/<name>.yaml``).
 
@@ -284,6 +294,18 @@ class StageConfig(BaseModel):
     search: Literal["vector", "hybrid"]
     hybrid: HybridConfig | None = None
     rerank: bool
+    rerank_model: str | None = Field(default=None, min_length=1, description="rerank only")
+    fetch_k: int | None = Field(default=None, gt=0, le=100, description="rerank only")
+    min_score: float | None = Field(default=None, ge=0.0, le=1.0, description="rerank only")
+    rerank_fusion: RerankFusion | None = Field(default=None, description="rerank only")
+    rerank_blend_weight: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="blend only: weight of the rerank score"
+    )
+    index: str | None = Field(
+        default=None,
+        pattern=r"^Chunks_[A-Za-z0-9_]+$",
+        description="reuse another stage's collection instead of ingesting a copy",
+    )
     query_rewrite: bool
     use_history: bool
     region_filter: bool
@@ -308,10 +330,45 @@ class StageConfig(BaseModel):
             raise ValueError("set a hybrid: block exactly when search is hybrid")
         return self
 
+    @model_validator(mode="after")
+    def _rerank_settings_match_switch(self) -> StageConfig:
+        """``rerank: true`` needs a model and ``fetch_k``; ``rerank: false`` allows neither."""
+        settings = (
+            self.rerank_model,
+            self.fetch_k,
+            self.min_score,
+            self.rerank_fusion,
+            self.rerank_blend_weight,
+        )
+        if not self.rerank:
+            if any(value is not None for value in settings):
+                raise ValueError(
+                    "rerank_model, fetch_k, min_score, rerank_fusion and rerank_blend_weight "
+                    "need rerank: true"
+                )
+            return self
+        if self.rerank_model is None or self.fetch_k is None or self.rerank_fusion is None:
+            raise ValueError("rerank: true needs rerank_model, fetch_k and rerank_fusion")
+        if (self.rerank_fusion == "blend") != (self.rerank_blend_weight is not None):
+            raise ValueError("set rerank_blend_weight exactly when rerank_fusion is blend")
+        if self.fetch_k < max(self.top_k, MIN_FETCH_K):
+            raise ValueError(f"fetch_k must be at least max(top_k, {MIN_FETCH_K})")
+        return self
+
     @property
     def collection_name(self) -> str:
-        """Weaviate collection for this stage, e.g. ``Chunks_v0``."""
-        return f"Chunks_{self.name}"
+        """Weaviate collection for this stage: ``index`` if set, else e.g. ``Chunks_v0``."""
+        return self.index or f"Chunks_{self.name}"
+
+    @property
+    def index_owner(self) -> str:
+        """The stage whose ingestion builds this stage's collection (itself, unless reused)."""
+        return self.collection_name.removeprefix("Chunks_")
+
+    @property
+    def reuses_index(self) -> bool:
+        """True when this stage searches another stage's collection."""
+        return self.index_owner != self.name
 
     def ensure_supported(self) -> None:
         """Raise ``NotImplementedError`` for any switch a later session will add."""
@@ -328,9 +385,9 @@ class StageConfig(BaseModel):
 
 
 # switch -> (only supported value so far, session that adds the rest, feature)
-# (chunking since Session 3 and search: vector|hybrid since Session 4 are implemented.)
+# (chunking since Session 3, search since Session 4 and rerank since Session 5.)
 UNIMPLEMENTED_SWITCHES: dict[str, tuple[object, int, str]] = {
-    "rerank": (False, 5, "reranking"),
+    "min_score": (None, 8, "rejecting low-scoring context"),
     "query_rewrite": (False, 6, "query rewriting"),
     "use_history": (False, 6, "conversation history"),
     "region_filter": (False, 6, "region and date filtering"),
@@ -349,7 +406,25 @@ def load_stage(name: str, stages_dir: Path = STAGES_DIR) -> StageConfig:
     if stage.name != name:
         raise ValueError(f"{path.name} declares name '{stage.name}', expected '{name}'")
     stage.ensure_supported()
+    if stage.reuses_index:
+        check_index_owner(stage, stages_dir)
     return stage
+
+
+def check_index_owner(stage: StageConfig, stages_dir: Path = STAGES_DIR) -> None:
+    """A reused index must come from an existing stage with identical ingestion settings."""
+    owner_path = stages_dir / f"{stage.index_owner}.yaml"
+    if not owner_path.is_file():
+        raise ValueError(f"{stage.name}: index {stage.index} has no stage {owner_path.name}")
+    owner = StageConfig.model_validate(yaml.safe_load(owner_path.read_text(encoding="utf-8")))
+    if owner.reuses_index:
+        raise ValueError(f"{stage.name}: {owner.name} itself reuses an index; point at the owner")
+    differ = [f for f in INGESTION_FIELDS if getattr(owner, f) != getattr(stage, f)]
+    if differ:
+        raise ValueError(
+            f"{stage.name} reuses {stage.index} but its {', '.join(differ)} differ from "
+            f"{owner.name}; give it its own index"
+        )
 
 
 def load_prompts(path: Path = PROMPTS_PATH) -> dict[str, str]:

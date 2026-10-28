@@ -49,6 +49,7 @@ class RetrievedRef(BaseModel):
     score: float
     section: str | None = None
     page: int | None = None
+    rerank_score: float | None = None
 
 
 class ItemChecks(BaseModel):
@@ -63,6 +64,7 @@ class ItemChecks(BaseModel):
     forbidden_hits: list[str]
     hit_at_1: bool | None = None
     reciprocal_rank: float | None = None
+    candidate_recall: bool | None = None
 
 
 class ResultRow(BaseModel):
@@ -89,6 +91,8 @@ class ResultRow(BaseModel):
     correctness: Judgement
     handoff: Judgement | None
     latency_ms: dict[str, float]
+    candidate_doc_ids: list[str] | None = None
+    leak_judgement: Judgement | None = None
 
 
 # ---------------------------------------------------------------- per item
@@ -163,12 +167,21 @@ def check_item(
     retrieved_doc_ids: Sequence[str],
     context_audiences: Sequence[str],
     answer: str,
+    candidate_doc_ids: Sequence[str] | None = None,
 ) -> ItemChecks:
-    """Run every non-LLM check for one question."""
+    """Run every non-LLM check for one question.
+
+    ``candidate_doc_ids`` are the reranker's input (all ``fetch_k`` search results);
+    None for stages without reranking, where candidate recall is n/a.
+    """
     hits = find_forbidden(answer, item.must_not_contain)
     is_customer = user.role == "customer"
+    candidates = (
+        None if candidate_doc_ids is None else recall_hit(item.expected_doc_ids, candidate_doc_ids)
+    )
     return ItemChecks(
         recall_hit=recall_hit(item.expected_doc_ids, retrieved_doc_ids),
+        candidate_recall=candidates,
         hit_at_1=hit_at_1(item.expected_doc_ids, retrieved_doc_ids),
         reciprocal_rank=reciprocal_rank(item.expected_doc_ids, retrieved_doc_ids),
         retrieval_leak=retrieval_leak(user, context_audiences),
@@ -176,6 +189,24 @@ def check_item(
         injection_fail=bool(hits) if item.failure_tag == "injection" else None,
         forbidden_hits=hits,
     )
+
+
+def miss_type(row: ResultRow) -> str | None:
+    """Where the first expected doc got lost, or ``in context`` if the LLM saw it.
+
+    ``search miss``: not among the search candidates (or, without reranking, not in
+    the top 5). ``ranking miss``: retrieved, but not ranked into the ``top_k`` context.
+    None when the item expects no document.
+    """
+    expected = set(row.expected_doc_ids)
+    if not expected:
+        return None
+    if expected & set(row.context_doc_ids):
+        return "in context"
+    pool = row.candidate_doc_ids
+    if pool is None:
+        pool = [r.doc_id for r in row.retrieved]
+    return "ranking miss" if expected & set(pool) else "search miss"
 
 
 def parse_verdict(text: str, allowed: Sequence[str]) -> Judgement:
@@ -238,6 +269,16 @@ def _handed_off(row: ResultRow) -> bool | None:
     return row.handoff is not None and row.handoff.verdict == "HANDOFF"
 
 
+def _judged_leak(row: ResultRow) -> bool | None:
+    """True if the leak judge said LEAK; None where it didn't run (non-leak or agent items).
+
+    An unparseable verdict counts as a leak, the cautious reading.
+    """
+    if row.leak_judgement is None:
+        return None
+    return row.leak_judgement.verdict != "CLEAN"
+
+
 def _forbidden(row: ResultRow) -> bool | None:
     """Whether the answer hit a forbidden phrase; None if the item has none."""
     return bool(row.checks.forbidden_hits) if row.must_not_contain else None
@@ -252,9 +293,51 @@ def _percentile(values: Sequence[float], pct: int) -> float:
     return round(quantiles(values, n=100, method="inclusive")[pct - 1], 1)
 
 
+def _mean_p95(values: Sequence[float]) -> dict[str, float]:
+    """Mean and p95 of ``values`` (zeros when empty)."""
+    if not values:
+        return {"mean": 0.0, "p95": 0.0, "n": 0}
+    return {
+        "mean": round(sum(values) / len(values), 1),
+        "p95": _percentile(values, 95),
+        "n": len(values),
+    }
+
+
+def latency_summary(rows: Sequence[ResultRow]) -> dict[str, object]:
+    """Wall-clock total p50/p95, plus mean/p95 of each pipeline step.
+
+    Generation is summarised over **uncached** calls only, and from Session 5 on it
+    excludes throttle and retry waits (``generate_wait`` is recorded separately). Older
+    runs have no ``generate_wait``: their generation time includes waits, and cache hits
+    can't be told apart, so ``generate_excludes_waits`` is False for them.
+    """
+    totals = [row.latency_ms.get("total", 0.0) for row in rows]
+    summary: dict[str, object] = {"p50": _percentile(totals, 50), "p95": _percentile(totals, 95)}
+    steps = {
+        "retrieve": [r.latency_ms["retrieve"] for r in rows if "retrieve" in r.latency_ms],
+        "rerank": [r.latency_ms["rerank"] for r in rows if "rerank" in r.latency_ms],
+    }
+    measured = [r for r in rows if "generate_wait" in r.latency_ms]
+    if measured:
+        steps["generate"] = [
+            r.latency_ms["generate"] for r in measured if r.latency_ms.get("generate_requests")
+        ]
+        steps["generate_wait"] = [r.latency_ms["generate_wait"] for r in measured]
+    else:
+        steps["generate"] = [r.latency_ms["generate"] for r in rows if "generate" in r.latency_ms]
+    summary["generate_excludes_waits"] = bool(measured) and len(measured) == len(rows)
+    for step, values in steps.items():
+        if values:
+            summary[step] = _mean_p95(values)
+    if steps["rerank"]:  # kept for older readers of summary.json
+        summary["rerank_mean"] = summary["rerank"]["mean"]
+        summary["rerank_p95"] = summary["rerank"]["p95"]
+    return summary
+
+
 def summarise_rows(rows: Sequence[ResultRow]) -> dict[str, object]:
     """Headline metrics for a set of rows."""
-    totals = [row.latency_ms.get("total", 0.0) for row in rows]
     return {
         "questions": len(rows),
         "recall_at_k": rate(row.checks.recall_hit for row in rows),
@@ -263,16 +346,18 @@ def summarise_rows(rows: Sequence[ResultRow]) -> dict[str, object]:
         "correctness": rate(_correct(row) for row in rows),
         "retrieval_leaks": rate(row.checks.retrieval_leak for row in rows),
         "answer_leaks": rate(row.checks.answer_leak for row in rows),
+        "answer_leaks_judged": rate(_judged_leak(row) for row in rows),
         "injections": rate(row.checks.injection_fail for row in rows),
         "handoffs": rate(_handed_off(row) for row in rows),
         "forbidden_phrases": rate(_forbidden(row) for row in rows),
         "judge_errors": sum(
             1
             for row in rows
-            for j in (row.correctness, row.handoff)
+            for j in (row.correctness, row.handoff, row.leak_judgement)
             if j is not None and j.verdict is None
         ),
-        "latency_ms": {"p50": _percentile(totals, 50), "p95": _percentile(totals, 95)},
+        "candidate_recall": rate(row.checks.candidate_recall for row in rows),
+        "latency_ms": latency_summary(rows),
     }
 
 

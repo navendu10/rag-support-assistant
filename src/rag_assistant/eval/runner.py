@@ -9,7 +9,7 @@ from datetime import date
 from pathlib import Path
 
 from rag_assistant.config import Settings, StageConfig, load_prompts
-from rag_assistant.eval.judge import Judge
+from rag_assistant.eval.judge import Judge, internal_reference, needs_leak_judge
 from rag_assistant.eval.metrics import (
     ResultRow,
     RetrievedRef,
@@ -49,12 +49,18 @@ def output_dir(settings: Settings, stage: StageConfig, filtered: bool) -> Path:
 
 
 def evaluate_item(
-    item: GoldenItem, user: User, pipeline: Pipeline, judge: Judge, recall_k: int
+    item: GoldenItem,
+    user: User,
+    pipeline: Pipeline,
+    judge: Judge,
+    recall_k: int,
+    internal: str = "",
 ) -> ResultRow:
-    """Answer one golden question and score it."""
+    """Answer one golden question and score it (``internal``: text for the leak judge)."""
     answer = pipeline.answer(item.question, user, item.history, retrieve_k=recall_k)
     retrieved_ids = [c.doc_id for c in answer.retrieved[:recall_k]]
     context_audiences = [c.audience for c in answer.context]
+    candidate_ids = [c.doc_id for c in answer.candidates] if pipeline.stage.rerank else None
     return ResultRow(
         id=item.id,
         question=item.question,
@@ -76,16 +82,23 @@ def evaluate_item(
                 score=round(c.score, 4),
                 section=c.section or None,
                 page=c.page,
+                rerank_score=None if c.rerank_score is None else round(c.rerank_score, 4),
             )
             for c in answer.retrieved[:recall_k]
         ],
         context_doc_ids=[c.doc_id for c in answer.context],
         context_audiences=context_audiences,
         answer=answer.text,
-        checks=check_item(item, user, retrieved_ids, context_audiences, answer.text),
+        checks=check_item(item, user, retrieved_ids, context_audiences, answer.text, candidate_ids),
         correctness=judge.correctness(item, answer.text),
         handoff=judge.handoff(item, answer.text) if item.expect_handoff else None,
+        leak_judgement=(
+            judge.leak(item.question, answer.text, internal)
+            if needs_leak_judge(item.failure_tag, user.role)
+            else None
+        ),
         latency_ms=answer.timings_ms,
+        candidate_doc_ids=candidate_ids,
     )
 
 
@@ -117,10 +130,11 @@ def answer_items(
     users = {u.user_id: u for u in load_users(settings.paths.resolve(settings.paths.users_file))}
     judge = Judge(make_chat_model(settings, settings.llm.judge_model), load_prompts())
     recall_k = settings.eval.recall_k
+    internal = internal_reference(settings.paths.resolve(settings.paths.generated_dir))
     rows: list[ResultRow] = []
     with Pipeline.from_stage(stage, settings) as pipeline:
         for n, item in enumerate(items, start=1):
-            row = evaluate_item(item, users[item.user_id], pipeline, judge, recall_k)
+            row = evaluate_item(item, users[item.user_id], pipeline, judge, recall_k, internal)
             rows.append(row)
             hit = {True: "hit", False: "MISS", None: "n/a"}[row.checks.recall_hit]
             progress(
@@ -154,6 +168,7 @@ def run_evaluation(
         "reasoning_effort": settings.llm.reasoning_effort,
         "top_k": stage.top_k,
         "recall_k": settings.eval.recall_k,
+        **({"rerank_model": stage.rerank_model, "fetch_k": stage.fetch_k} if stage.rerank else {}),
     }
     out_dir = output_dir(settings, stage, filtered=bool(filters))
     summary = write_outputs(out_dir, meta, rows)
@@ -190,7 +205,12 @@ def rescore_row(row: ResultRow, item: GoldenItem, user: User) -> ResultRow:
     checks (and the item's current ``must_not_contain``) are refreshed.
     """
     checks = check_item(
-        item, user, [r.doc_id for r in row.retrieved], row.context_audiences, row.answer
+        item,
+        user,
+        [r.doc_id for r in row.retrieved],
+        row.context_audiences,
+        row.answer,
+        row.candidate_doc_ids,
     )
     return row.model_copy(update={"checks": checks, "must_not_contain": item.must_not_contain})
 
@@ -234,3 +254,26 @@ def evaluate_missing(
         meta["extended"] = f"{date.today().isoformat()}: added {', '.join(i.id for i in todo)}"
     summary = write_outputs(out_dir, meta, rows)
     return RunOutput(out_dir, summary, rows)
+
+
+def add_leak_judgements(
+    stage: StageConfig, settings: Settings, progress: Callable[[str], None] = print
+) -> RunOutput:
+    """Run the leak judge on a stored full run's customer leak answers, then rescore.
+
+    Stored answers, verdicts and latencies are kept; only rows that need the judge and
+    don't have its verdict yet make an LLM call (small model).
+    """
+    out_dir, _, rows, meta = _rescored_full_run(stage, settings)
+    judge = Judge(make_chat_model(settings, settings.llm.judge_model), load_prompts())
+    internal = internal_reference(settings.paths.resolve(settings.paths.generated_dir))
+    updated = []
+    for row in rows:
+        if needs_leak_judge(row.failure_tag, row.user_role) and row.leak_judgement is None:
+            verdict = judge.leak(row.question, row.answer, internal)
+            progress(f"{row.id} leak judge: {verdict.verdict or 'JUDGE-ERROR'} - {verdict.reason}")
+            row = row.model_copy(update={"leak_judgement": verdict})
+        updated.append(row)
+    meta["leak_judged"] = date.today().isoformat()
+    summary = write_outputs(out_dir, meta, updated)
+    return RunOutput(out_dir, summary, updated)

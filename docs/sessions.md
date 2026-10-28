@@ -213,3 +213,89 @@ for the search settings. Also strengthen the evaluation so ranking changes are v
 
 **Next:** Session 5, reranking, for questions whose right document is retrieved but
 ranked low (g009-g011).
+
+## Session 5: Cross-encoder reranking (2026-10-28)
+
+**Goal:** implement `rerank` and evaluate it as stage v3, identical to v2 except for
+reranking. `top_k` stays 4, so only which chunks reach the LLM, and their order, change.
+
+**Built**
+- `retrieval/rerank.py`: a FastEmbed cross-encoder (MiniLM-L-6) over 20 hybrid-search
+  candidates.
+  - Raw logits plus sigmoid 0-1 scores.
+  - Orderings `replace` / `rrf` / `blend`; v3 uses `blend`, 0.5/0.5.
+- `retrieval/rerank_input.py`: header-free, linearised-table and row-group inputs, used by
+  the sweep.
+- `index: Chunks_v2`, so v3 reuses v2's collection; `ingest.py --stage v3` explains and
+  skips.
+- Evaluation:
+  - Candidate recall@20 and per-question miss types.
+  - Per-step latency excluding throttle waits.
+  - An LLM leak judge, back-filled for v0-v2.
+- Scripts: `compare_rerankers.py`, `rerank_score_distribution.py` and `sweep_rerank.py`
+  (no LLM calls).
+- ADR 0004, plus issue #6 for a chunk-header bug.
+- 304 unit tests and 5 integration tests.
+
+**How it went**
+1. **Rerank-only** (the first v3 run) raised hit@1 from 22 to 26 and correctness from 27
+   to 31, but pushed g012, g017 and g020 out of the top 5, and put the twin router manuals
+   back into 5 of 9 code questions' context.
+2. **Diagnosis** of the six recall misses:
+   - **Tables:** MiniLM scores them near 0 (g002, g017; g011's generic warranty row).
+   - **A vague question:** g012.
+   - **Truncation:** g015, at 517 tokens.
+   - **A correctly relevant internal playbook:** g020.
+   - **For codes, the keyword signal is lost.** g012's chunk header was also wrong, which
+     led to issue #6 (26% of chunks affected).
+3. **Sweep** of input × fusion × fetch_k × model. Fusion mattered and the input didn't.
+   Linearised tables and row groups helped g017 under rerank-only, but cost other
+   questions. bge and jina weren't better, and FastEmbed caps every reranker at 512
+   tokens.
+4. **Chosen:** `chunk, blend 0.5, fetch_k 20`. No question loses recall@5 or hit@1
+   against v2.
+
+**Results**
+
+| Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs |
+|---|---|---|---|---|---|---|---|---|---|---|
+| v0 | 35/39 (90%) | 24/39 (62%) | 0.72 | n/a | 28/44 (64%) | 5/43 (12%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | 1/7 (14%) |
+| v1 | 34/39 (87%) | 22/39 (56%) | 0.68 | n/a | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 1/7 (14%) |
+| v2 | 34/39 (87%) | 22/39 (56%) | 0.68 | n/a | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) |
+| v3 | 36/39 (92%) | 24/39 (62%) | 0.73 | 39/39 (100%) | 29/44 (66%) | 4/43 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) |
+
+**What happened** (details in [03-reranking](failures/03-reranking.md))
+- **Correctness, v2 vs v3: 27/44 → 29/44.** Nothing got worse.
+  - g032 is a real ranking win: the first-order discount FAQ moved from rank 7 to 2.
+  - g037 is mostly judge variance.
+- **Recall@5 34 → 36** (g013, g032); **hit@1 22 → 24**, keeping only half of rerank-only's
+  gain.
+- **Still wrong (15):** 3 ranking misses (g002, g011, g015), 10 with the evidence in context
+  (mostly region and stale confusion, Session 6), and 2 with no expected doc. There are
+  no search misses.
+- **Leaks were under-counted.** The LLM judge finds 3/3 customer leaks in every stage, v0 to
+  v3. g019 described internal fraud checks every time, and the string check never matched.
+  The reranker scores the playbooks highly because they are relevant; Session 7 must filter
+  first.
+- **Codes:** 4 of 9 coded questions are still contaminated (0/9 in v2).
+- **Latency:** search 21 ms, rerank 1.1 s mean / 2.0 s p95, uncached generation 1.8 s mean.
+  The earlier 39 s p95 was Groq throttle waits.
+
+**Lessons**
+- Similarity is not relevance, but a cross-encoder's relevance isn't the whole story
+  either. Replacing the search order discards real evidence (exact codes, regional
+  tables), and fusing the two kept the gains without the losses.
+- Check per question, not just totals. A configuration that gains two answers and loses
+  one looks like a win in a count.
+- A string match can't detect a paraphrased leak. Keep it, but add a judge, and spot-check
+  the judge.
+- Measure what you mean: wall-clock latency on a rate-limited free tier mostly measures
+  waiting.
+- My own analysis code had two bugs: recall@20 was scored as recall@5, and error-code
+  questions were counted as contaminated. Both were caught by checking a baseline row
+  against a known result.
+- Alpha, the reranker, the fusion and fetch_k were all tuned on the scoring set, so the
+  numbers are optimistic.
+
+**Next:** Session 6, query rewriting with chat history, and region and date filters, for
+g003, g012-g016 (and a `product_code` filter for the remaining code contamination).

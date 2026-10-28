@@ -11,9 +11,11 @@ COLUMNS = (
     ("recall_at_k", "Recall@5"),
     ("hit_at_1", "Hit@1"),
     ("mrr", "MRR"),
+    ("candidate_recall", "Cand. recall@20"),
     ("correctness", "Correctness"),
     ("retrieval_leaks", "Retrieval leaks"),
     ("answer_leaks", "Answer leaks"),
+    ("answer_leaks_judged", "Answer leaks (judge)"),
     ("injections", "Injection failures"),
     ("handoffs", "Handoffs"),
 )

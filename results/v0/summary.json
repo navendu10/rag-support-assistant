@@ -9,7 +9,8 @@
     "top_k": 4,
     "recall_k": 5,
     "rescored": "2026-10-25",
-    "extended": "2026-10-25: added g041, g042, g043, g044"
+    "extended": "2026-10-25: added g041, g042, g043, g044",
+    "leak_judged": "2026-10-28"
   },
   "overall": {
     "questions": 44,
@@ -37,6 +38,10 @@
       "count": 1,
       "total": 3
     },
+    "answer_leaks_judged": {
+      "count": 3,
+      "total": 3
+    },
     "injections": {
       "count": 2,
       "total": 3
@@ -50,9 +55,24 @@
       "total": 32
     },
     "judge_errors": 0,
+    "candidate_recall": {
+      "count": 0,
+      "total": 0
+    },
     "latency_ms": {
       "p50": 801.1,
-      "p95": 49330.4
+      "p95": 49330.4,
+      "generate_excludes_waits": false,
+      "retrieve": {
+        "mean": 31.6,
+        "p95": 20.3,
+        "n": 44
+      },
+      "generate": {
+        "mean": 5321.2,
+        "p95": 49317.6,
+        "n": 44
+      }
     }
   },
   "by_tag": {
@@ -82,6 +102,10 @@
         "count": 0,
         "total": 0
       },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
       "injections": {
         "count": 0,
         "total": 0
@@ -95,9 +119,24 @@
         "total": 4
       },
       "judge_errors": 0,
+      "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 15.4,
-        "p95": 383.0
+        "p95": 383.0,
+        "generate_excludes_waits": false,
+        "retrieve": {
+          "mean": 115.9,
+          "p95": 364.2,
+          "n": 4
+        },
+        "generate": {
+          "mean": 7.0,
+          "p95": 18.8,
+          "n": 4
+        }
       }
     },
     "product_code": {
@@ -126,6 +165,10 @@
         "count": 0,
         "total": 0
       },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
       "injections": {
         "count": 0,
         "total": 0
@@ -139,9 +182,24 @@
         "total": 7
       },
       "judge_errors": 0,
+      "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 762.0,
-        "p95": 1163.3
+        "p95": 1163.3,
+        "generate_excludes_waits": false,
+        "retrieve": {
+          "mean": 69.5,
+          "p95": 310.0,
+          "n": 8
+        },
+        "generate": {
+          "mean": 663.6,
+          "p95": 990.3,
+          "n": 8
+        }
       }
     },
     "ranking": {
@@ -170,6 +228,10 @@
         "count": 0,
         "total": 0
       },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
       "injections": {
         "count": 0,
         "total": 0
@@ -183,9 +245,24 @@
         "total": 3
       },
       "judge_errors": 0,
+      "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 1272.3,
-        "p95": 1292.8
+        "p95": 1292.8,
+        "generate_excludes_waits": false,
+        "retrieve": {
+          "mean": 10.5,
+          "p95": 11.2,
+          "n": 3
+        },
+        "generate": {
+          "mean": 1095.1,
+          "p95": 1282.5,
+          "n": 3
+        }
       }
     },
     "query_region": {
@@ -214,6 +291,10 @@
         "count": 0,
         "total": 0
       },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
       "injections": {
         "count": 0,
         "total": 0
@@ -227,9 +308,24 @@
         "total": 4
       },
       "judge_errors": 0,
+      "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 918.0,
-        "p95": 44489.8
+        "p95": 44489.8,
+        "generate_excludes_waits": false,
+        "retrieve": {
+          "mean": 12.8,
+          "p95": 19.0,
+          "n": 4
+        },
+        "generate": {
+          "mean": 13602.2,
+          "p95": 44479.9,
+          "n": 4
+        }
       }
     },
     "stale": {
@@ -258,6 +354,10 @@
         "count": 0,
         "total": 0
       },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
       "injections": {
         "count": 0,
         "total": 0
@@ -271,9 +371,24 @@
         "total": 2
       },
       "judge_errors": 0,
+      "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 950.1,
-        "p95": 1016.7
+        "p95": 1016.7,
+        "generate_excludes_waits": false,
+        "retrieve": {
+          "mean": 15.8,
+          "p95": 19.5,
+          "n": 2
+        },
+        "generate": {
+          "mean": 934.4,
+          "p95": 997.2,
+          "n": 2
+        }
       }
     },
     "leak": {
@@ -302,6 +417,10 @@
         "count": 1,
         "total": 3
       },
+      "answer_leaks_judged": {
+        "count": 3,
+        "total": 3
+      },
       "injections": {
         "count": 0,
         "total": 0
@@ -315,9 +434,24 @@
         "total": 3
       },
       "judge_errors": 0,
+      "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 865.1,
-        "p95": 43715.7
+        "p95": 43715.7,
+        "generate_excludes_waits": false,
+        "retrieve": {
+          "mean": 13.3,
+          "p95": 15.9,
+          "n": 4
+        },
+        "generate": {
+          "mean": 13365.3,
+          "p95": 43700.3,
+          "n": 4
+        }
       }
     },
     "hallucination": {
@@ -346,6 +480,10 @@
         "count": 0,
         "total": 0
       },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
       "injections": {
         "count": 0,
         "total": 0
@@ -359,9 +497,24 @@
         "total": 4
       },
       "judge_errors": 0,
+      "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 776.0,
-        "p95": 1689.4
+        "p95": 1689.4,
+        "generate_excludes_waits": false,
+        "retrieve": {
+          "mean": 10.5,
+          "p95": 11.4,
+          "n": 4
+        },
+        "generate": {
+          "mean": 1012.4,
+          "p95": 1678.8,
+          "n": 4
+        }
       }
     },
     "injection": {
@@ -390,6 +543,10 @@
         "count": 0,
         "total": 0
       },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
       "injections": {
         "count": 2,
         "total": 3
@@ -403,9 +560,24 @@
         "total": 3
       },
       "judge_errors": 0,
+      "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 729.0,
-        "p95": 1656.7
+        "p95": 1656.7,
+        "generate_excludes_waits": false,
+        "retrieve": {
+          "mean": 11.3,
+          "p95": 11.6,
+          "n": 3
+        },
+        "generate": {
+          "mean": 1004.0,
+          "p95": 1645.7,
+          "n": 3
+        }
       }
     },
     "normal": {
@@ -434,6 +606,10 @@
         "count": 0,
         "total": 0
       },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
       "injections": {
         "count": 0,
         "total": 0
@@ -447,9 +623,24 @@
         "total": 2
       },
       "judge_errors": 0,
+      "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 999.4,
-        "p95": 49317.6
+        "p95": 49317.6,
+        "generate_excludes_waits": false,
+        "retrieve": {
+          "mean": 10.6,
+          "p95": 12.8,
+          "n": 12
+        },
+        "generate": {
+          "mean": 9059.2,
+          "p95": 49306.0,
+          "n": 12
+        }
       }
     }
   }
