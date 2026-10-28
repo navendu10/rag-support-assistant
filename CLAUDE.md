@@ -42,8 +42,11 @@ src/rag_assistant/
   ingestion/               loaders (v0 text) + parsers (v1 Markdown), chunker (fixed) +
                            structure_chunker (headings, whole tables, context headers)
   retrieval/               vector (near_vector), hybrid (BM25 + vector, dynamic alpha),
-                           codes (product/error code detection), factory (pick per stage)
-configs/stages/<stage>.yaml  StageConfig switches; unimplemented values raise NotImplementedError
+                           codes (product/error code detection), factory (pick per stage),
+                           rerank (FastEmbed cross-encoder over fetch_k candidates, fused
+                           with the search score), rerank_input (reranker text variants)
+configs/stages/<stage>.yaml  StageConfig switches; unimplemented values raise NotImplementedError;
+                           `index: Chunks_vN` reuses another stage's collection (ingest skips it)
 configs/prompts.yaml       all prompt templates (answer + judges)
 results/<stage>/           committed full evaluation runs (results.jsonl, summary.json, report.md)
   ingestion/ retrieval/ query/ security/ generation/ graph/
@@ -75,6 +78,10 @@ python scripts/evaluate.py --stage v0 [--tag leak] [--limit 5]   # results/<stag
 python scripts/evaluate.py --stage v0 --only-missing   # answer new golden items only, merge
 python scripts/compare_stages.py [--by-tag]   # before/after table for README
 python scripts/sweep_alpha.py --stage v2 [--alphas 0,0.5,1] [--fusion ranked]  # no LLM calls
+python scripts/compare_rerankers.py [--models a,b]      # rerankers on v2 candidates, no LLM calls
+python scripts/rerank_score_distribution.py --stage v3   # 0-1 rerank scores, min_score table
+python scripts/sweep_rerank.py                     # reranker input x fusion x fetch_k x model
+python scripts/evaluate.py --stage v0 --add-leak-judge  # LLM leak judge on stored answers
 python scripts/show_chunks.py --stage v1 --doc returns-uk-2026-print [--grep text]
 pytest -m integration                         # needs Weaviate + Groq (skipped by default)
 ruff check . ; ruff format .                  # lint and format

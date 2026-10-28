@@ -74,7 +74,16 @@ def build_chunks(stage: StageConfig, settings: Settings) -> list[Chunk]:
 
 
 def ingest(stage: StageConfig, settings: Settings, embedder: Embedder | None = None) -> IngestStats:
-    """Replace the stage collection with freshly embedded chunks."""
+    """Replace the stage collection with freshly embedded chunks.
+
+    Raises:
+        ValueError: if the stage reuses another stage's index; ingest the owner instead.
+    """
+    if stage.reuses_index:
+        raise ValueError(
+            f"Stage {stage.name} reuses {stage.collection_name}; "
+            f"ingest stage {stage.index_owner} instead"
+        )
     chunks = build_chunks(stage, settings)
     embedder = embedder or Embedder(settings.embedding)
     vectors = embedder.embed([c.text for c in chunks])

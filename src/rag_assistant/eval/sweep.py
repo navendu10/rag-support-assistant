@@ -57,14 +57,19 @@ def context_hits(items: Sequence[GoldenItem], retrieved: Retrieved, top_k: int) 
 
 
 def score_group(
-    items: Sequence[GoldenItem], retrieved: Retrieved, top_k: int = 4
+    items: Sequence[GoldenItem], retrieved: Retrieved, top_k: int = 4, recall_k: int = 5
 ) -> dict[str, dict]:
-    """Recall@5, hit@1, MRR and context hits (first ``top_k``) of one run over ``items``."""
+    """Recall@5, hit@1, MRR and context hits (first ``top_k``) of one run over ``items``.
+
+    Runs may be longer than ``recall_k`` (e.g. all reranked candidates); they are cut
+    to the first ``recall_k`` so recall and MRR always mean "in the top 5".
+    """
+    top = {i.id: list(retrieved[i.id])[:recall_k] for i in items}
     return {
         "context": context_hits(items, retrieved, top_k),
-        "recall_at_k": rate(recall_hit(i.expected_doc_ids, retrieved[i.id]) for i in items),
-        "hit_at_1": rate(hit_at_1(i.expected_doc_ids, retrieved[i.id]) for i in items),
-        "mrr": mean_value(reciprocal_rank(i.expected_doc_ids, retrieved[i.id]) for i in items),
+        "recall_at_k": rate(recall_hit(i.expected_doc_ids, top[i.id]) for i in items),
+        "hit_at_1": rate(hit_at_1(i.expected_doc_ids, top[i.id]) for i in items),
+        "mrr": mean_value(reciprocal_rank(i.expected_doc_ids, top[i.id]) for i in items),
     }
 
 

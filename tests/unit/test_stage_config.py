@@ -44,7 +44,7 @@ def test_v0_loads_with_expected_switches() -> None:
 
 
 OTHER_VALUES = {
-    "rerank": True,
+    "min_score": 0.5,
     "query_rewrite": True,
     "use_history": True,
     "region_filter": True,
@@ -54,12 +54,21 @@ OTHER_VALUES = {
 }
 
 
+RERANK_ON = {
+    "rerank": True,
+    "rerank_model": "Xenova/ms-marco-MiniLM-L-6-v2",
+    "fetch_k": 20,
+    "rerank_fusion": "replace",
+}
+
+
 @pytest.mark.parametrize(("switch", "value"), OTHER_VALUES.items())
 def test_unimplemented_switch_raises_naming_session(
     tmp_path: Path, switch: str, value: object
 ) -> None:
     """Any non-v0 value raises NotImplementedError that names the session adding it."""
-    name = _write_stage(tmp_path, name="probe", **{switch: value})
+    extra = RERANK_ON if switch == "min_score" else {}  # min_score needs reranking on
+    name = _write_stage(tmp_path, name="probe", **extra, **{switch: value})
     session = UNIMPLEMENTED_SWITCHES[switch][1]
     with pytest.raises(NotImplementedError, match=rf"{switch}=.*Session {session}"):
         load_stage(name, stages_dir=tmp_path)
@@ -133,3 +142,6 @@ def test_prompts_have_placeholders() -> None:
     for field in ("{history}", "{question}", "{reference}", "{answer}"):
         assert field in prompts["judge_correctness"]
     assert "HANDOFF" in prompts["judge_handoff"] and "ANSWERED" in prompts["judge_handoff"]
+    for field in ("{internal}", "{question}", "{answer}"):
+        assert field in prompts["judge_leak"]
+    assert "LEAK" in prompts["judge_leak"] and "CLEAN" in prompts["judge_leak"]

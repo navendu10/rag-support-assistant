@@ -1,0 +1,32 @@
+# Stage v3: v2 plus cross-encoder reranking (Session 5).
+# Only the rerank settings differ from v2: the same hybrid search fetches fetch_k
+# candidates, the cross-encoder scores them, the scores are blended with the search scores,
+# and the best top_k become the context.
+# Model: results/v3/reranker_comparison.md; fusion: results/v3/rerank_sweep.md (ADR 0004).
+name: v3
+description: v2 + cross-encoder reranking of the top 20 hybrid-search candidates
+chunking: structure
+chunk_size: 1200
+chunk_overlap: 150
+min_chunk_chars: 200
+index: Chunks_v2         # reranking doesn't change ingestion: reuse v2's collection
+search: hybrid
+hybrid:
+  alpha_strategy: dynamic
+  code_alpha: 0.25
+  default_alpha: 1.0
+  fusion: relative_score
+  query_properties: [text, title, product_code^2]
+rerank: true             # v2: false
+rerank_model: Xenova/ms-marco-MiniLM-L-6-v2
+fetch_k: 20              # candidates searched per question, then reranked
+min_score: null          # rejecting weak context arrives in Session 8
+rerank_fusion: blend     # 0.5 x rerank score + 0.5 x search score; replace lost 3 answers
+rerank_blend_weight: 0.5 # not tuned (results/v3/rerank_sweep.md)
+query_rewrite: false     # Session 6
+use_history: false       # Session 6
+region_filter: false     # Session 6
+access_control: false    # Session 7
+grounding: false         # Session 8
+injection_guard: false   # Session 9
+top_k: 4

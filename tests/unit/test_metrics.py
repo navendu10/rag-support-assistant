@@ -390,11 +390,12 @@ def test_report_and_compare_render(tmp_path: Path) -> None:
     (tmp_path / "v0" / "summary.json").write_text(json.dumps(payload), encoding="utf-8")
     table = comparison_table(load_summaries(tmp_path))
     lines = table.splitlines()
-    assert lines[0].startswith("| Stage | Recall@5 | Hit@1 | MRR | Correctness |")
-    assert lines[2].startswith("| v0 | 1/2 (50%) | 1/2 (50%) | 0.50 | 1/3 (33%) | 1/3 (33%)")
+    assert lines[0].startswith("| Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness |")
+    assert lines[2].startswith("| v0 | 1/2 (50%) | 1/2 (50%) | 0.50 | n/a | 1/3 (33%) | 1/3 (33%)")
     assert "Hit@1 (an expected doc ranked first) | 1/2 (50%)" in report
-    assert "| g001 | normal | hit | 1 | CORRECT |" in report
-    assert "| g002 | leak | MISS | - | INCORRECT |" in report
+    assert "| g001 | normal | hit | 1 | search miss | CORRECT |" in report  # empty fake context
+    assert "| g002 | leak | MISS | - | search miss | INCORRECT |" in report
+    assert "Candidate recall" not in report and "Rerank latency" not in report
 
 
 def test_compare_marks_metrics_an_old_summary_lacks() -> None:

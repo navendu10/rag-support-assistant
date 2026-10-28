@@ -66,14 +66,23 @@ Each stage has its own write-up:
 - v2, hybrid search: [02-hybrid-search](docs/failures/02-hybrid-search.md). It removes
   every competing product's chunk from the context of code questions (7/9 → 0/9). The
   headline numbers don't move, because v1 already answered those questions correctly.
+- v3, cross-encoder reranking: [03-reranking](docs/failures/03-reranking.md).
+  - Reranking alone raised correctness, but pushed three answers out of the top 5.
+  - Blending the rerank and search scores keeps every answer v2 had, and takes
+    correctness from 27 to 29 of 44.
+  - A new LLM leak judge shows every customer leak question has leaked in every stage;
+    the string check had missed them.
+  - The model, fusion and alpha were tuned on this same golden set, so these numbers are
+    optimistic.
 
-| Stage | Recall@5 | Hit@1 | MRR | Correctness | Retrieval leaks | Answer leaks | Injection failures | Handoffs |
-|---|---|---|---|---|---|---|---|---|
-| v0 | 35/39 (90%) | 24/39 (62%) | 0.72 | 28/44 (64%) | 5/43 (12%) | 1/3 (33%) | 2/3 (67%) | 1/7 (14%) |
-| v1 | 34/39 (87%) | 22/39 (56%) | 0.68 | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 0/3 (0%) | 1/7 (14%) |
-| v2 | 34/39 (87%) | 22/39 (56%) | 0.68 | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 0/3 (0%) | 2/7 (29%) |
+| Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs |
+|---|---|---|---|---|---|---|---|---|---|---|
+| v0 | 35/39 (90%) | 24/39 (62%) | 0.72 | n/a | 28/44 (64%) | 5/43 (12%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | 1/7 (14%) |
+| v1 | 34/39 (87%) | 22/39 (56%) | 0.68 | n/a | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 1/7 (14%) |
+| v2 | 34/39 (87%) | 22/39 (56%) | 0.68 | n/a | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) |
+| v3 | 36/39 (92%) | 24/39 (62%) | 0.73 | 39/39 (100%) | 29/44 (66%) | 4/43 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) |
 
-Higher is better for recall, hit@1, MRR, correctness and handoffs; lower is better for
+Higher is better for recall, hit@1, MRR, candidate recall, correctness and handoffs; lower is better for
 leaks and injection failures.
 
 ## Session status
@@ -85,7 +94,7 @@ leaks and injection failures.
 | 2 | v0 naive pipeline + evaluation harness (baseline) | ✅ Done |
 | 3 | Fix 1: bad chunking (structure-aware chunking, stage v1) | ✅ Done |
 | 4 | Fix 2: product-code confusion (hybrid search, stage v2) | ✅ Done |
-| 5 | Fix 3: poor ranking (reranking) | ⏳ Planned |
+| 5 | Fix 3: poor ranking (cross-encoder reranking, stage v3) | ✅ Done |
 | 6 | Fix 4: vague queries, wrong region and stale documents | ⏳ Planned |
 | 7 | Fix 5: internal-document leaks (access control, Weaviate API keys) | ⏳ Planned |
 | 8 | Fix 6: hallucination (grounding, citations, handoff) | ⏳ Planned |
@@ -101,6 +110,16 @@ leaks and injection failures.
 Session titles after Session 1 are provisional. The session log is in
 [docs/sessions.md](docs/sessions.md) and the failure catalogue is in
 [docs/failures/](docs/failures/README.md).
+
+## Known issues
+
+- **Merged sections get the wrong context header**
+  ([#6](https://github.com/navendu10/rag-support-assistant/issues/6)). When the v1+
+  chunker merges a short section into the next one, the chunk's `[Title > Section]` header
+  names only the later section. 42 of the 162 chunks are affected. One UK returns chunk
+  headed "Refunds" starts with "Condition of returned items", and the header lowers its
+  rerank score from 0.83 to 0.51 for g012. Fixing it changes chunking, so it means
+  re-ingesting and re-evaluating v1-v3, and it is deferred.
 
 ## Licence
 

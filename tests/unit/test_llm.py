@@ -8,12 +8,16 @@ import httpx
 import pytest
 
 from rag_assistant.llm import (
+    CallTiming,
     RateLimiter,
     RateLimitExhaustedError,
     RetryPolicy,
     ThrottledTransport,
+    TransportStats,
     estimate_tokens,
     parse_retry_after,
+    timed_calls,
+    transport_stats,
     usage_tokens,
 )
 
@@ -124,6 +128,47 @@ def _client(inner: ScriptedTransport, clock: FakeClock, retries: int = 3) -> htt
         limiter, policy, 100, inner=inner, sleep=clock.sleep, jitter=lambda: 0.0
     )
     return httpx.Client(transport=transport)
+
+
+def test_transport_counts_requests_and_waits() -> None:
+    """Throttle waits and retry delays are added to the model's stats, per attempt."""
+    clock = FakeClock()
+    stats = TransportStats()
+    limiter = RateLimiter(1, 100_000, clock=clock, sleep=clock.sleep)  # 1 request a minute
+    policy = RetryPolicy(3, base_seconds=1, max_seconds=8, max_retry_after_seconds=60)
+    transport = ThrottledTransport(
+        limiter,
+        policy,
+        100,
+        inner=ScriptedTransport([_ok(), httpx.Response(429), _ok()]),
+        sleep=clock.sleep,
+        jitter=lambda: 0.0,
+        stats=stats,
+    )
+    client = httpx.Client(transport=transport)
+    client.post("https://api.example/chat", content=b"{}")
+    assert (stats.requests, stats.wait_seconds) == (1, 0.0)
+    client.post("https://api.example/chat", content=b"{}")  # throttled, 429, backoff, throttled
+    assert stats.requests == 3
+    assert stats.wait_seconds == pytest.approx(sum(clock.sleeps))
+    assert 1.0 in clock.sleeps  # the retry backoff is counted as a wait
+
+
+def test_timed_calls_reports_net_time_and_cache_hits(monkeypatch: pytest.MonkeyPatch) -> None:
+    """net_ms = wall minus waits; no request in the block means a cache hit."""
+    stats = transport_stats("timing-test-model")
+    with timed_calls("timing-test-model") as cached:
+        pass
+    assert cached.cached and cached.requests == 0
+    with timed_calls("timing-test-model") as call:
+        stats.requests += 1
+        stats.wait_seconds += 0.0
+    assert not call.cached and call.requests == 1
+    assert CallTiming(wall_ms=5_000.0, wait_ms=4_000.0).net_ms == 1_000.0
+    assert CallTiming(wall_ms=10.0, wait_ms=20.0).net_ms == 0.0
+    with timed_calls(None) as nothing:
+        pass
+    assert nothing.requests == 0
 
 
 def test_transport_retries_429_honouring_retry_after() -> None:
