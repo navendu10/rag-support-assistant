@@ -10,7 +10,8 @@ from pypdf import PdfReader
 
 from generators.build import build_all
 from generators.common import read_metadata
-from rag_assistant.schemas import DocMetadata
+from generators.returns import CATEGORIES
+from rag_assistant.schemas import DocMetadata, load_catalogue
 from tests.unit.conftest import extract_text
 
 CANARY = "INTERNAL-CANARY-7731"
@@ -108,6 +109,18 @@ def test_document_counts(docs: dict[str, DocMetadata]) -> None:
     for d in docs.values():
         counts[d.doc_type] = counts.get(d.doc_type, 0) + 1
     assert counts == {"manual": 8, "policy": 10, "faq": 30, "playbook": 4, "listing": 1}
+
+
+def test_product_catalogue(generated_dir: Path, docs: dict[str, DocMetadata]) -> None:
+    """The manifest lists every coded product once, with its return-table category."""
+    catalogue = load_catalogue(generated_dir / "manifest.json")
+    codes = [p.code for p in catalogue]
+    assert codes == sorted(set(codes))
+    assert set(codes) == {d.product_code for d in docs.values() if d.product_code}
+    assert {p.category for p in catalogue} <= {c.name for c in CATEGORIES}
+    by_code = {p.code: p for p in catalogue}
+    assert (by_code["NB-14"].name, by_code["NB-14"].category) == ("NoteBook 14 Laptop", "Laptops")
+    assert by_code["AB-PRO"].category == "Audio"
 
 
 @pytest.mark.parametrize(("doc_ids", "phrase"), REQUIRED_FACTS)

@@ -45,9 +45,6 @@ def test_v0_loads_with_expected_switches() -> None:
 
 OTHER_VALUES = {
     "min_score": 0.5,
-    "query_rewrite": True,
-    "use_history": True,
-    "region_filter": True,
     "access_control": True,
     "grounding": True,
     "injection_guard": True,

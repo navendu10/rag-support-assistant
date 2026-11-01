@@ -10,6 +10,7 @@ from __future__ import annotations
 import html
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
@@ -30,7 +31,7 @@ from reportlab.platypus import (
 )
 
 from generators.facts import STORE_NAME
-from rag_assistant.schemas import DocMetadata
+from rag_assistant.schemas import DocMetadata, Product
 
 PDF_CREATOR = "rag_assistant data generators"
 _META_TAG = re.compile(r'<meta name="(\w+)" content="([^"]*)">')
@@ -270,13 +271,16 @@ def read_metadata(path: Path) -> DocMetadata:
     raise ValueError(f"Unsupported document type: {path}")
 
 
-def write_manifest(out_dir: Path, docs: list[DocMetadata]) -> Path:
-    """Write ``manifest.json`` listing every document, sorted by ``doc_id``."""
+def write_manifest(
+    out_dir: Path, docs: list[DocMetadata], products: Sequence[Product] = ()
+) -> Path:
+    """Write ``manifest.json``: every document sorted by ``doc_id``, then the products."""
     ordered = sorted(docs, key=lambda d: d.doc_id)
     payload = {
         "store": STORE_NAME,
         "document_count": len(ordered),
         "documents": [d.model_dump(mode="json") for d in ordered],
+        "products": [p.model_dump(mode="json") for p in sorted(products, key=lambda p: p.code)],
     }
     path = out_dir / "manifest.json"
     _write_text(path, json.dumps(payload, indent=2) + "\n")

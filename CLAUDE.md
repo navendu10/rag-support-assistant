@@ -44,7 +44,10 @@ src/rag_assistant/
   retrieval/               vector (near_vector), hybrid (BM25 + vector, dynamic alpha),
                            codes (product/error code detection), factory (pick per stage),
                            rerank (FastEmbed cross-encoder over fetch_k candidates, fused
-                           with the search score), rerank_input (reranker text variants)
+                           with the search score), rerank_input (reranker text variants),
+                           filters (region filter from the user profile)
+  query/                   rewrite (small-model query rewriter with history and catalogue,
+                           validated JSON, retry then raw-message fallback), describe (CLI text)
 configs/stages/<stage>.yaml  StageConfig switches; unimplemented values raise NotImplementedError;
                            `index: Chunks_vN` reuses another stage's collection (ingest skips it)
 configs/prompts.yaml       all prompt templates (answer + judges)
@@ -74,6 +77,11 @@ python scripts/generate_data.py               # rebuild data/generated/ (determi
 python scripts/data_report.py                 # summary of docs and golden set
 python scripts/ingest.py --stage v0           # (re)build the stage's Weaviate collection
 python scripts/ask.py --stage v0 --user cust_uk_01 "question"
+python scripts/ask.py --stage v4 --user cust_uk_01 --history-file turns.json "Can I return it?"
+python scripts/chat.py --stage v4 --user cust_uk_01   # interactive, keeps history, shows rewrites
+python scripts/show_rewrites.py --stage v4         # stored rewrites table -> results/v4/rewrites.md
+python scripts/show_rewrites.py --stage v4 --live  # rewrite now (small model only), no answers
+python scripts/check_rewrite_retrieval.py          # rewrite + retrieve vs stored runs, no answers
 python scripts/evaluate.py --stage v0 [--tag leak] [--limit 5]   # results/<stage>/
 python scripts/evaluate.py --stage v0 --only-missing   # answer new golden items only, merge
 python scripts/compare_stages.py [--by-tag]   # before/after table for README

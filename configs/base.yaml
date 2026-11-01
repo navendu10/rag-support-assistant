@@ -45,3 +45,8 @@ paths:
 
 eval:
   recall_k: 5
+
+# Query rewriting (Session 6). The rewriter uses llm.small_model.
+query:
+  history_turns: 6   # latest chat turns shown to the rewriter
+  max_attempts: 2    # one call plus one retry on invalid output, then fall back to the raw message

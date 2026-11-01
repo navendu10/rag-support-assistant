@@ -67,8 +67,8 @@ def test_golden_ids_are_unique_and_sequential(golden: list[GoldenItem]) -> None:
 
 
 def test_golden_size(golden: list[GoldenItem]) -> None:
-    """40 items from Session 1 plus 4 product-code items from Session 4."""
-    assert len(golden) == 44
+    """40 items from Session 1, 4 product_code items (Session 4), 3 query_region (Session 6)."""
+    assert len(golden) == 47
 
 
 def test_tag_minimums(golden: list[GoldenItem]) -> None:
@@ -148,6 +148,35 @@ def test_session_4_product_code_questions(golden: list[GoldenItem]) -> None:
         item = _find(golden, question)
         assert (item.failure_tag, item.expected_doc_ids) == ("product_code", expected)
     assert Counter(g.failure_tag for g in golden)["product_code"] == 8
+
+
+# Session 6: vague follow-ups and questions that never name a country.
+SESSION_6_QUERY_REGION = {
+    "g045": ("cust_us_01", "NoteBook 14", ["returns-us-2026", "returns-us-2026-print"]),
+    "g046": ("cust_in_01", "VisionMax", ["returns-in-2026", "returns-in-2026-print"]),
+    "g047": ("cust_uk_01", None, ["returns-uk-2026", "returns-uk-2026-print"]),
+}
+
+
+def test_session_6_query_region_questions(golden: list[GoldenItem]) -> None:
+    """Three more query_region items, two of which need the chat history to name the product."""
+    by_id = {g.id: g for g in golden}
+    for item_id, (user_id, product, expected) in SESSION_6_QUERY_REGION.items():
+        item = by_id[item_id]
+        assert (item.failure_tag, item.user_id, item.expected_doc_ids) == (
+            "query_region",
+            user_id,
+            expected,
+        )
+        if product is None:
+            assert item.history == []
+        else:
+            assert any(product in turn.content for turn in item.history), item_id
+            assert product not in item.question  # only the history names it
+        assert not any(c in item.question for c in ("UK", "India", "US"))  # no country named
+    counts = Counter(g.failure_tag for g in golden)
+    assert counts["query_region"] == 7
+    assert sum(1 for g in golden if g.failure_tag == "query_region" and g.history) == 4
 
 
 def test_leak_items_guard_canary_and_amounts(

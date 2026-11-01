@@ -16,9 +16,9 @@ hybrid:
   fusion: relative_score
   query_properties: [text, title, product_code^2]
 rerank: false            # Session 5
-query_rewrite: false     # Session 6
-use_history: false       # Session 6
-region_filter: false     # Session 6
+query_rewrite: false     # Session 6 (v4a)
+use_history: false       # Session 6 (v4a)
+region_filter: false     # Session 6 (v4)
 access_control: false    # Session 7
 grounding: false         # Session 8
 injection_guard: false   # Session 9

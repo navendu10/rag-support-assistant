@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -28,7 +29,13 @@ from rag_assistant.eval.metrics import (
     summarise_rows,
 )
 from rag_assistant.eval.report import render_report
-from rag_assistant.eval.runner import merge_rows, missing_items, rescore_row, select_items
+from rag_assistant.eval.runner import (
+    extension_note,
+    merge_rows,
+    missing_items,
+    rescore_row,
+    select_items,
+)
 from rag_assistant.schemas import GoldenItem, User
 
 CUSTOMER = User(user_id="c", name="C", role="customer", region="UK")
@@ -502,3 +509,12 @@ def test_tag_table_marks_a_tag_missing_from_a_stage() -> None:
     ]
     correct = tag_comparison_table(summaries).split("\n\n")[0].splitlines()
     assert correct[3] == "| leak | 1 | - | 0/1 |"
+
+
+def test_extension_note_keeps_earlier_notes() -> None:
+    """--only-missing appends to meta.extended instead of replacing it."""
+    first = extension_note(None, ["g041", "g042"], date(2026, 10, 25))
+    assert first == "2026-10-25: added g041, g042"
+    assert extension_note(first, ["g045"], date(2026, 11, 1)) == (
+        "2026-10-25: added g041, g042; 2026-11-01: added g045"
+    )

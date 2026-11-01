@@ -40,6 +40,7 @@ python scripts/check_setup.py      # all checks should PASS
 python scripts/generate_data.py    # build the fictional knowledge base
 python scripts/ingest.py --stage v0
 python scripts/ask.py --stage v0 --user cust_uk_01 "Can I return opened headphones?"
+python scripts/chat.py --stage v4 --user cust_uk_01   # chat with history; shows each rewrite
 python scripts/evaluate.py --stage v0   # ~5 min uncached (Groq free-tier limits)
 pytest
 ```
@@ -51,12 +52,12 @@ Full details and troubleshooting: [docs/setup.md](docs/setup.md).
 A deterministic, template-generated knowledge base of 53 documents: 8 product manuals,
 regional return policies, store policies, 30 help-centre FAQs, 4 internal playbooks and
 one marketplace listing. Each family is designed to trigger specific RAG failures. A
-44-question golden set measures them. See [docs/data.md](docs/data.md).
+47-question golden set measures them. See [docs/data.md](docs/data.md).
 
 ## Results
 
-Output of `python scripts/compare_stages.py` on the 44-question golden set (every stage is
-scored on the same questions). Definitions are in [docs/evaluation.md](docs/evaluation.md).
+Output of `python scripts/compare_stages.py` on the 47-question golden set (every stage is
+scored on the same questions; Session 6 added g045-g047 to every stage). Definitions are in [docs/evaluation.md](docs/evaluation.md).
 Each stage has its own write-up:
 
 - v0, the baseline: [00-baseline](docs/failures/00-baseline.md).
@@ -74,13 +75,24 @@ Each stage has its own write-up:
     the string check had missed them.
   - The model, fusion and alpha were tuned on this same golden set, so these numbers are
     optimistic.
+- v4a and v4, query rewriting and region filters:
+  [04-query-and-region](docs/failures/04-query-and-region.md).
+  - Rewriting alone (v4a) resolves "it" from the chat history and adds category words, but
+    correctness is flat. It won five answers and lost five, including an injection that
+    now succeeds and two lost handoffs.
+  - Adding the region filter from the user's profile (v4) takes correctness from 30 to 34
+    of 47, and the vague and regional questions from 1 to 4 of 7.
+  - The filter can't separate the outdated UK policy from the current one, so one stale
+    answer got worse. It is personalisation, not access control.
 
-| Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs |
-|---|---|---|---|---|---|---|---|---|---|---|
-| v0 | 35/39 (90%) | 24/39 (62%) | 0.72 | n/a | 28/44 (64%) | 5/43 (12%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | 1/7 (14%) |
-| v1 | 34/39 (87%) | 22/39 (56%) | 0.68 | n/a | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 1/7 (14%) |
-| v2 | 34/39 (87%) | 22/39 (56%) | 0.68 | n/a | 27/44 (61%) | 4/43 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) |
-| v3 | 36/39 (92%) | 24/39 (62%) | 0.73 | 39/39 (100%) | 29/44 (66%) | 4/43 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) |
+| Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs | Rewrite fallbacks |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| v0 | 38/42 (90%) | 24/42 (57%) | 0.70 | n/a | 28/47 (60%) | 5/46 (11%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | 1/7 (14%) | n/a |
+| v1 | 36/42 (86%) | 23/42 (55%) | 0.67 | n/a | 28/47 (60%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 1/7 (14%) | n/a |
+| v2 | 36/42 (86%) | 23/42 (55%) | 0.67 | n/a | 28/47 (60%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) | n/a |
+| v3 | 38/42 (90%) | 25/42 (60%) | 0.71 | 42/42 (100%) | 30/47 (64%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) | n/a |
+| v4a | 39/42 (93%) | 28/42 (67%) | 0.75 | 42/42 (100%) | 30/47 (64%) | 4/46 (9%) | 0/3 (0%) | 1/3 (33%) | 1/3 (33%) | 0/7 (0%) | 0/47 (0%) |
+| v4 | 40/42 (95%) | 29/42 (69%) | 0.81 | 42/42 (100%) | 34/47 (72%) | 5/46 (11%) | 0/3 (0%) | 2/3 (67%) | 1/3 (33%) | 1/7 (14%) | 0/47 (0%) |
 
 Higher is better for recall, hit@1, MRR, candidate recall, correctness and handoffs; lower is better for
 leaks and injection failures.
@@ -95,17 +107,17 @@ leaks and injection failures.
 | 3 | Fix 1: bad chunking (structure-aware chunking, stage v1) | ✅ Done |
 | 4 | Fix 2: product-code confusion (hybrid search, stage v2) | ✅ Done |
 | 5 | Fix 3: poor ranking (cross-encoder reranking, stage v3) | ✅ Done |
-| 6 | Fix 4: vague queries, wrong region and stale documents | ⏳ Planned |
+| 6 | Fix 4: vague queries and wrong region (query rewriting, region filter, stages v4a/v4) | ✅ Done |
 | 7 | Fix 5: internal-document leaks (access control, Weaviate API keys) | ⏳ Planned |
 | 8 | Fix 6: hallucination (grounding, citations, handoff) | ⏳ Planned |
 | 9 | Fix 7: prompt injection | ⏳ Planned |
-| 10 | LangGraph RAG flow | ⏳ Planned |
-| 11 | Agent tools: order lookup and warranty check (SQLite) | ⏳ Planned |
-| 12 | Ticket creation with human approval | ⏳ Planned |
-| 13 | MCP server for the agent's tools | ⏳ Planned |
-| 14 | Evaluation harness and golden sets | ⏳ Planned |
-| 15 | Tracing and caching | ⏳ Planned |
-| 16 | FastAPI service and Streamlit UI | ⏳ Planned |
+| 10 | Agent tools: LangGraph agent with order lookup, warranty check and ticket creation | ⏳ Planned |
+| 11 | Guardrails: human approval for write actions | ⏳ Planned |
+| 12 | MCP server for the agent's tools | ⏳ Planned |
+| 13 | Evaluation: held-out golden set, judge improvements | ⏳ Planned |
+| 14 | Tracing and freshness (`effective_date`, stale documents) | ⏳ Planned |
+| 15 | Caching and model routing | ⏳ Planned |
+| 16 | FastAPI service, Streamlit UI and docs | ⏳ Planned |
 
 Session titles after Session 1 are provisional. The session log is in
 [docs/sessions.md](docs/sessions.md) and the failure catalogue is in

@@ -18,13 +18,17 @@ python scripts/sweep_alpha.py --stage v2                 # hybrid alpha/fusion s
 python scripts/compare_rerankers.py                      # reranker models on v2's candidates (no LLM)
 python scripts/rerank_score_distribution.py              # rerank scores and a min_score suggestion
 python scripts/sweep_rerank.py                           # reranker input x fusion x fetch_k x model
+python scripts/show_rewrites.py --stage v4               # every stored query rewrite (no LLM)
+python scripts/show_rewrites.py --stage v4 --live        # rewrite all questions now (small model only)
+python scripts/check_rewrite_retrieval.py                # rewrite + retrieve, no answers; vs stored runs
 ```
 
 ## Outputs
 
 | File | Contents |
 |---|---|
-| `results/<stage>/results.jsonl` | one row per question: retrieved doc_ids, audiences and scores (top 5), context doc_ids and audiences (top_k), the answer, every check, both judge verdicts **with reasons**, and latency |
+| `results/<stage>/results.jsonl` | one row per question: retrieved doc_ids, audiences and scores (top 5), context doc_ids and audiences (top_k), the answer, every check, both judge verdicts **with reasons**, and latency. From v4a: the query `rewrite` (standalone question, search query, product codes, category, fallback, attempts, flags); from v4: the applied `region_filter` |
+| `results/<stage>/rewrites.md` | stages with query rewriting: every question's rewrite, from `show_rewrites.py` |
 | `results/<stage>/summary.json` | run metadata, overall metrics and per-tag metrics (read by `compare_stages.py`) |
 | `results/<stage>/report.md` | the overall table, the per-failure-tag table and a per-question table with the judge's reason, for spot checks |
 
@@ -74,7 +78,9 @@ and "comes with a lifetime warranty". See [00-baseline](failures/00-baseline.md#
 | **Injection failure** | `injection`-tagged items | The answer contains any `must_not_contain` phrase. | lower |
 | **Forbidden phrase** | items with a non-empty `must_not_contain` | The answer contains any of its forbidden phrases. This is how stale ("14 days") and wrong-region answers are counted per tag. | lower |
 | **Handoff** | `expect_handoff` items | A second judge call returns `HANDOFF` or `ANSWERED` (rubric below). The rate is HANDOFF / eligible items. | higher |
-| **Latency** | all items | Per step, mean and p95 in ms: **retrieval** (search), **rerank** (cross-encoder, reranked stages) and **generation**. From Session 5, generation **excludes throttle and retry waits** (recorded separately as `generate_wait`) and is summarised over **uncached calls only** (`generate_requests > 0`). The report also gives the wall-clock total p50/p95, waits included. | lower |
+| **Rewrite fallback** | items in stages with `query_rewrite` | The rewriter's output was invalid twice, so the raw message was searched and answered. | lower |
+| **Rewrite flagged** | items in stages with `query_rewrite` | At least one rewrite check fired (below): an invented product, a dropped code or country, an added country or condition. | lower |
+| **Latency** | all items | Per step, mean and p95 in ms: **rewrite** (small model, v4a on), **retrieval** (search), **rerank** (cross-encoder, reranked stages) and **generation**. From Session 5, generation **excludes throttle and retry waits** (recorded separately as `generate_wait`) and is summarised over **uncached calls only** (`generate_requests > 0`). The report also gives the wall-clock total p50/p95, waits included. | lower |
 
 ### Why hit@1 and MRR as well as recall
 
@@ -115,6 +121,28 @@ Candidate recall@20 separates two kinds of miss. `report.md` labels each questio
 `report.md` also shows the **rerank latency** mean and p95. The pipeline loads the model
 and makes one warm-up call before the first question, so these timings exclude start-up.
 
+### Query rewrites (v4a on): what is stored and checked
+
+With `query_rewrite: true` the small model rewrites the latest message before search (see
+[04-query-and-region](failures/04-query-and-region.md)). Each row stores the rewrite, and
+`report.md` lists every rewrite that fell back or was flagged. Rewriting can drop details
+or invent products, so these checks run on every stored rewrite. They need no LLM, and
+`--rescore` recomputes them:
+
+| Flag | Fires when | Example |
+|---|---|---|
+| `invented product X` | the rewrite names catalogue product X (by code or brand word), but neither the message nor the history does | "a laptop I've opened" rewritten as "the NoteBook 14 Laptop" |
+| `dropped product X` | the message names product X (code or brand word), but `search_query` doesn't | "What warranty comes with the QuickCharge USB-C cable?" searched as "Power and charging warranty" (g027) |
+| `dropped code X` | a code in the message is in neither `search_query` nor `product_codes` | |
+| `added country X` | the rewrite names a country the conversation never mentioned | |
+| `dropped country X` | a country in the message is missing from `search_query` | "...earbuds in the UK?" searched as "Audio return window opened" |
+| `added condition X` | "opened", "unopened" or "sealed" appears in the rewrite but not in the conversation | "Can I send it back?" searched as "TV return window opened" |
+
+Brand words are compared with spaces and hyphens removed, so "power bank" names the
+PowerBank 20K and doesn't count as invented. A flag is a prompt to read the row, not a
+verdict: a dropped country, for example, does no harm in v4, where the region filter
+comes from the profile.
+
 ### Tuned on the test set: these numbers are optimistic
 
 Every tuning choice so far was made on **the same 44 golden questions that score the
@@ -123,11 +151,17 @@ stages**:
 - hybrid search's alpha values (Session 4, `sweep_alpha.py`)
 - the reranker model (Session 5, `compare_rerankers.py`)
 - the suggested `min_score` (Session 5, `rerank_score_distribution.py`)
+- the query-rewrite prompt (Session 6). The first draft was revised once after a
+  retrieval-only check on these questions showed it losing 7 answers. See
+  [04-query-and-region](failures/04-query-and-region.md#the-first-prompt-and-why-it-changed).
+- the rejected composed-query rewriter and its variants, including option 3, a second
+  search restricted to policies and FAQs (Session 6, `check_rewrite_retrieval.py`). See
+  [04-query-and-region](failures/04-query-and-region.md#5-trying-to-fix-the-rewriter-in-this-session-and-why-it-was-reverted).
 
 There is no held-out set, so v2's and v3's numbers are **optimistic** and would probably be
 lower on new questions. The choices are deliberately coarse (five alphas, two models), and
 each is explained with its trade-offs, which limits but does not remove the overfitting.
-A held-out golden set is planned for Session 14 (evaluation).
+A held-out golden set is planned for Session 13 (evaluation).
 
 ### The alpha sweep's ctx diagnostic
 
@@ -172,6 +206,9 @@ p95 totals. From Session 5:
   `generate_wait` = the waits, and `generate_requests` = HTTP attempts. 0 attempts means
   the answer came from the cache, and such calls are left out of the generation figures.
 - `retrieve` and `rerank` are wall times; they make no network calls to Groq.
+- From Session 6, the query rewrite is timed the same way as generation, on the small model:
+  `rewrite` (waits excluded), `rewrite_wait` and `rewrite_requests`. The report summarises
+  uncached calls only.
 
 Runs recorded before Session 5 (v0-v2, and v3's first run) have no `generate_wait`, so
 their generation time includes waits and cache hits. The report labels it that way

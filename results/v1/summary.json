@@ -8,31 +8,31 @@
     "reasoning_effort": "low",
     "top_k": 4,
     "recall_k": 5,
-    "extended": "2026-10-25: added g041, g042, g043, g044",
+    "extended": "2026-10-25: added g041, g042, g043, g044; 2026-11-01: added g045, g046, g047",
     "rescored": "2026-10-25",
     "leak_judged": "2026-10-28"
   },
   "overall": {
-    "questions": 44,
+    "questions": 47,
     "recall_at_k": {
-      "count": 34,
-      "total": 39
+      "count": 36,
+      "total": 42
     },
     "hit_at_1": {
-      "count": 22,
-      "total": 39
+      "count": 23,
+      "total": 42
     },
     "mrr": {
-      "value": 0.679,
-      "total": 39
+      "value": 0.667,
+      "total": 42
     },
     "correctness": {
-      "count": 27,
-      "total": 44
+      "count": 28,
+      "total": 47
     },
     "retrieval_leaks": {
       "count": 4,
-      "total": 43
+      "total": 46
     },
     "answer_leaks": {
       "count": 0,
@@ -52,26 +52,39 @@
     },
     "forbidden_phrases": {
       "count": 4,
-      "total": 32
+      "total": 35
     },
     "judge_errors": 0,
     "candidate_recall": {
       "count": 0,
       "total": 0
     },
+    "rewrite_fallbacks": {
+      "count": 0,
+      "total": 0
+    },
+    "rewrite_flagged": {
+      "count": 0,
+      "total": 0
+    },
     "latency_ms": {
-      "p50": 921.0,
-      "p95": 48534.2,
+      "p50": 920.0,
+      "p95": 48381.2,
       "generate_excludes_waits": false,
       "retrieve": {
-        "mean": 58.8,
-        "p95": 103.1,
-        "n": 44
+        "mean": 62.7,
+        "p95": 242.0,
+        "n": 47
       },
       "generate": {
-        "mean": 5417.6,
-        "p95": 48489.9,
-        "n": 44
+        "mean": 870.9,
+        "p95": 1067.3,
+        "n": 3
+      },
+      "generate_wait": {
+        "mean": 0.0,
+        "p95": 0.0,
+        "n": 3
       }
     }
   },
@@ -120,6 +133,14 @@
       },
       "judge_errors": 0,
       "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_flagged": {
         "count": 0,
         "total": 0
       },
@@ -186,6 +207,14 @@
         "count": 0,
         "total": 0
       },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 931.1,
         "p95": 1089.7,
@@ -249,6 +278,14 @@
         "count": 0,
         "total": 0
       },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 1179.9,
         "p95": 46288.8,
@@ -266,26 +303,26 @@
       }
     },
     "query_region": {
-      "questions": 4,
+      "questions": 7,
       "recall_at_k": {
-        "count": 2,
-        "total": 4
+        "count": 4,
+        "total": 7
       },
       "hit_at_1": {
-        "count": 1,
-        "total": 4
+        "count": 2,
+        "total": 7
       },
       "mrr": {
-        "value": 0.333,
-        "total": 4
+        "value": 0.405,
+        "total": 7
       },
       "correctness": {
-        "count": 0,
-        "total": 4
+        "count": 1,
+        "total": 7
       },
       "retrieval_leaks": {
         "count": 0,
-        "total": 4
+        "total": 7
       },
       "answer_leaks": {
         "count": 0,
@@ -305,26 +342,39 @@
       },
       "forbidden_phrases": {
         "count": 1,
-        "total": 4
+        "total": 7
       },
       "judge_errors": 0,
       "candidate_recall": {
         "count": 0,
         "total": 0
       },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
-        "p50": 952.0,
-        "p95": 983.1,
+        "p50": 921.9,
+        "p95": 1291.9,
         "generate_excludes_waits": false,
         "retrieve": {
-          "mean": 47.5,
-          "p95": 80.2,
-          "n": 4
+          "mean": 78.2,
+          "p95": 261.6,
+          "n": 7
         },
         "generate": {
-          "mean": 853.5,
-          "p95": 934.6,
-          "n": 4
+          "mean": 870.9,
+          "p95": 1067.3,
+          "n": 3
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
         }
       }
     },
@@ -372,6 +422,14 @@
       },
       "judge_errors": 0,
       "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_flagged": {
         "count": 0,
         "total": 0
       },
@@ -438,6 +496,14 @@
         "count": 0,
         "total": 0
       },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 1279.8,
         "p95": 41630.2,
@@ -498,6 +564,14 @@
       },
       "judge_errors": 0,
       "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_flagged": {
         "count": 0,
         "total": 0
       },
@@ -564,6 +638,14 @@
         "count": 0,
         "total": 0
       },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 610.7,
         "p95": 719.1,
@@ -624,6 +706,14 @@
       },
       "judge_errors": 0,
       "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_flagged": {
         "count": 0,
         "total": 0
       },

@@ -6,10 +6,12 @@ it is never used to filter or re-rank results in v0.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from weaviate.classes.query import MetadataQuery
 from weaviate.collections import Collection
+from weaviate.collections.classes.filters import _Filters
 
 from rag_assistant.embeddings import Embedder
 
@@ -43,11 +45,24 @@ class VectorRetriever:
         self._collection = collection
         self._embedder = embedder
 
-    def search(self, query: str, k: int) -> list[RetrievedChunk]:
-        """Return the ``k`` chunks closest to ``query``, best first."""
+    def search(
+        self,
+        query: str,
+        k: int,
+        *,
+        extra_codes: Sequence[str] = (),
+        filters: _Filters | None = None,
+    ) -> list[RetrievedChunk]:
+        """Return the ``k`` chunks closest to ``query``, best first.
+
+        ``extra_codes`` is accepted for a uniform interface and ignored: vector search
+        has no keyword side. ``filters`` is applied before ranking.
+        """
+        del extra_codes
         response = self._collection.query.near_vector(
             near_vector=self._embedder.embed_one(query),
             limit=k,
+            filters=filters,
             return_metadata=MetadataQuery(distance=True),
         )
         return [

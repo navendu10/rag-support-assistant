@@ -47,6 +47,16 @@ class DocMetadata(BaseModel):
     source_path: str = Field(min_length=1, description="Path relative to data/generated/")
 
 
+class Product(BaseModel):
+    """One catalogue entry: a product code, its name and its return-table category."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    code: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    category: str = Field(min_length=1)
+
+
 class User(BaseModel):
     """A customer or support agent who can ask the assistant questions."""
 
@@ -104,10 +114,26 @@ def load_manifest(path: Path) -> list[DocMetadata]:
     return [DocMetadata.model_validate(item) for item in data["documents"]]
 
 
+def load_catalogue(path: Path) -> list[Product]:
+    """Read the product catalogue (``products``) from ``manifest.json``."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if "products" not in data:
+        raise ValueError(f"{path} has no product catalogue; run scripts/generate_data.py")
+    return [Product.model_validate(item) for item in data["products"]]
+
+
 def load_users(path: Path) -> list[User]:
     """Read and validate ``users.json``."""
     data = json.loads(path.read_text(encoding="utf-8"))
     return [User.model_validate(item) for item in data]
+
+
+def load_history(path: Path) -> list[Turn]:
+    """Read a JSON list of conversation turns (``role``, ``content``)."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, list):
+        raise ValueError(f"{path} must hold a JSON list of turns")
+    return [Turn.model_validate(item) for item in data]
 
 
 def load_golden(path: Path) -> list[GoldenItem]:

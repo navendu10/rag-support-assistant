@@ -149,9 +149,9 @@ class FakeRetriever:
         """Remember the requested k values."""
         self.ks: list[int] = []
 
-    def search(self, query: str, k: int) -> list[RetrievedChunk]:
-        """``k`` chunks, best search score first."""
-        del query
+    def search(self, query: str, k: int, **options: object) -> list[RetrievedChunk]:
+        """``k`` chunks, best search score first (search options are ignored)."""
+        del query, options
         self.ks.append(k)
         return [_chunk(f"d{n}", "warranty" if n == k - 1 else "other", n) for n in range(k)]
 

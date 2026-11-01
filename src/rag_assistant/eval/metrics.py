@@ -67,6 +67,25 @@ class ItemChecks(BaseModel):
     candidate_recall: bool | None = None
 
 
+class RewriteRecord(BaseModel):
+    """What the query rewriter produced for one question (stages with ``query_rewrite``).
+
+    ``flags`` are the no-LLM rewrite checks (``query.rewrite.rewrite_flags``): invented
+    products, dropped codes and added countries. ``--rescore`` recomputes them.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    standalone_question: str
+    search_query: str
+    product_codes: list[str]
+    product_category: str | None
+    fallback: bool
+    attempts: int
+    error: str | None = None
+    flags: list[str] = []
+
+
 class ResultRow(BaseModel):
     """One line of results.jsonl."""
 
@@ -93,6 +112,8 @@ class ResultRow(BaseModel):
     latency_ms: dict[str, float]
     candidate_doc_ids: list[str] | None = None
     leak_judgement: Judgement | None = None
+    rewrite: RewriteRecord | None = None
+    region_filter: list[str] | None = None
 
 
 # ---------------------------------------------------------------- per item
@@ -279,6 +300,16 @@ def _judged_leak(row: ResultRow) -> bool | None:
     return row.leak_judgement.verdict != "CLEAN"
 
 
+def _rewrite_fallback(row: ResultRow) -> bool | None:
+    """True if the rewriter fell back to the raw message; None without rewriting."""
+    return None if row.rewrite is None else row.rewrite.fallback
+
+
+def _rewrite_flagged(row: ResultRow) -> bool | None:
+    """True if any rewrite check flagged the rewrite; None without rewriting."""
+    return None if row.rewrite is None else bool(row.rewrite.flags)
+
+
 def _forbidden(row: ResultRow) -> bool | None:
     """Whether the answer hit a forbidden phrase; None if the item has none."""
     return bool(row.checks.forbidden_hits) if row.must_not_contain else None
@@ -307,7 +338,7 @@ def _mean_p95(values: Sequence[float]) -> dict[str, float]:
 def latency_summary(rows: Sequence[ResultRow]) -> dict[str, object]:
     """Wall-clock total p50/p95, plus mean/p95 of each pipeline step.
 
-    Generation is summarised over **uncached** calls only, and from Session 5 on it
+    Rewriting and generation are summarised over **uncached** calls only, and from Session 5 on it
     excludes throttle and retry waits (``generate_wait`` is recorded separately). Older
     runs have no ``generate_wait``: their generation time includes waits, and cache hits
     can't be told apart, so ``generate_excludes_waits`` is False for them.
@@ -315,6 +346,11 @@ def latency_summary(rows: Sequence[ResultRow]) -> dict[str, object]:
     totals = [row.latency_ms.get("total", 0.0) for row in rows]
     summary: dict[str, object] = {"p50": _percentile(totals, 50), "p95": _percentile(totals, 95)}
     steps = {
+        # Rewriting (Session 6) is timed like generation: waits excluded, uncached calls only.
+        "rewrite": [r.latency_ms["rewrite"] for r in rows if r.latency_ms.get("rewrite_requests")],
+        "rewrite_wait": [
+            r.latency_ms["rewrite_wait"] for r in rows if "rewrite_wait" in r.latency_ms
+        ],
         "retrieve": [r.latency_ms["retrieve"] for r in rows if "retrieve" in r.latency_ms],
         "rerank": [r.latency_ms["rerank"] for r in rows if "rerank" in r.latency_ms],
     }
@@ -357,6 +393,8 @@ def summarise_rows(rows: Sequence[ResultRow]) -> dict[str, object]:
             if j is not None and j.verdict is None
         ),
         "candidate_recall": rate(row.checks.candidate_recall for row in rows),
+        "rewrite_fallbacks": rate(_rewrite_fallback(row) for row in rows),
+        "rewrite_flagged": rate(_rewrite_flagged(row) for row in rows),
         "latency_ms": latency_summary(rows),
     }
 

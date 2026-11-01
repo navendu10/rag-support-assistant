@@ -63,5 +63,19 @@ SENIOR_MIN_AGE = 60
 SENIOR_DISCOUNT_PCT = 5
 FIRST_ORDER_DISCOUNT_PCT = 10
 
+# Product code -> its row in the return-window tables (generators/returns.py CATEGORIES).
+# Written into the manifest's product catalogue for the query rewriter (Session 6).
+PRODUCT_CATEGORIES = {
+    "AB-PRO": "Audio",
+    "VM-55Q": "TVs",
+    "NB-14": "Laptops",
+    "XR-2200": "Networking",
+    "XR-2000": "Networking",
+    "SW-FIT2": "Wearables",
+    "WM-700": "Large appliances",
+    "PB-20K": "Power and charging",
+    "QC-USBC": "Power and charging",
+}
+
 # Internal only: goodwill credit caps for late delivery.
 GOODWILL_LATE_DELIVERY = {"IN": "Rs 2,000", "UK": "GBP 20", "US": "USD 25"}

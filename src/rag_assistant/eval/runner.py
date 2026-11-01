@@ -18,6 +18,7 @@ from rag_assistant.eval.metrics import (
     summarise_rows,
 )
 from rag_assistant.eval.report import render_report
+from rag_assistant.eval.rewrites import RewriteChecker
 from rag_assistant.llm import make_chat_model
 from rag_assistant.pipeline import Pipeline
 from rag_assistant.schemas import GoldenItem, User, load_golden, load_users
@@ -55,9 +56,19 @@ def evaluate_item(
     judge: Judge,
     recall_k: int,
     internal: str = "",
+    checker: RewriteChecker | None = None,
 ) -> ResultRow:
-    """Answer one golden question and score it (``internal``: text for the leak judge)."""
+    """Answer one golden question and score it.
+
+    ``internal`` is the text for the leak judge; ``checker`` records and flags the
+    query rewrite (needed when the stage rewrites).
+    """
     answer = pipeline.answer(item.question, user, item.history, retrieve_k=recall_k)
+    rewrite = None
+    if answer.rewrite is not None:
+        if checker is None:
+            raise ValueError("a rewriting stage needs a RewriteChecker")
+        rewrite = checker.record(answer.rewrite, item)
     retrieved_ids = [c.doc_id for c in answer.retrieved[:recall_k]]
     context_audiences = [c.audience for c in answer.context]
     candidate_ids = [c.doc_id for c in answer.candidates] if pipeline.stage.rerank else None
@@ -99,6 +110,8 @@ def evaluate_item(
         ),
         latency_ms=answer.timings_ms,
         candidate_doc_ids=candidate_ids,
+        rewrite=rewrite,
+        region_filter=None if answer.region_filter is None else list(answer.region_filter),
     )
 
 
@@ -131,15 +144,19 @@ def answer_items(
     judge = Judge(make_chat_model(settings, settings.llm.judge_model), load_prompts())
     recall_k = settings.eval.recall_k
     internal = internal_reference(settings.paths.resolve(settings.paths.generated_dir))
+    checker = RewriteChecker.from_settings(settings) if stage.query_rewrite else None
     rows: list[ResultRow] = []
     with Pipeline.from_stage(stage, settings) as pipeline:
         for n, item in enumerate(items, start=1):
-            row = evaluate_item(item, users[item.user_id], pipeline, judge, recall_k, internal)
+            row = evaluate_item(
+                item, users[item.user_id], pipeline, judge, recall_k, internal, checker
+            )
             rows.append(row)
             hit = {True: "hit", False: "MISS", None: "n/a"}[row.checks.recall_hit]
+            fallback = " REWRITE-FALLBACK" if row.rewrite and row.rewrite.fallback else ""
             progress(
                 f"[{n:>2}/{len(items)}] {item.id} {item.failure_tag:<13} recall={hit:<4} "
-                f"{row.correctness.verdict or 'JUDGE-ERROR'}"
+                f"{row.correctness.verdict or 'JUDGE-ERROR'}{fallback}"
             )
     return rows
 
@@ -169,6 +186,15 @@ def run_evaluation(
         "top_k": stage.top_k,
         "recall_k": settings.eval.recall_k,
         **({"rerank_model": stage.rerank_model, "fetch_k": stage.fetch_k} if stage.rerank else {}),
+        **(
+            {
+                "rewrite_model": settings.llm.small_model,
+                "history_turns": settings.query.history_turns,
+            }
+            if stage.query_rewrite
+            else {}
+        ),
+        **({"region_filter": "user profile region + ALL"} if stage.region_filter else {}),
     }
     out_dir = output_dir(settings, stage, filtered=bool(filters))
     summary = write_outputs(out_dir, meta, rows)
@@ -198,11 +224,14 @@ def missing_items(items: Sequence[GoldenItem], stored: Sequence[ResultRow]) -> l
     return [item for item in items if item.id not in done]
 
 
-def rescore_row(row: ResultRow, item: GoldenItem, user: User) -> ResultRow:
+def rescore_row(
+    row: ResultRow, item: GoldenItem, user: User, checker: RewriteChecker | None = None
+) -> ResultRow:
     """Recompute the string and metadata checks for a stored row.
 
     Answers, retrieval, judge verdicts and latency are kept as recorded; only the
-    checks (and the item's current ``must_not_contain``) are refreshed.
+    checks (and the item's current ``must_not_contain``) are refreshed, plus the
+    rewrite flags when there is a stored rewrite and a ``checker``.
     """
     checks = check_item(
         item,
@@ -212,7 +241,10 @@ def rescore_row(row: ResultRow, item: GoldenItem, user: User) -> ResultRow:
         row.answer,
         row.candidate_doc_ids,
     )
-    return row.model_copy(update={"checks": checks, "must_not_contain": item.must_not_contain})
+    update: dict[str, object] = {"checks": checks, "must_not_contain": item.must_not_contain}
+    if row.rewrite is not None and checker is not None:
+        update["rewrite"] = checker.reflag(row.rewrite, item)
+    return row.model_copy(update=update)
 
 
 def _rescored_full_run(
@@ -223,8 +255,11 @@ def _rescored_full_run(
     items = load_golden(settings.paths.resolve(settings.paths.golden_file))
     by_id = {i.id: i for i in items}
     users = {u.user_id: u for u in load_users(settings.paths.resolve(settings.paths.users_file))}
+    checker = RewriteChecker.from_settings(settings) if stage.query_rewrite else None
     stored = [
-        rescore_row(r, by_id[r.id], users[r.user_id]) for r in load_rows(out_dir) if r.id in by_id
+        rescore_row(r, by_id[r.id], users[r.user_id], checker)
+        for r in load_rows(out_dir)
+        if r.id in by_id
     ]
     meta = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))["meta"]
     return out_dir, items, stored, meta
@@ -236,6 +271,12 @@ def rescore(stage: StageConfig, settings: Settings) -> RunOutput:
     meta["rescored"] = date.today().isoformat()
     summary = write_outputs(out_dir, meta, rows)
     return RunOutput(out_dir, summary, rows)
+
+
+def extension_note(previous: object, added: Sequence[str], today: date | None = None) -> str:
+    """``meta.extended``: earlier notes kept, today's added ids appended after "; "."""
+    note = f"{(today or date.today()).isoformat()}: added {', '.join(added)}"
+    return f"{previous}; {note}" if previous else note
 
 
 def evaluate_missing(
@@ -251,7 +292,7 @@ def evaluate_missing(
     new = answer_items(stage, settings, todo, progress) if todo else []
     rows = merge_rows(items, stored, new)
     if todo:
-        meta["extended"] = f"{date.today().isoformat()}: added {', '.join(i.id for i in todo)}"
+        meta["extended"] = extension_note(meta.get("extended"), [i.id for i in todo])
     summary = write_outputs(out_dir, meta, rows)
     return RunOutput(out_dir, summary, rows)
 
