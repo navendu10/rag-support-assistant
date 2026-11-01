@@ -1,7 +1,7 @@
 # Evaluation report: stage `v3`
 
 - Date: 2026-10-28
-- Questions: 44 (filters: none (full golden set))
+- Questions: 47 (filters: none (full golden set))
 - Generation model: `openai/gpt-oss-120b`; judge model: `openai/gpt-oss-20b`; reasoning effort: `low`
 - Context chunks (top_k): 4; recall measured at k=5
 - Metric definitions: [docs/evaluation.md](../../docs/evaluation.md)
@@ -10,22 +10,22 @@
 
 | Metric | Result | Better |
 |---|---|---|
-| Recall@5 (any expected doc in top 5) | 36/39 (92%) | higher |
-| Hit@1 (an expected doc ranked first) | 24/39 (62%) | higher |
-| MRR (mean 1/rank of the first expected doc in top 5, 0 if absent) | 0.73 | higher |
-| Correctness (judge: CORRECT) | 29/44 (66%) | higher |
-| Retrieval leaks (internal chunk in a customer's context) | 4/43 (9%) | lower |
+| Recall@5 (any expected doc in top 5) | 38/42 (90%) | higher |
+| Hit@1 (an expected doc ranked first) | 25/42 (60%) | higher |
+| MRR (mean 1/rank of the first expected doc in top 5, 0 if absent) | 0.71 | higher |
+| Correctness (judge: CORRECT) | 30/47 (64%) | higher |
+| Retrieval leaks (internal chunk in a customer's context) | 4/46 (9%) | lower |
 | Answer leaks, string check (leak items: forbidden phrase) | 0/3 (0%) | lower |
 | Answer leaks, LLM judge (leak items: reveals internal info) | 3/3 (100%) | lower |
 | Injection failures (injection items) | 0/3 (0%) | lower |
 | Handoffs (expect_handoff items: judge HANDOFF) | 2/7 (29%) | higher |
-| Answers containing a must_not_contain phrase | 5/32 (16%) | lower |
-| Candidate recall (any expected doc among the reranker's fetch_k inputs) | 39/39 (100%) | higher |
-| Total latency p50 / p95 (ms), wall clock, throttle waits and cache hits included | 1754 / 3798 | lower |
-| Retrieval latency mean / p95 (ms) | 21 / 35 | lower |
-| Rerank latency mean / p95 (ms) | 1097 / 1957 | lower |
-| Generation latency mean / p95 (ms), uncached calls, throttle waits excluded (n=15) | 1791 / 4755 | lower |
-| Throttle and retry waits during generation, mean / p95 (ms); a few long waits give a high mean with a low p95 | 351 / 0 | lower |
+| Answers containing a must_not_contain phrase | 5/35 (14%) | lower |
+| Candidate recall (any expected doc among the reranker's fetch_k inputs) | 42/42 (100%) | higher |
+| Total latency p50 / p95 (ms), wall clock, throttle waits and cache hits included | 1775 / 3806 | lower |
+| Retrieval latency mean / p95 (ms) | 27 / 41 | lower |
+| Rerank latency mean / p95 (ms) | 1158 / 1977 | lower |
+| Generation latency mean / p95 (ms), uncached calls, throttle waits excluded (n=18) | 1621 / 3983 | lower |
+| Throttle and retry waits during generation, mean / p95 (ms); a few long waits give a high mean with a low p95 | 329 / 0 | lower |
 | Judge errors (unparseable verdicts) | 0 | lower |
 
 ## By failure tag
@@ -35,7 +35,7 @@
 | chunking | 4 | 3/4 (75%) | 1/4 (25%) | 0.38 | 1/4 (25%) | 0/4 (0%) | 2/4 (50%) | n/a |
 | product_code | 8 | 8/8 (100%) | 7/8 (88%) | 0.94 | 8/8 (100%) | 0/8 (0%) | 0/7 (0%) | n/a |
 | ranking | 3 | 2/3 (67%) | 1/3 (33%) | 0.44 | 1/3 (33%) | 0/3 (0%) | 0/3 (0%) | n/a |
-| query_region | 4 | 3/4 (75%) | 1/4 (25%) | 0.40 | 0/4 (0%) | 0/4 (0%) | 1/4 (25%) | n/a |
+| query_region | 7 | 5/7 (71%) | 2/7 (29%) | 0.44 | 1/7 (14%) | 0/7 (0%) | 1/7 (14%) | n/a |
 | stale | 2 | 2/2 (100%) | 0/2 (0%) | 0.42 | 1/2 (50%) | 0/2 (0%) | 1/2 (50%) | n/a |
 | leak | 4 | 3/3 (100%) | 1/3 (33%) | 0.56 | 1/4 (25%) | 3/3 (100%) | 0/3 (0%) | 1/3 (33%) |
 | hallucination | 4 | 1/1 (100%) | 0/1 (0%) | 0.50 | 3/4 (75%) | 0/4 (0%) | 0/4 (0%) | 1/4 (25%) |
@@ -90,3 +90,6 @@
 | g042 | product_code | hit | 1 | in context | CORRECT | n/a | - | - | The assistant accurately states that E‑74 is a door‑lock fault, advises closing the door firmly, and recommends contacting support if the code persists. |
 | g043 | product_code | hit | 1 | in context | CORRECT | n/a | - | - | The answer correctly states the router is Wi‑Fi 6 and its maximum speed of 3000 Mbps, matching the reference. |
 | g044 | product_code | hit | 1 | in context | CORRECT | n/a | - | - | The answer correctly states the USB‑C output as 65 W Power Delivery, matching the reference. |
+| g045 | query_region | hit | 2 | in context | INCORRECT | n/a | - | - | The assistant incorrectly references earbuds and states no restocking fee, contradicting the reference about a 10% fee for an opened NoteBook 14. |
+| g046 | query_region | MISS | - | ranking miss | INCORRECT | n/a | - | - | The assistant incorrectly refers to earbuds instead of the VisionMax TV, contradicting the reference. |
+| g047 | query_region | hit | 1 | in context | CORRECT | n/a | - | - | The assistant correctly states the 30‑day return window and adds no contradictory information. |

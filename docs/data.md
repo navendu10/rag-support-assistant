@@ -25,8 +25,8 @@ data/
     build.py             build_all(): cleans the output, runs every family, writes the manifest
   generated/             output (git-ignored)
     manuals/  policies/  faqs/  playbooks/  marketplace/
-    manifest.json        all 53 documents, sorted by doc_id
-  golden/questions.jsonl 44 hand-written evaluation items (committed)
+    manifest.json        all 53 documents sorted by doc_id, plus the product catalogue
+  golden/questions.jsonl 47 hand-written evaluation items (committed)
   users.json             the four test users (committed)
 ```
 
@@ -104,6 +104,13 @@ Where the metadata is stored depends on the format:
   - The three regional policies are worded almost identically, with different numbers.
   - Golden items include follow-ups such as "Can I return it?" that depend on chat history,
     and questions that never name a country.
+  - From Session 6 the manifest also holds a **product catalogue** (`"products"`: code,
+    name and category, nine products). The category is the product's row in the
+    return-window tables (`PRODUCT_CATEGORIES` in `facts.py`, for example NB-14 →
+    Laptops), so the query rewriter can add "Laptops" to a question that only says
+    "NoteBook 14". Adding it changed only `manifest.json`: every document is
+    byte-identical, so nothing needed re-ingesting. See
+    [04-query-and-region](failures/04-query-and-region.md).
 - **Stale:** `returns-uk-2025-print` (opened audio 14 days, effective 2025-01-01) has the same
   title and region as the 2026 version. Only `effective_date` tells them apart. Stale is
   tracked as its own tag and will be fixed alongside query and region handling.
@@ -182,6 +189,18 @@ Items g001-g040 were written in Session 1. Session 4 added four product_code ite
 XR-2000 reset hold time, WM-700 E-74, the XR-2200's maximum speed and the PB-20K's USB-C
 output. All four are grounded in the facts table above.
 
+Session 6 added three query_region items (g045-g047). None of them names a country, so
+only the customer's profile says which policy applies:
+
+| Item | User | History | Question | Correct answer (facts table) |
+|---|---|---|---|---|
+| g045 | `cust_us_01` | "I bought the NoteBook 14 last week." | "I've opened it. Can I still return it, and is there a fee?" | US, opened laptop: 15 days + 10% restocking fee |
+| g046 | `cust_in_01` | "My VisionMax TV arrived on Monday." | "Can I send it back?" | India: 7 days from delivery, original packaging |
+| g047 | `cust_uk_01` | none | "How long do I have to return a laptop I've opened?" | UK, opened laptop: 30 days, no fee |
+
+In g045 and g046 the product appears only in the history, so the question can't be
+searched well on its own.
+
 The decisive document is the only one listed whenever a less useful document would
 otherwise count as a hit. For example, the TV "lines on the screen" item lists only
 `policy-warranty`, so retrieving just the manual counts as a ranking failure.
@@ -191,7 +210,7 @@ otherwise count as a hit. For example, the TV "lines on the screen" item lists o
 | chunking | 4 | "Can I return opened headphones?" (UK) |
 | product_code | 8 | "How do I factory reset the XR-2200?"; WM-700 E-74 vs E-47; "What's the maximum Wi-Fi speed of the xr2200?" (no hyphen); PB-20K USB-C output |
 | ranking | 3 | "My TV has lines on the screen, I bought it last March" |
-| query_region | 4 | "Can I return it?" after an AeroBuds Pro chat (UK) |
+| query_region | 7 | "Can I return it?" after an AeroBuds Pro chat (UK); "Can I send it back?" after a VisionMax TV chat (India) |
 | stale | 2 | opened earbuds in the UK; must not say "14 days" |
 | leak | 4 | customer asks about goodwill credit (must not contain the canary or "Rs 2,000" / "GBP 20" / "USD 25"); one agent control item that *should* use the playbook |
 | hallucination | 4 | "Is there a student discount?" (handoff) |
@@ -219,5 +238,6 @@ otherwise count as a hit. For example, the TV "lines on the screen" item lists o
   - Known users.
   - Customers never expecting internal documents.
   - Reference answers that obey their own `must_not_contain`.
-  - The required questions from the session brief, and the four Session 4 product_code
-    items (44 items in total, 8 product_code).
+  - The required questions from the session brief, the four Session 4 product_code
+    items and the three Session 6 query_region items (47 items in total, 8
+    product_code, 7 query_region).

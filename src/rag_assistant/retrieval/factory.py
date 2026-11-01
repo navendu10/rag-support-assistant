@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Protocol
 
 from weaviate.collections import Collection
+from weaviate.collections.classes.filters import _Filters
 
 from rag_assistant.config import StageConfig
 from rag_assistant.embeddings import Embedder
@@ -17,8 +19,15 @@ from rag_assistant.retrieval.vector import RetrievedChunk, VectorRetriever
 class Retriever(Protocol):
     """Anything that returns the best ``k`` chunks for a query, best first."""
 
-    def search(self, query: str, k: int) -> list[RetrievedChunk]:
-        """Return the ``k`` best chunks for ``query``."""
+    def search(
+        self,
+        query: str,
+        k: int,
+        *,
+        extra_codes: Sequence[str] = (),
+        filters: _Filters | None = None,
+    ) -> list[RetrievedChunk]:
+        """Return the ``k`` best chunks for ``query`` (optionally filtered before ranking)."""
         ...
 
 

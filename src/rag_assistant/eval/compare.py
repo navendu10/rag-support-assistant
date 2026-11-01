@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from rag_assistant.eval.metrics import format_metric
@@ -18,12 +19,27 @@ COLUMNS = (
     ("answer_leaks_judged", "Answer leaks (judge)"),
     ("injections", "Injection failures"),
     ("handoffs", "Handoffs"),
+    ("rewrite_fallbacks", "Rewrite fallbacks"),
 )
+
+_STAGE_NAME = re.compile(r"^v(\d+)([a-z]*)$")
+
+
+def stage_sort_key(name: str) -> tuple[int, int, str]:
+    """Order stages v0, v1, ... with lettered steps first: v3, v4a, v4, v5.
+
+    A lettered stage (``v4a``) is an intermediate step measured on the way to ``v4``.
+    Other names sort last, alphabetically.
+    """
+    match = _STAGE_NAME.match(name)
+    if match is None:
+        return (10**6, 0, name)
+    return (int(match[1]), 0 if match[2] else 1, match[2])
 
 
 def load_summaries(results_dir: Path) -> list[dict]:
-    """Every full-run summary under ``results_dir``, ordered by stage name."""
-    paths = sorted(results_dir.glob("*/summary.json"), key=lambda p: p.parent.name)
+    """Every full-run summary under ``results_dir``, in stage order (``stage_sort_key``)."""
+    paths = sorted(results_dir.glob("*/summary.json"), key=lambda p: stage_sort_key(p.parent.name))
     return [json.loads(p.read_text(encoding="utf-8")) for p in paths]
 
 

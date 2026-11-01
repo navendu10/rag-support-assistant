@@ -132,6 +132,13 @@ class EvalSettings(BaseModel):
     recall_k: int = Field(default=5, gt=0)
 
 
+class QuerySettings(BaseModel):
+    """Query rewriting (Session 6): how much chat history the rewriter sees, and retries."""
+
+    history_turns: int = Field(default=6, ge=0, description="latest turns given to the rewriter")
+    max_attempts: int = Field(default=2, ge=1, description="1 call plus retries on invalid output")
+
+
 class Settings(BaseSettings):
     """Top-level settings object for the whole application."""
 
@@ -151,6 +158,7 @@ class Settings(BaseSettings):
     cache: CacheSettings = Field(default_factory=CacheSettings)
     paths: PathSettings = Field(default_factory=PathSettings)
     eval: EvalSettings = Field(default_factory=EvalSettings)
+    query: QuerySettings = Field(default_factory=QuerySettings)
 
     @field_validator("groq_api_key")
     @classmethod
@@ -355,6 +363,13 @@ class StageConfig(BaseModel):
             raise ValueError(f"fetch_k must be at least max(top_k, {MIN_FETCH_K})")
         return self
 
+    @model_validator(mode="after")
+    def _history_needs_rewrite(self) -> StageConfig:
+        """History reaches retrieval only through the rewriter, so it needs ``query_rewrite``."""
+        if self.use_history and not self.query_rewrite:
+            raise ValueError("use_history: true needs query_rewrite: true")
+        return self
+
     @property
     def collection_name(self) -> str:
         """Weaviate collection for this stage: ``index`` if set, else e.g. ``Chunks_v0``."""
@@ -385,12 +400,10 @@ class StageConfig(BaseModel):
 
 
 # switch -> (only supported value so far, session that adds the rest, feature)
-# (chunking since Session 3, search since Session 4 and rerank since Session 5.)
+# (chunking since Session 3, search since Session 4, rerank since Session 5, and
+# query_rewrite, use_history and region_filter since Session 6.)
 UNIMPLEMENTED_SWITCHES: dict[str, tuple[object, int, str]] = {
     "min_score": (None, 8, "rejecting low-scoring context"),
-    "query_rewrite": (False, 6, "query rewriting"),
-    "use_history": (False, 6, "conversation history"),
-    "region_filter": (False, 6, "region and date filtering"),
     "access_control": (False, 7, "access control"),
     "grounding": (False, 8, "grounded answers and handoff"),
     "injection_guard": (False, 9, "prompt-injection defences"),

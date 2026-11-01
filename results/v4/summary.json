@@ -1,0 +1,880 @@
+{
+  "meta": {
+    "stage": "v4",
+    "date": "2026-11-01",
+    "filters": "",
+    "generation_model": "openai/gpt-oss-120b",
+    "judge_model": "openai/gpt-oss-20b",
+    "reasoning_effort": "low",
+    "top_k": 4,
+    "recall_k": 5,
+    "rerank_model": "Xenova/ms-marco-MiniLM-L-6-v2",
+    "fetch_k": 20,
+    "rewrite_model": "openai/gpt-oss-20b",
+    "history_turns": 6,
+    "region_filter": "user profile region + ALL",
+    "rescored": "2026-11-01"
+  },
+  "overall": {
+    "questions": 47,
+    "recall_at_k": {
+      "count": 40,
+      "total": 42
+    },
+    "hit_at_1": {
+      "count": 29,
+      "total": 42
+    },
+    "mrr": {
+      "value": 0.81,
+      "total": 42
+    },
+    "correctness": {
+      "count": 34,
+      "total": 47
+    },
+    "retrieval_leaks": {
+      "count": 5,
+      "total": 46
+    },
+    "answer_leaks": {
+      "count": 0,
+      "total": 3
+    },
+    "answer_leaks_judged": {
+      "count": 2,
+      "total": 3
+    },
+    "injections": {
+      "count": 1,
+      "total": 3
+    },
+    "handoffs": {
+      "count": 1,
+      "total": 7
+    },
+    "forbidden_phrases": {
+      "count": 6,
+      "total": 35
+    },
+    "judge_errors": 0,
+    "candidate_recall": {
+      "count": 42,
+      "total": 42
+    },
+    "rewrite_fallbacks": {
+      "count": 0,
+      "total": 47
+    },
+    "rewrite_flagged": {
+      "count": 14,
+      "total": 47
+    },
+    "latency_ms": {
+      "p50": 1574.3,
+      "p95": 3371.8,
+      "generate_excludes_waits": true,
+      "rewrite_wait": {
+        "mean": 0.0,
+        "p95": 0.0,
+        "n": 47
+      },
+      "retrieve": {
+        "mean": 20.7,
+        "p95": 33.7,
+        "n": 47
+      },
+      "rerank": {
+        "mean": 1364.8,
+        "p95": 2113.0,
+        "n": 47
+      },
+      "generate": {
+        "mean": 826.3,
+        "p95": 1349.8,
+        "n": 14
+      },
+      "generate_wait": {
+        "mean": 1600.5,
+        "p95": 0.0,
+        "n": 47
+      },
+      "rerank_mean": 1364.8,
+      "rerank_p95": 2113.0
+    }
+  },
+  "by_tag": {
+    "chunking": {
+      "questions": 4,
+      "recall_at_k": {
+        "count": 4,
+        "total": 4
+      },
+      "hit_at_1": {
+        "count": 2,
+        "total": 4
+      },
+      "mrr": {
+        "value": 0.75,
+        "total": 4
+      },
+      "correctness": {
+        "count": 4,
+        "total": 4
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 4
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 1,
+        "total": 4
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 4,
+        "total": 4
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 4
+      },
+      "rewrite_flagged": {
+        "count": 3,
+        "total": 4
+      },
+      "latency_ms": {
+        "p50": 2566.4,
+        "p95": 3277.0,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 4
+        },
+        "retrieve": {
+          "mean": 88.6,
+          "p95": 273.7,
+          "n": 4
+        },
+        "rerank": {
+          "mean": 1736.9,
+          "p95": 1904.1,
+          "n": 4
+        },
+        "generate": {
+          "mean": 874.2,
+          "p95": 1220.5,
+          "n": 4
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 4
+        },
+        "rerank_mean": 1736.9,
+        "rerank_p95": 1904.1
+      }
+    },
+    "product_code": {
+      "questions": 8,
+      "recall_at_k": {
+        "count": 8,
+        "total": 8
+      },
+      "hit_at_1": {
+        "count": 8,
+        "total": 8
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 8
+      },
+      "correctness": {
+        "count": 8,
+        "total": 8
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 8
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 7
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 8,
+        "total": 8
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 8
+      },
+      "rewrite_flagged": {
+        "count": 1,
+        "total": 8
+      },
+      "latency_ms": {
+        "p50": 687.2,
+        "p95": 1733.7,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 8
+        },
+        "retrieve": {
+          "mean": 17.7,
+          "p95": 30.2,
+          "n": 8
+        },
+        "rerank": {
+          "mean": 832.7,
+          "p95": 1705.6,
+          "n": 8
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 8
+        },
+        "rerank_mean": 832.7,
+        "rerank_p95": 1705.6
+      }
+    },
+    "ranking": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 2,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 0,
+        "total": 3
+      },
+      "mrr": {
+        "value": 0.25,
+        "total": 3
+      },
+      "correctness": {
+        "count": 1,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 3
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 3,
+        "total": 3
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 3
+      },
+      "rewrite_flagged": {
+        "count": 2,
+        "total": 3
+      },
+      "latency_ms": {
+        "p50": 1618.9,
+        "p95": 2140.4,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "retrieve": {
+          "mean": 23.5,
+          "p95": 37.2,
+          "n": 3
+        },
+        "rerank": {
+          "mean": 1511.3,
+          "p95": 2097.8,
+          "n": 3
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "rerank_mean": 1511.3,
+        "rerank_p95": 2097.8
+      }
+    },
+    "query_region": {
+      "questions": 7,
+      "recall_at_k": {
+        "count": 6,
+        "total": 7
+      },
+      "hit_at_1": {
+        "count": 3,
+        "total": 7
+      },
+      "mrr": {
+        "value": 0.643,
+        "total": 7
+      },
+      "correctness": {
+        "count": 4,
+        "total": 7
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 7
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 1,
+        "total": 7
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 7,
+        "total": 7
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 7
+      },
+      "rewrite_flagged": {
+        "count": 2,
+        "total": 7
+      },
+      "latency_ms": {
+        "p50": 2315.0,
+        "p95": 29319.3,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 7
+        },
+        "retrieve": {
+          "mean": 12.5,
+          "p95": 13.4,
+          "n": 7
+        },
+        "rerank": {
+          "mean": 1715.1,
+          "p95": 1921.2,
+          "n": 7
+        },
+        "generate": {
+          "mean": 780.8,
+          "p95": 1353.5,
+          "n": 6
+        },
+        "generate_wait": {
+          "mean": 5426.9,
+          "p95": 26591.6,
+          "n": 7
+        },
+        "rerank_mean": 1715.1,
+        "rerank_p95": 1921.2
+      }
+    },
+    "stale": {
+      "questions": 2,
+      "recall_at_k": {
+        "count": 2,
+        "total": 2
+      },
+      "hit_at_1": {
+        "count": 0,
+        "total": 2
+      },
+      "mrr": {
+        "value": 0.5,
+        "total": 2
+      },
+      "correctness": {
+        "count": 0,
+        "total": 2
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 2
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 2,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 2,
+        "total": 2
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 2
+      },
+      "rewrite_flagged": {
+        "count": 2,
+        "total": 2
+      },
+      "latency_ms": {
+        "p50": 2571.4,
+        "p95": 3189.0,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 2
+        },
+        "retrieve": {
+          "mean": 18.3,
+          "p95": 25.3,
+          "n": 2
+        },
+        "rerank": {
+          "mean": 1946.1,
+          "p95": 2014.3,
+          "n": 2
+        },
+        "generate": {
+          "mean": 1206.7,
+          "p95": 1206.7,
+          "n": 1
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 2
+        },
+        "rerank_mean": 1946.1,
+        "rerank_p95": 2014.3
+      }
+    },
+    "leak": {
+      "questions": 4,
+      "recall_at_k": {
+        "count": 3,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 1,
+        "total": 3
+      },
+      "mrr": {
+        "value": 0.583,
+        "total": 3
+      },
+      "correctness": {
+        "count": 2,
+        "total": 4
+      },
+      "retrieval_leaks": {
+        "count": 3,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks_judged": {
+        "count": 2,
+        "total": 3
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 1,
+        "total": 3
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 3
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 3,
+        "total": 3
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 4
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 4
+      },
+      "latency_ms": {
+        "p50": 1965.0,
+        "p95": 34266.1,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 4
+        },
+        "retrieve": {
+          "mean": 12.2,
+          "p95": 13.7,
+          "n": 4
+        },
+        "rerank": {
+          "mean": 1687.0,
+          "p95": 1834.2,
+          "n": 4
+        },
+        "generate": {
+          "mean": 718.9,
+          "p95": 809.1,
+          "n": 2
+        },
+        "generate_wait": {
+          "mean": 9309.2,
+          "p95": 31651.5,
+          "n": 4
+        },
+        "rerank_mean": 1687.0,
+        "rerank_p95": 1834.2
+      }
+    },
+    "hallucination": {
+      "questions": 4,
+      "recall_at_k": {
+        "count": 1,
+        "total": 1
+      },
+      "hit_at_1": {
+        "count": 1,
+        "total": 1
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 1
+      },
+      "correctness": {
+        "count": 1,
+        "total": 4
+      },
+      "retrieval_leaks": {
+        "count": 1,
+        "total": 4
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 4
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 4
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 1,
+        "total": 1
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 4
+      },
+      "rewrite_flagged": {
+        "count": 1,
+        "total": 4
+      },
+      "latency_ms": {
+        "p50": 1477.2,
+        "p95": 1801.2,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 4
+        },
+        "retrieve": {
+          "mean": 12.2,
+          "p95": 13.2,
+          "n": 4
+        },
+        "rerank": {
+          "mean": 1552.4,
+          "p95": 1784.7,
+          "n": 4
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 4
+        },
+        "rerank_mean": 1552.4,
+        "rerank_p95": 1784.7
+      }
+    },
+    "injection": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 2,
+        "total": 2
+      },
+      "hit_at_1": {
+        "count": 2,
+        "total": 2
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 2
+      },
+      "correctness": {
+        "count": 2,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 1,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 1,
+        "total": 3
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 1,
+        "total": 3
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 2,
+        "total": 2
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 3
+      },
+      "rewrite_flagged": {
+        "count": 2,
+        "total": 3
+      },
+      "latency_ms": {
+        "p50": 1487.0,
+        "p95": 1565.6,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "retrieve": {
+          "mean": 12.1,
+          "p95": 12.8,
+          "n": 3
+        },
+        "rerank": {
+          "mean": 1494.5,
+          "p95": 1550.3,
+          "n": 3
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "rerank_mean": 1494.5,
+        "rerank_p95": 1550.3
+      }
+    },
+    "normal": {
+      "questions": 12,
+      "recall_at_k": {
+        "count": 12,
+        "total": 12
+      },
+      "hit_at_1": {
+        "count": 12,
+        "total": 12
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 12
+      },
+      "correctness": {
+        "count": 12,
+        "total": 12
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 12
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 1,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 12,
+        "total": 12
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 12
+      },
+      "rewrite_flagged": {
+        "count": 1,
+        "total": 12
+      },
+      "latency_ms": {
+        "p50": 1067.2,
+        "p95": 2360.4,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 12
+        },
+        "retrieve": {
+          "mean": 12.3,
+          "p95": 14.2,
+          "n": 12
+        },
+        "rerank": {
+          "mean": 1055.1,
+          "p95": 1974.1,
+          "n": 12
+        },
+        "generate": {
+          "mean": 741.9,
+          "p95": 741.9,
+          "n": 1
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 12
+        },
+        "rerank_mean": 1055.1,
+        "rerank_p95": 1974.1
+      }
+    }
+  }
+}

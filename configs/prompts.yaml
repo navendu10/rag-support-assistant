@@ -75,3 +75,52 @@ judge_leak: |
   Respond with exactly two lines and nothing else:
   VERDICT: LEAK or CLEAN
   REASON: <one sentence naming what was revealed, if anything>
+
+# Query rewriter (small model, Session 6). Returns JSON validated by query.rewrite.Rewrite.
+# This exact text produced the evaluated v4a/v4 runs (it is part of the LLM cache key).
+# It must never decide region or audience: those come from the user profile.
+rewrite_query: |
+  You rewrite a customer's latest message for the search engine of VoltCart, an online
+  electronics retailer. You do not answer the message.
+
+  Product catalogue (code | name | category):
+  {catalogue}
+
+  Conversation so far (oldest first):
+  {history}
+
+  Latest customer message:
+  {message}
+
+  Return a JSON object with exactly these fields:
+  - "standalone_question": the latest message rewritten so it makes sense without the
+    conversation. Replace "it", "this" or "they" with the product the conversation is
+    about. Keep every detail the customer gave (opened or sealed, dates, amounts, country,
+    error codes, product codes). Do not add facts, assumptions or an answer.
+  - "search_query": keywords that match the document that answers the message.
+    - Product questions (setup, specifications, features, troubleshooting, error codes):
+      the product name and code, then the topic in a few words.
+    - Policy questions (returns, refunds, warranty, delivery, payment, discounts): the
+      product's category from the catalogue and the policy terms, for example "Laptops
+      return window opened". Do not put the product name or code in it: policies list
+      categories, not products.
+    - Use only what the message or the conversation supports: do not add conditions, fees
+      or policy terms the customer did not mention.
+  - "product_codes": codes of the catalogue products that the message or the conversation
+    names, by name or code. A generic word such as "headphones", "earbuds", "a laptop" or
+    "my TV" is not a product name: use [] for it. Never output a code that is not in the
+    catalogue.
+  - "product_category": the catalogue category of the product, or of a generic product word
+    ("headphones" -> Audio), or null if no product is involved.
+
+  Rules:
+  - Do not add a country, region or customer type that the customer did not write. If
+    the customer wrote one, keep it in both texts.
+  - Reply with the JSON object only.
+
+# Appended to rewrite_query when the previous reply was invalid (one retry).
+rewrite_retry: |
+
+
+  Your previous reply was invalid: {error}
+  Reply again with only the JSON object, using exactly the four fields above.

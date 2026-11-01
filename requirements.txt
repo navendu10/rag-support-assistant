@@ -20,3 +20,6 @@ pymupdf4llm==1.28.2
 pymupdf==1.28.2
 pymupdf-layout==1.28.2
 markdownify==1.2.3
+# Session 6: the query rewriter catches groq.BadRequestError (already a langchain-groq
+# dependency; pinned to the installed version because it is now imported directly).
+groq==0.37.1

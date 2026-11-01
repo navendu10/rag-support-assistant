@@ -53,6 +53,8 @@ def step_latency_rows(latency: dict) -> list[str]:
     """One table row per measured pipeline step (mean / p95, ms)."""
     waits = latency.get("generate_excludes_waits", False)
     labels = {
+        "rewrite": "Rewrite latency mean / p95 (ms), uncached calls, throttle waits excluded",
+        "rewrite_wait": "Throttle and retry waits during rewriting, mean / p95 (ms)",
         "retrieve": "Retrieval latency mean / p95 (ms)",
         "rerank": "Rerank latency mean / p95 (ms)",
         "generate": (
@@ -69,7 +71,8 @@ def step_latency_rows(latency: dict) -> list[str]:
     for step, label in labels.items():
         stats = latency.get(step)
         if isinstance(stats, dict) and stats.get("n"):
-            suffix = f" (n={stats['n']})" if step == "generate" and waits else ""
+            counted = step == "rewrite" or (step == "generate" and waits)
+            suffix = f" (n={stats['n']})" if counted else ""
             rows.append(f"| {label}{suffix} | {stats['mean']:.0f} / {stats['p95']:.0f} | lower |")
     return rows
 
@@ -86,6 +89,13 @@ def overall_table(summary: dict[str, object], k: int) -> str:
             f"| Candidate recall (any expected doc among the reranker's fetch_k inputs) | "
             f"{format_metric(candidates)} | higher |"
         )
+    for key, label in (
+        ("rewrite_fallbacks", "Rewrite fallbacks (invalid output twice: raw message used)"),
+        ("rewrite_flagged", "Rewrites flagged (invented product, dropped code, added country)"),
+    ):
+        value = summary.get(key, {"count": 0, "total": 0})
+        if value["total"]:
+            lines.append(f"| {label} | {format_metric(value)} | lower |")
     latency = summary["latency_ms"]
     lines.append(
         f"| Total latency p50 / p95 (ms), wall clock, throttle waits and cache hits included | "
@@ -125,10 +135,35 @@ def item_table(rows: Sequence[ResultRow]) -> str:
     return "\n".join(lines)
 
 
+def rewrite_table(rows: Sequence[ResultRow]) -> str:
+    """Rewrites that were flagged or fell back, for spot checks (all rows: show_rewrites.py)."""
+    lines = [
+        "| id | fallback | flags | standalone question | search query |",
+        "|---|---|---|---|---|",
+    ]
+    for r in rows:
+        rw = r.rewrite
+        if rw is not None and (rw.flags or rw.fallback):
+            fallback = "raw message" if rw.fallback else "-"
+            lines.append(
+                f"| {r.id} | {fallback} | "
+                f"{_cell(', '.join(r.rewrite.flags) or '-')} | "
+                f"{_cell(r.rewrite.standalone_question)} | {_cell(r.rewrite.search_query)} |"
+            )
+    if len(lines) == 2:
+        return "No rewrite was flagged or fell back."
+    return "\n".join(lines)
+
+
 def render_report(meta: dict[str, object], summary: dict, by_tag: dict, rows: list) -> str:
     """The full report.md text."""
     k = int(meta["recall_k"])
     subset = meta.get("filters") or "none (full golden set)"
+    rewrites = (
+        ["## Query rewrites flagged or fallen back", rewrite_table(rows)]
+        if any(r.rewrite is not None for r in rows)
+        else []
+    )
     return (
         "\n\n".join(
             [
@@ -147,6 +182,7 @@ def render_report(meta: dict[str, object], summary: dict, by_tag: dict, rows: li
                 overall_table(summary, k),
                 "## By failure tag",
                 tag_table(by_tag, k),
+                *rewrites,
                 "## Per question",
                 item_table(rows),
             ]

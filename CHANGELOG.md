@@ -7,6 +7,86 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-01 (Session 6: query rewriting and region filters)
+
+### Added
+
+- Stage **v4a** (`configs/stages/v4a.yaml`): v3 plus `query_rewrite: true` and
+  `use_history: true`.
+- Stage **v4** (`configs/stages/v4.yaml`): v4a plus `region_filter: true`.
+- Both reuse `Chunks_v2`, so nothing is re-ingested.
+- Query rewriter (`query/rewrite.py`):
+  - It runs on the small model with Groq structured output (`json_schema`), and Pydantic
+    validates the result against `Rewrite`: `standalone_question`, `search_query`,
+    `product_codes`, `product_category`.
+  - The prompt includes the last 6 turns of history and the product catalogue.
+  - The model can't set a region or audience: `Rewrite` has no field for either, and
+    extra fields are rejected.
+  - Codes and the category must be in the catalogue.
+  - On invalid output it retries once with the error appended, then falls back to the
+    raw message and logs the fallback.
+- Region filter (`retrieval/filters.py`):
+  - Built only from the user's profile: customers get `region in [their region, ALL]`,
+    agents get no filter.
+  - It is applied inside the Weaviate hybrid query, before ranking.
+- Product catalogue: the manifest gains `"products"` (code, name, return-table
+  category), from `PRODUCT_CATEGORIES` in `facts.py`. `schemas.load_catalogue` reads it.
+  Every document is byte-identical.
+- Tools:
+  - `scripts/chat.py`: an interactive chat that keeps history and prints each rewrite,
+    filter and the retrieved doc_ids.
+  - `scripts/ask.py --history-file`.
+  - `scripts/show_rewrites.py`, which writes `results/<stage>/rewrites.md`. With
+    `--live` it rewrites every golden question now (small model only) without answering.
+  - `scripts/check_rewrite_retrieval.py`: rewrite and retrieve every golden question, and
+    compare recall@5, hit@1 and MRR with the stored full runs. No answers or judges.
+- Evaluation:
+  - Each row stores the `rewrite` (with fallback and attempts) and the applied
+    `region_filter`.
+  - No-LLM rewrite checks: invented product, dropped product, dropped code, added or
+    dropped country, added condition. v4a/v4 were rescored to add `dropped product` (10
+    rewrites, including g027 and g023).
+  - Rewrite latency, waits excluded.
+  - `rewrite_fallbacks` and `rewrite_flagged` in the summary and report.
+  - A "Rewrite fallbacks" column in `compare_stages`.
+- Golden items g045-g047 (query_region; two need the chat history to name the product).
+  v0-v3 answered them with `--only-missing`.
+- Tests:
+  - Unit tests for the rewriter's prompt, validation, retry and fallback.
+  - Unit tests for the rewrite checks, the region filter (including "I'm in India" from
+    a UK customer) and pipeline routing.
+  - Unit tests for config validation, the catalogue and the report.
+  - Integration tests for the AeroBuds follow-up (UK policy, 15 days) and g002 (US
+    policy).
+- `docs/failures/04-query-and-region.md`, `results/v4a/` and `results/v4/`.
+
+### Changed
+
+- `query_rewrite`, `use_history` and `region_filter` are implemented. `use_history`
+  requires `query_rewrite`.
+- Retrievers take keyword arguments `extra_codes` (for dynamic alpha) and `filters`.
+- `compare_stages` orders lettered stages before their parent: v3, v4a, v4.
+- The golden set has 47 items, so v0-v3 totals are now out of 47. Their earlier rows are
+  unchanged, apart from two null keys added by the new schema.
+- `groq` is pinned in `requirements.txt`: it was already installed, and is now imported
+  directly.
+
+### Tried and reverted
+
+- A rewriter whose `search_query` is composed in code: the question's words, the resolved
+  products' catalogue names and codes, the category and at most 3 synonyms. It fixed
+  g027's and g023's dropped products in retrieval, but recall@5 fell from 39/40 to 30.
+- Two fused-search variants. The best, a second search restricted to policies and FAQs,
+  reached 38 (v4a) and 39 (v4).
+- Every variant failed the pass rule. The prompt and schema were restored exactly, and
+  the evaluated v4a/v4 rewrites reproduce from the cache (47/47, 0 new requests).
+- Details are in docs/failures/04-query-and-region.md.
+
+### Fixed
+
+- `--only-missing` overwrote `meta.extended`, which dropped v0 and v1's Session 4 note.
+  It now appends, and the note is restored.
+
 ## [0.6.0] - 2026-10-28 (Session 5: cross-encoder reranking)
 
 ### Added

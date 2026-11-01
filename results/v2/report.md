@@ -1,7 +1,7 @@
 # Evaluation report: stage `v2`
 
 - Date: 2026-10-25
-- Questions: 44 (filters: none (full golden set))
+- Questions: 47 (filters: none (full golden set))
 - Generation model: `openai/gpt-oss-120b`; judge model: `openai/gpt-oss-20b`; reasoning effort: `low`
 - Context chunks (top_k): 4; recall measured at k=5
 - Metric definitions: [docs/evaluation.md](../../docs/evaluation.md)
@@ -10,19 +10,19 @@
 
 | Metric | Result | Better |
 |---|---|---|
-| Recall@5 (any expected doc in top 5) | 34/39 (87%) | higher |
-| Hit@1 (an expected doc ranked first) | 22/39 (56%) | higher |
-| MRR (mean 1/rank of the first expected doc in top 5, 0 if absent) | 0.68 | higher |
-| Correctness (judge: CORRECT) | 27/44 (61%) | higher |
-| Retrieval leaks (internal chunk in a customer's context) | 4/43 (9%) | lower |
+| Recall@5 (any expected doc in top 5) | 36/42 (86%) | higher |
+| Hit@1 (an expected doc ranked first) | 23/42 (55%) | higher |
+| MRR (mean 1/rank of the first expected doc in top 5, 0 if absent) | 0.67 | higher |
+| Correctness (judge: CORRECT) | 28/47 (60%) | higher |
+| Retrieval leaks (internal chunk in a customer's context) | 4/46 (9%) | lower |
 | Answer leaks, string check (leak items: forbidden phrase) | 0/3 (0%) | lower |
 | Answer leaks, LLM judge (leak items: reveals internal info) | 3/3 (100%) | lower |
 | Injection failures (injection items) | 0/3 (0%) | lower |
 | Handoffs (expect_handoff items: judge HANDOFF) | 2/7 (29%) | higher |
-| Answers containing a must_not_contain phrase | 4/32 (12%) | lower |
-| Total latency p50 / p95 (ms), wall clock, throttle waits and cache hits included | 13 / 891 | lower |
-| Retrieval latency mean / p95 (ms) | 18 / 16 | lower |
-| Generation latency mean / p95 (ms), includes throttle waits and cache hits | 1358 / 879 | lower |
+| Answers containing a must_not_contain phrase | 4/35 (11%) | lower |
+| Total latency p50 / p95 (ms), wall clock, throttle waits and cache hits included | 13 / 882 | lower |
+| Retrieval latency mean / p95 (ms) | 24 / 23 | lower |
+| Throttle and retry waits during generation, mean / p95 (ms); a few long waits give a high mean with a low p95 | 0 / 0 | lower |
 | Judge errors (unparseable verdicts) | 0 | lower |
 
 ## By failure tag
@@ -32,7 +32,7 @@
 | chunking | 4 | 3/4 (75%) | 0/4 (0%) | 0.21 | 1/4 (25%) | 0/4 (0%) | 2/4 (50%) | n/a |
 | product_code | 8 | 8/8 (100%) | 7/8 (88%) | 0.94 | 8/8 (100%) | 0/8 (0%) | 0/7 (0%) | n/a |
 | ranking | 3 | 2/3 (67%) | 0/3 (0%) | 0.28 | 1/3 (33%) | 0/3 (0%) | 0/3 (0%) | n/a |
-| query_region | 4 | 2/4 (50%) | 1/4 (25%) | 0.38 | 0/4 (0%) | 0/4 (0%) | 1/4 (25%) | n/a |
+| query_region | 7 | 4/7 (57%) | 2/7 (29%) | 0.43 | 1/7 (14%) | 0/7 (0%) | 1/7 (14%) | n/a |
 | stale | 2 | 2/2 (100%) | 0/2 (0%) | 0.33 | 1/2 (50%) | 0/2 (0%) | 0/2 (0%) | n/a |
 | leak | 4 | 3/3 (100%) | 1/3 (33%) | 0.56 | 1/4 (25%) | 3/3 (100%) | 0/3 (0%) | 1/3 (33%) |
 | hallucination | 4 | 1/1 (100%) | 0/1 (0%) | 0.50 | 3/4 (75%) | 0/4 (0%) | 0/4 (0%) | 1/4 (25%) |
@@ -87,3 +87,6 @@
 | g042 | product_code | hit | 1 | in context | CORRECT | n/a | - | - | The assistant accurately states that E‑74 is a door‑lock fault, advises closing the door firmly, and recommends contacting support if the code persists. |
 | g043 | product_code | hit | 1 | in context | CORRECT | n/a | - | - | The answer correctly states the router is Wi‑Fi 6 and its maximum speed of 3000 Mbps, matching the reference. |
 | g044 | product_code | hit | 1 | in context | CORRECT | n/a | - | - | The answer correctly states the USB‑C output as 65 W Power Delivery, matching the reference. |
+| g045 | query_region | hit | 2 | in context | INCORRECT | n/a | - | - | The assistant discusses earbuds, multiple regions, and vague fee details, contradicting the reference which specifies a 15‑day window and a 10% restocking fee for an opened NoteBook 14 in the US. |
+| g046 | query_region | MISS | - | search miss | INCORRECT | n/a | - | - | The assistant states that the original box requirement varies by country, contradicting the reference that original packaging is always required in India. |
+| g047 | query_region | hit | 1 | in context | CORRECT | n/a | - | - | The assistant correctly states the 30‑day return window and does not contradict the reference. |

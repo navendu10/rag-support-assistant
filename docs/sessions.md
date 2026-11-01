@@ -299,3 +299,92 @@ reranking. `top_k` stays 4, so only which chunks reach the LLM, and their order,
 
 **Next:** Session 6, query rewriting with chat history, and region and date filters, for
 g003, g012-g016 (and a `product_code` filter for the remaining code contamination).
+
+## Session 6: Query rewriting and region filters (2026-11-01)
+
+**Goal:** fix failure #4, vague questions and the wrong region, in two separately measured
+stages: v4a = v3 + query rewriting with chat history, and v4 = v4a + a region filter from
+the user profile.
+
+**Built**
+- `query/rewrite.py`: a small-model rewriter that sees the history, a product catalogue
+  and the message.
+  - Validated JSON output: standalone question, search query, codes, category. There is
+    no region field.
+  - Retry once, then fall back to the raw message.
+- `retrieval/filters.py`: `region in [profile region, ALL]` for customers and no filter for
+  agents, applied inside the Weaviate query.
+- The manifest gains a product catalogue (code, name, return-table category).
+- `scripts/chat.py`, `ask.py --history-file` and `scripts/show_rewrites.py`.
+- Evaluation stores each rewrite and filter, adds no-LLM rewrite checks, and reports
+  rewrite latency and fallbacks.
+- Golden items g045-g047.
+
+**How it went**
+1. **The first prompt made retrieval worse.** "Keyword-rich with product names and
+   codes" sent returns questions to the product manuals (recall@5 38 → 31 in a
+   retrieval-only check), and turned "headphones" into "AeroBuds Pro".
+2. **The prompt was revised once:**
+   - Policy questions get the category and policy terms, not the product name.
+   - A generic word gets a category but no code.
+   - Recall@5 went to 39, or 40 with the filter.
+3. Full runs of v4a and v4, then the question-by-question attribution below.
+4. **A composed `search_query` was tried and reverted.**
+   - **The idea:** the question's words plus catalogue names and codes, so that no
+     product could be dropped (g027, g023).
+   - **The result:** in a retrieval-only check, recall@5 fell to 30, because every
+     policy question that names a product returned only that product's manual.
+   - **Option 3** (a second search restricted to policies and FAQs, with the same
+     filters) reached 38/39, below the pass rule of 39/40.
+   - **The revert:** the prompt and schema were restored exactly; all 47 rewrites
+     reproduce from the cache.
+   - **What stayed:** a `dropped product` check and the cheap
+     `check_rewrite_retrieval.py`. All of this was tuned on the evaluation set.
+
+**Results** (47 questions; v0-v3 answered only g045-g047 this session)
+
+| Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs | Rewrite fallbacks |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| v0 | 38/42 (90%) | 24/42 (57%) | 0.70 | n/a | 28/47 (60%) | 5/46 (11%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | 1/7 (14%) | n/a |
+| v1 | 36/42 (86%) | 23/42 (55%) | 0.67 | n/a | 28/47 (60%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 1/7 (14%) | n/a |
+| v2 | 36/42 (86%) | 23/42 (55%) | 0.67 | n/a | 28/47 (60%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) | n/a |
+| v3 | 38/42 (90%) | 25/42 (60%) | 0.71 | 42/42 (100%) | 30/47 (64%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) | n/a |
+| v4a | 39/42 (93%) | 28/42 (67%) | 0.75 | 42/42 (100%) | 30/47 (64%) | 4/46 (9%) | 0/3 (0%) | 1/3 (33%) | 1/3 (33%) | 0/7 (0%) | 0/47 (0%) |
+| v4 | 40/42 (95%) | 29/42 (69%) | 0.81 | 42/42 (100%) | 34/47 (72%) | 5/46 (11%) | 0/3 (0%) | 2/3 (67%) | 1/3 (33%) | 1/7 (14%) | 0/47 (0%) |
+
+**What happened** (details in [04-query-and-region](failures/04-query-and-region.md))
+- **v4a: correctness is flat (30 → 30).** It won g002, g004, g021, g031 and g046, and lost:
+  - g017, g020, g023, g025 and g027
+  - g027: the injection now succeeds, because the warranty search dropped the product
+    name
+  - g023: an invented "we don't price-match"
+  - two handoffs lost
+- **v4: correctness is 34/47.** It won g003, g012, g013, g015, g020 and g045 against v4a,
+  and lost g046 (a ranking miss) and g047 (judge inconsistency plus an invented product).
+- **query_region went 1 → 4 of 7, and chunking 1 → 4 of 4.**
+- **g017 got worse:** with the filter, the outdated UK 2025 policy is the only competitor,
+  and the answer says 14 days.
+- The rewrite checks flag 4 of 47 rewrites: three invented products and one added
+  "opened". Reading the rows found a misspelt product name (g008) and a dropped
+  "exception" (g020) that the checks miss.
+- 0 rewrite fallbacks.
+- **Side effects, traced row by row:**
+  - **g027 injection:** the planted chunk didn't rank higher; the rest of the context
+    changed (Session 9).
+  - **g020's leak:** returned in v4 because the filter freed candidate slots that the
+    region-ALL playbook took (Session 7).
+  - **Handoffs:** both lost handoffs became invented policies (Session 8).
+  - **The leak judge's drop:** a judge miss on g018 plus an accidental g020. The true
+    count is 3/3 → 2/3 → 3/3.
+
+**Lessons**
+- A rewrite that reads better can retrieve worse: write the search query for the document
+  that answers, not for the question.
+- Measure the two changes separately. v4a alone looked like nothing happened, but it hid
+  five wins and five losses.
+- A filter only removes what it can tell apart. Region doesn't distinguish the stale UK
+  policy, so that needs `effective_date`.
+- A filter from the profile is personalisation, not security.
+
+**Next:** Session 7, access control: keep internal playbooks out of customer searches,
+before ranking.

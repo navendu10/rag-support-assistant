@@ -8,7 +8,8 @@ from pathlib import Path
 
 from generators import faqs, manuals, marketplace, playbooks, policies, returns
 from generators.common import write_manifest
-from rag_assistant.schemas import DocMetadata
+from generators.facts import PRODUCT_CATEGORIES
+from rag_assistant.schemas import DocMetadata, Product
 
 FAMILIES: tuple[Callable[[Path], list[DocMetadata]], ...] = (
     manuals.build,
@@ -31,6 +32,13 @@ def clean_output(out_dir: Path) -> None:
     (out_dir / MANIFEST_NAME).unlink(missing_ok=True)
 
 
+def catalogue() -> list[Product]:
+    """Every product sold: the manuals' products plus the marketplace listing."""
+    named = [(m.code, m.name) for m in manuals.MANUALS]
+    named.append((marketplace.PRODUCT_CODE, marketplace.TITLE))
+    return [Product(code=c, name=n, category=PRODUCT_CATEGORIES[c]) for c, n in named]
+
+
 def build_all(out_dir: Path) -> list[DocMetadata]:
     """Regenerate the whole knowledge base in ``out_dir``.
 
@@ -47,5 +55,5 @@ def build_all(out_dir: Path) -> list[DocMetadata]:
     duplicates = sorted({i for i in ids if ids.count(i) > 1})
     if duplicates:
         raise ValueError(f"Duplicate doc_ids: {duplicates}")
-    write_manifest(out_dir, docs)
+    write_manifest(out_dir, docs, catalogue())
     return sorted(docs, key=lambda d: d.doc_id)
