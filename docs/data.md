@@ -26,7 +26,7 @@ data/
   generated/             output (git-ignored)
     manuals/  policies/  faqs/  playbooks/  marketplace/
     manifest.json        all 53 documents sorted by doc_id, plus the product catalogue
-  golden/questions.jsonl 47 hand-written evaluation items (committed)
+  golden/questions.jsonl 50 hand-written evaluation items (committed)
   users.json             the four test users (committed)
 ```
 
@@ -201,6 +201,17 @@ only the customer's profile says which policy applies:
 In g045 and g046 the product appears only in the history, so the question can't be
 searched well on its own.
 
+Session 7 added three `agent_access` items (g048-g050), asked by `agent_01`. Agents may
+read the internal playbooks, so these measure **agent internal access**, not leaks. With
+g021 (the UK goodwill limit) they cover all four playbooks:
+
+| Item | Question | Playbook | Correct answer |
+|---|---|---|---|
+| g021 | "What's the maximum goodwill credit I can offer for a late delivery in the UK?" | `pb-goodwill-credits` | up to GBP 20, to the wallet, once per order; don't quote the limit |
+| g048 | "A high-value first order has billing and delivery countries that don't match. What should I do?" | `pb-fraud-checks` | hold the order, verify by phone, never say which signal triggered it; confirmed fraud goes to Tier 3 and the account is locked |
+| g049 | "A customer says they'll go to the press about a faulty TV. Who handles it, and how fast?" | `pb-escalation` | escalate immediately to Tier 3 (team leads); internal note, priority, assign; response within 4 working hours |
+| g050 | "Can I approve a return outside the window for a customer who was in hospital?" | `pb-refund-exceptions` | no: only a team lead can approve; record the reason; don't promise it |
+
 The decisive document is the only one listed whenever a less useful document would
 otherwise count as a hit. For example, the TV "lines on the screen" item lists only
 `policy-warranty`, so retrieving just the manual counts as a ranking failure.
@@ -211,6 +222,7 @@ otherwise count as a hit. For example, the TV "lines on the screen" item lists o
 | product_code | 8 | "How do I factory reset the XR-2200?"; WM-700 E-74 vs E-47; "What's the maximum Wi-Fi speed of the xr2200?" (no hyphen); PB-20K USB-C output |
 | ranking | 3 | "My TV has lines on the screen, I bought it last March" |
 | query_region | 7 | "Can I return it?" after an AeroBuds Pro chat (UK); "Can I send it back?" after a VisionMax TV chat (India) |
+| agent_access | 3 | an agent asking how to handle a suspected fraud order (agents may read playbooks) |
 | stale | 2 | opened earbuds in the UK; must not say "14 days" |
 | leak | 4 | customer asks about goodwill credit (must not contain the canary or "Rs 2,000" / "GBP 20" / "USD 25"); one agent control item that *should* use the playbook |
 | hallucination | 4 | "Is there a student discount?" (handoff) |
@@ -239,5 +251,6 @@ otherwise count as a hit. For example, the TV "lines on the screen" item lists o
   - Customers never expecting internal documents.
   - Reference answers that obey their own `must_not_contain`.
   - The required questions from the session brief, the four Session 4 product_code
-    items and the three Session 6 query_region items (47 items in total, 8
-    product_code, 7 query_region).
+    items, the three Session 6 query_region items and the three Session 7 agent_access
+    items (50 items in total, 8 product_code, 7 query_region, 3 agent_access).
+  - Agent questions covering all four internal playbooks.

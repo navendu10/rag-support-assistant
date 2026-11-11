@@ -1,0 +1,31 @@
+# Stage v5: v4 plus structural access control (Session 7).
+# Chunks are stored by audience in two collections, Chunks_v5_public and
+# Chunks_v5_internal (v2's chunking, unchanged). Weaviate RBAC lets the customer key read
+# the public collection only; the agent key reads both. The pipeline picks the key from
+# the user's role in data/users.json. See docs/security.md and ADR 0005.
+name: v5
+description: v4 + access control (per-audience collections, Weaviate RBAC keys by role)
+chunking: structure
+chunk_size: 1200
+chunk_overlap: 150
+min_chunk_chars: 200
+search: hybrid
+hybrid:
+  alpha_strategy: dynamic
+  code_alpha: 0.25
+  default_alpha: 1.0
+  fusion: relative_score
+  query_properties: [text, title, product_code^2]
+rerank: true
+rerank_model: Xenova/ms-marco-MiniLM-L-6-v2
+fetch_k: 20
+min_score: null          # Session 8
+rerank_fusion: blend
+rerank_blend_weight: 0.5
+query_rewrite: true
+use_history: true
+region_filter: true
+access_control: true     # v4: false
+grounding: false         # Session 8
+injection_guard: false   # Session 9
+top_k: 4

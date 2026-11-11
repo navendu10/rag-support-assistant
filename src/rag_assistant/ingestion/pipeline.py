@@ -1,9 +1,15 @@
-"""Ingest every document in the manifest into the stage's Weaviate collection."""
+"""Ingest every document in the manifest into the stage's Weaviate collection(s).
+
+Stages with ``access_control`` (v5 on) store each audience in its own collection
+(``Chunks_v5_public``, ``Chunks_v5_internal``), so database roles can grant customers the
+public one only. Chunking is the stage's usual chunking; only the routing differs.
+Ingestion always connects with the admin key.
+"""
 
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,7 +18,7 @@ from rag_assistant.embeddings import Embedder
 from rag_assistant.ingestion.chunker import Chunk, make_splitter, split_document
 from rag_assistant.ingestion.loaders import load_text
 from rag_assistant.ingestion.parsers import parse_structured
-from rag_assistant.ingestion.store import connect, insert_chunks, recreate_collection
+from rag_assistant.ingestion.store import connect_admin, insert_chunks, recreate_collection
 from rag_assistant.ingestion.structure_chunker import chunk_markdown
 from rag_assistant.schemas import DocMetadata, load_manifest
 
@@ -21,7 +27,7 @@ from rag_assistant.schemas import DocMetadata, load_manifest
 class IngestStats:
     """What an ingestion run stored."""
 
-    collection: str
+    collection: str  # comma-separated when access_control splits the chunks
     documents: int
     chunks: int
     chunks_by_audience: dict[str, int]
@@ -73,6 +79,25 @@ def build_chunks(stage: StageConfig, settings: Settings) -> list[Chunk]:
     return chunk_documents(stage, settings.paths.resolve(settings.paths.generated_dir))
 
 
+def split_by_audience(chunks: Sequence[Chunk], audiences: Sequence[str]) -> dict[str, list[Chunk]]:
+    """Group chunks by their ``audience``, keeping order; an unknown audience is an error."""
+    groups: dict[str, list[Chunk]] = {audience: [] for audience in audiences}
+    for chunk in chunks:
+        if chunk.audience not in groups:
+            raise ValueError(f"{chunk.doc_id}: unknown audience {chunk.audience!r}")
+        groups[chunk.audience].append(chunk)
+    return groups
+
+
+def collection_plan(stage: StageConfig, chunks: Sequence[Chunk]) -> dict[str, list[Chunk]]:
+    """Collection name -> the chunks it receives: one collection, or one per audience."""
+    if not stage.access_control:
+        return {stage.collection_name: list(chunks)}
+    names = stage.audience_collections
+    groups = split_by_audience(chunks, list(names))
+    return {names[audience]: group for audience, group in groups.items()}
+
+
 def ingest(stage: StageConfig, settings: Settings, embedder: Embedder | None = None) -> IngestStats:
     """Replace the stage collection with freshly embedded chunks.
 
@@ -86,12 +111,13 @@ def ingest(stage: StageConfig, settings: Settings, embedder: Embedder | None = N
         )
     chunks = build_chunks(stage, settings)
     embedder = embedder or Embedder(settings.embedding)
-    vectors = embedder.embed([c.text for c in chunks])
-    with connect(settings.weaviate) as client:
-        collection = recreate_collection(client, stage.collection_name)
-        insert_chunks(collection, chunks, vectors)
+    plan = collection_plan(stage, chunks)
+    with connect_admin(settings) as client:
+        for name, group in plan.items():
+            vectors = embedder.embed([c.text for c in group])
+            insert_chunks(recreate_collection(client, name), group, vectors)
     return IngestStats(
-        collection=stage.collection_name,
+        collection=", ".join(plan),
         documents=len({c.doc_id for c in chunks}),
         chunks=len(chunks),
         chunks_by_audience=dict(Counter(c.audience for c in chunks)),

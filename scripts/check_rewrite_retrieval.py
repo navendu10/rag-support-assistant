@@ -74,6 +74,7 @@ def main() -> int:
                     rerank_query=standalone,
                     extra_codes=codes,
                     regions=pipeline.regions_for(users[item.user_id]),
+                    user=users[item.user_id],
                 ).ranked
                 now[item.id] = [c.doc_id for c in ranked[:k]]
                 print(f"{stage.name} {item.id} {now[item.id]}", flush=True)

@@ -37,7 +37,7 @@ from rag_assistant.eval.rerank_eval import (
     regressions,
 )
 from rag_assistant.eval.sweep import metrics_cell, score_group
-from rag_assistant.ingestion.store import connect
+from rag_assistant.ingestion.store import connect_admin
 from rag_assistant.retrieval.codes import CodeDetector
 from rag_assistant.retrieval.factory import make_retriever
 from rag_assistant.retrieval.rerank import Reranker, fused_order
@@ -135,7 +135,7 @@ def main() -> int:  # noqa: PLR0915 - a linear experiment script
     doc_codes = {d.doc_id: d.product_code for d in load_manifest(manifest) if d.product_code}
     codes = {i.id: detector.find(i.question) for i in items}
 
-    with connect(settings.weaviate) as client:
+    with connect_admin(settings) as client:
         retriever = make_retriever(
             v2, client.collections.get(v2.collection_name), Embedder(settings.embedding), manifest
         )

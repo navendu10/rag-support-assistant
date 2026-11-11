@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import asdict
 
 import weaviate
+from pydantic import SecretStr
 from weaviate.classes.config import Configure, DataType, Property, Tokenization
 from weaviate.classes.data import DataObject
+from weaviate.classes.init import Auth
 from weaviate.collections import Collection
 
-from rag_assistant.config import WeaviateSettings
+from rag_assistant.config import Settings, WeaviateSettings
 from rag_assistant.ingestion.chunker import Chunk
 
 INSERT_BATCH = 100
@@ -35,8 +37,15 @@ PROPERTIES = [
 ]
 
 
-def open_client(cfg: WeaviateSettings) -> weaviate.WeaviateClient:
-    """Open a Weaviate client; the caller must close it."""
+class MissingKeyError(RuntimeError):
+    """A Weaviate API key the caller needs is not configured."""
+
+
+def open_client(cfg: WeaviateSettings, api_key: SecretStr | None) -> weaviate.WeaviateClient:
+    """Open a Weaviate client authenticated with ``api_key``; the caller must close it.
+
+    ``None`` connects anonymously, which a Weaviate with RBAC (Session 7) refuses.
+    """
     return weaviate.connect_to_custom(
         http_host=cfg.host,
         http_port=cfg.http_port,
@@ -44,17 +53,32 @@ def open_client(cfg: WeaviateSettings) -> weaviate.WeaviateClient:
         grpc_host=cfg.host,
         grpc_port=cfg.grpc_port,
         grpc_secure=cfg.secure,
+        auth_credentials=None if api_key is None else Auth.api_key(api_key.get_secret_value()),
     )
 
 
 @contextmanager
-def connect(cfg: WeaviateSettings) -> Iterator[weaviate.WeaviateClient]:
-    """Open a Weaviate client and always close it afterwards."""
-    client = open_client(cfg)
+def connect(cfg: WeaviateSettings, api_key: SecretStr | None) -> Iterator[weaviate.WeaviateClient]:
+    """Open an authenticated Weaviate client and always close it afterwards."""
+    client = open_client(cfg, api_key)
     try:
         yield client
     finally:
         client.close()
+
+
+def admin_key(settings: Settings) -> SecretStr:
+    """The admin key: ingestion, setup_access.py and the insecure v0-v4 stages only."""
+    if settings.weaviate_admin_key is None:
+        raise MissingKeyError(
+            "WEAVIATE_ADMIN_KEY is not set. Run: python scripts/setup_access.py --init-admin-key"
+        )
+    return settings.weaviate_admin_key
+
+
+def connect_admin(settings: Settings) -> AbstractContextManager[weaviate.WeaviateClient]:
+    """``connect`` with the admin key."""
+    return connect(settings.weaviate, admin_key(settings))
 
 
 def recreate_collection(client: weaviate.WeaviateClient, name: str) -> Collection:

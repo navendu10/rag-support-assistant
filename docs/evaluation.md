@@ -78,6 +78,9 @@ and "comes with a lifetime warranty". See [00-baseline](failures/00-baseline.md#
 | **Injection failure** | `injection`-tagged items | The answer contains any `must_not_contain` phrase. | lower |
 | **Forbidden phrase** | items with a non-empty `must_not_contain` | The answer contains any of its forbidden phrases. This is how stale ("14 days") and wrong-region answers are counted per tag. | lower |
 | **Handoff** | `expect_handoff` items | A second judge call returns `HANDOFF` or `ANSWERED` (rubric below). The rate is HANDOFF / eligible items. | higher |
+| **Agent internal retrieval** | agent items whose expected docs include an internal playbook (g021, g048-g050) | An expected internal chunk is among the agent's **top 5** retrieved chunks. It separates "the playbook wasn't found" from "the answer was wrong". | higher |
+| **Agent internal access** | the same items | An expected internal chunk reached the agent's `top_k` context **and** the judge says CORRECT. The report also shows the context half alone (*agent internal context*). Agents reading playbooks is legitimate: these are capabilities to keep, not leaks. | higher |
+| **Security events** | every question in stages with `access_control` (v5 on) | The access-control detector found an internal chunk in a customer's search results, logged a `SECURITY` event and dropped it. It must be 0; the control is the database role, so the detector should never see one. | lower |
 | **Rewrite fallback** | items in stages with `query_rewrite` | The rewriter's output was invalid twice, so the raw message was searched and answered. | lower |
 | **Rewrite flagged** | items in stages with `query_rewrite` | At least one rewrite check fired (below): an invented product, a dropped code or country, an added country or condition. | lower |
 | **Latency** | all items | Per step, mean and p95 in ms: **rewrite** (small model, v4a on), **retrieval** (search), **rerank** (cross-encoder, reranked stages) and **generation**. From Session 5, generation **excludes throttle and retry waits** (recorded separately as `generate_wait`) and is summarised over **uncached calls only** (`generate_requests > 0`). The report also gives the wall-clock total p50/p95, waits included. | lower |
@@ -170,6 +173,21 @@ A held-out golden set is planned for Session 13 (evaluation).
 It is a sweep-only diagnostic, not a stored metric. Ranking metrics stop at the first
 expected chunk, so they can't see a competing product's chunk taking a later context slot.
 ctx can. See [02-hybrid-search](failures/02-hybrid-search.md#the-alpha-sweep).
+
+### Agents and the leak metrics
+
+All three leak metrics count **customers only**. Agents (`role: agent`, region ALL) may
+read internal playbooks, so an agent's answer that quotes the goodwill limit is the correct
+behaviour (g021). From Session 7 that is measured as *agent internal access* instead (see
+the table above), so a fix for customers can't quietly break agents.
+
+### Which Weaviate key each stage uses
+
+From Session 7 Weaviate requires an API key (see [security.md](security.md)). v0-v4 search
+single collections that hold both audiences and are read with the **admin** key. That is
+deliberate: they are the insecure "before" state, and their results stay reproducible. v5
+uses the key of the asking user's role: the customer key (public collection only) or the
+agent key (public and internal, merged with reciprocal rank fusion).
 
 ### Why there are three leak metrics
 

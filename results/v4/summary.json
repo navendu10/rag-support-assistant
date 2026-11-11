@@ -13,25 +13,26 @@
     "rewrite_model": "openai/gpt-oss-20b",
     "history_turns": 6,
     "region_filter": "user profile region + ALL",
-    "rescored": "2026-11-01"
+    "rescored": "2026-11-11",
+    "extended": "2026-11-11: added g048, g049, g050"
   },
   "overall": {
-    "questions": 47,
+    "questions": 50,
     "recall_at_k": {
-      "count": 40,
-      "total": 42
+      "count": 42,
+      "total": 45
     },
     "hit_at_1": {
-      "count": 29,
-      "total": 42
+      "count": 31,
+      "total": 45
     },
     "mrr": {
-      "value": 0.81,
-      "total": 42
+      "value": 0.8,
+      "total": 45
     },
     "correctness": {
-      "count": 34,
-      "total": 47
+      "count": 35,
+      "total": 50
     },
     "retrieval_leaks": {
       "count": 5,
@@ -59,35 +60,51 @@
     },
     "judge_errors": 0,
     "candidate_recall": {
-      "count": 42,
-      "total": 42
+      "count": 44,
+      "total": 45
     },
     "rewrite_fallbacks": {
       "count": 0,
-      "total": 47
+      "total": 50
+    },
+    "agent_internal_access": {
+      "count": 2,
+      "total": 4
+    },
+    "agent_internal_retrieval": {
+      "count": 3,
+      "total": 4
+    },
+    "agent_internal_context": {
+      "count": 3,
+      "total": 4
+    },
+    "security_events": {
+      "count": 0,
+      "total": 0
     },
     "rewrite_flagged": {
-      "count": 14,
-      "total": 47
+      "count": 15,
+      "total": 50
     },
     "latency_ms": {
-      "p50": 1574.3,
-      "p95": 3371.8,
+      "p50": 1596.6,
+      "p95": 3360.0,
       "generate_excludes_waits": true,
       "rewrite_wait": {
         "mean": 0.0,
         "p95": 0.0,
-        "n": 47
+        "n": 50
       },
       "retrieve": {
-        "mean": 20.7,
-        "p95": 33.7,
-        "n": 47
+        "mean": 28.0,
+        "p95": 38.4,
+        "n": 50
       },
       "rerank": {
-        "mean": 1364.8,
-        "p95": 2113.0,
-        "n": 47
+        "mean": 1379.4,
+        "p95": 2152.7,
+        "n": 50
       },
       "generate": {
         "mean": 826.3,
@@ -95,12 +112,12 @@
         "n": 14
       },
       "generate_wait": {
-        "mean": 1600.5,
+        "mean": 1504.5,
         "p95": 0.0,
-        "n": 47
+        "n": 50
       },
-      "rerank_mean": 1364.8,
-      "rerank_p95": 2113.0
+      "rerank_mean": 1379.4,
+      "rerank_p95": 2152.7
     }
   },
   "by_tag": {
@@ -154,6 +171,22 @@
       "rewrite_fallbacks": {
         "count": 0,
         "total": 4
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
       },
       "rewrite_flagged": {
         "count": 3,
@@ -243,6 +276,22 @@
         "count": 0,
         "total": 8
       },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
       "rewrite_flagged": {
         "count": 1,
         "total": 8
@@ -326,6 +375,22 @@
         "count": 0,
         "total": 3
       },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
       "rewrite_flagged": {
         "count": 2,
         "total": 3
@@ -408,6 +473,22 @@
       "rewrite_fallbacks": {
         "count": 0,
         "total": 7
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
       },
       "rewrite_flagged": {
         "count": 2,
@@ -497,6 +578,22 @@
         "count": 0,
         "total": 2
       },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
       "rewrite_flagged": {
         "count": 2,
         "total": 2
@@ -584,6 +681,22 @@
       "rewrite_fallbacks": {
         "count": 0,
         "total": 4
+      },
+      "agent_internal_access": {
+        "count": 1,
+        "total": 1
+      },
+      "agent_internal_retrieval": {
+        "count": 1,
+        "total": 1
+      },
+      "agent_internal_context": {
+        "count": 1,
+        "total": 1
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
       },
       "rewrite_flagged": {
         "count": 0,
@@ -673,6 +786,22 @@
         "count": 0,
         "total": 4
       },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
       "rewrite_flagged": {
         "count": 1,
         "total": 4
@@ -755,6 +884,22 @@
       "rewrite_fallbacks": {
         "count": 0,
         "total": 3
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
       },
       "rewrite_flagged": {
         "count": 2,
@@ -839,6 +984,22 @@
         "count": 0,
         "total": 12
       },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
       "rewrite_flagged": {
         "count": 1,
         "total": 12
@@ -874,6 +1035,105 @@
         },
         "rerank_mean": 1055.1,
         "rerank_p95": 1974.1
+      }
+    },
+    "agent_access": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 2,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 2,
+        "total": 3
+      },
+      "mrr": {
+        "value": 0.667,
+        "total": 3
+      },
+      "correctness": {
+        "count": 1,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 0
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 2,
+        "total": 3
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 3
+      },
+      "agent_internal_access": {
+        "count": 1,
+        "total": 3
+      },
+      "agent_internal_retrieval": {
+        "count": 2,
+        "total": 3
+      },
+      "agent_internal_context": {
+        "count": 2,
+        "total": 3
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_flagged": {
+        "count": 1,
+        "total": 3
+      },
+      "latency_ms": {
+        "p50": 2320.2,
+        "p95": 2408.0,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "retrieve": {
+          "mean": 143.0,
+          "p95": 350.7,
+          "n": 3
+        },
+        "rerank": {
+          "mean": 1608.9,
+          "p95": 2336.8,
+          "n": 3
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "rerank_mean": 1608.9,
+        "rerank_p95": 2336.8
       }
     }
   }

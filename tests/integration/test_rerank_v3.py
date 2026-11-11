@@ -13,7 +13,7 @@ import pytest
 from rag_assistant.config import Settings, StageConfig, load_settings, load_stage
 from rag_assistant.embeddings import Embedder
 from rag_assistant.ingestion.pipeline import ingest
-from rag_assistant.ingestion.store import connect
+from rag_assistant.ingestion.store import connect_admin
 from rag_assistant.retrieval.factory import make_retriever
 from rag_assistant.retrieval.rerank import Reranker
 from rag_assistant.retrieval.vector import RetrievedChunk
@@ -44,7 +44,7 @@ def stage(settings: Settings) -> Iterator[StageConfig]:
     except Exception as exc:  # noqa: BLE001
         pytest.skip(f"Weaviate unavailable: {exc}")
     yield load_stage("v3").model_copy(update={"index": owner.collection_name})
-    with connect(settings.weaviate) as client:
+    with connect_admin(settings) as client:
         client.collections.delete(owner.collection_name)
 
 
@@ -67,7 +67,7 @@ def test_tv_lines_warranty_chunk_is_in_v3_context(stage: StageConfig, settings: 
       warranty; the raw scores stay on every chunk for Session 8.
     """
     manifest = settings.paths.resolve(settings.paths.generated_dir) / "manifest.json"
-    with connect(settings.weaviate) as client:
+    with connect_admin(settings) as client:
         retriever = make_retriever(
             stage,
             client.collections.get(stage.collection_name),

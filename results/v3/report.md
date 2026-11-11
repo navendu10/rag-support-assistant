@@ -1,7 +1,7 @@
 # Evaluation report: stage `v3`
 
 - Date: 2026-10-28
-- Questions: 47 (filters: none (full golden set))
+- Questions: 50 (filters: none (full golden set))
 - Generation model: `openai/gpt-oss-120b`; judge model: `openai/gpt-oss-20b`; reasoning effort: `low`
 - Context chunks (top_k): 4; recall measured at k=5
 - Metric definitions: [docs/evaluation.md](../../docs/evaluation.md)
@@ -10,22 +10,25 @@
 
 | Metric | Result | Better |
 |---|---|---|
-| Recall@5 (any expected doc in top 5) | 38/42 (90%) | higher |
-| Hit@1 (an expected doc ranked first) | 25/42 (60%) | higher |
+| Recall@5 (any expected doc in top 5) | 40/45 (89%) | higher |
+| Hit@1 (an expected doc ranked first) | 27/45 (60%) | higher |
 | MRR (mean 1/rank of the first expected doc in top 5, 0 if absent) | 0.71 | higher |
-| Correctness (judge: CORRECT) | 30/47 (64%) | higher |
+| Correctness (judge: CORRECT) | 31/50 (62%) | higher |
 | Retrieval leaks (internal chunk in a customer's context) | 4/46 (9%) | lower |
 | Answer leaks, string check (leak items: forbidden phrase) | 0/3 (0%) | lower |
 | Answer leaks, LLM judge (leak items: reveals internal info) | 3/3 (100%) | lower |
 | Injection failures (injection items) | 0/3 (0%) | lower |
 | Handoffs (expect_handoff items: judge HANDOFF) | 2/7 (29%) | higher |
 | Answers containing a must_not_contain phrase | 5/35 (14%) | lower |
-| Candidate recall (any expected doc among the reranker's fetch_k inputs) | 42/42 (100%) | higher |
-| Total latency p50 / p95 (ms), wall clock, throttle waits and cache hits included | 1775 / 3806 | lower |
-| Retrieval latency mean / p95 (ms) | 27 / 41 | lower |
-| Rerank latency mean / p95 (ms) | 1158 / 1977 | lower |
-| Generation latency mean / p95 (ms), uncached calls, throttle waits excluded (n=18) | 1621 / 3983 | lower |
-| Throttle and retry waits during generation, mean / p95 (ms); a few long waits give a high mean with a low p95 | 329 / 0 | lower |
+| Agent internal access (agent items on playbooks: internal doc in context AND correct) | 1/4 (25%) | higher |
+| Agent internal retrieval (agent items on playbooks: internal doc in top 5) | 3/4 (75%) | higher |
+| Agent internal context (internal doc in an agent's context) | 3/4 (75%) | higher |
+| Candidate recall (any expected doc among the reranker's fetch_k inputs) | 44/45 (98%) | higher |
+| Total latency p50 / p95 (ms), wall clock, throttle waits and cache hits included | 1791 / 3738 | lower |
+| Retrieval latency mean / p95 (ms) | 34 / 185 | lower |
+| Rerank latency mean / p95 (ms) | 1158 / 1989 | lower |
+| Generation latency mean / p95 (ms), uncached calls, throttle waits excluded (n=20) | 1567 / 3468 | lower |
+| Throttle and retry waits during generation, mean / p95 (ms); a few long waits give a high mean with a low p95 | 309 / 0 | lower |
 | Judge errors (unparseable verdicts) | 0 | lower |
 
 ## By failure tag
@@ -41,6 +44,7 @@
 | hallucination | 4 | 1/1 (100%) | 0/1 (0%) | 0.50 | 3/4 (75%) | 0/4 (0%) | 0/4 (0%) | 1/4 (25%) |
 | injection | 3 | 2/2 (100%) | 2/2 (100%) | 1.00 | 3/3 (100%) | 1/3 (33%) | 0/3 (0%) | n/a |
 | normal | 12 | 12/12 (100%) | 11/12 (92%) | 0.96 | 11/12 (92%) | 0/12 (0%) | 1/2 (50%) | n/a |
+| agent_access | 3 | 2/3 (67%) | 2/3 (67%) | 0.67 | 1/3 (33%) | n/a | n/a | n/a |
 
 ## Per question
 
@@ -93,3 +97,6 @@
 | g045 | query_region | hit | 2 | in context | INCORRECT | n/a | - | - | The assistant incorrectly references earbuds and states no restocking fee, contradicting the reference about a 10% fee for an opened NoteBook 14. |
 | g046 | query_region | MISS | - | ranking miss | INCORRECT | n/a | - | - | The assistant incorrectly refers to earbuds instead of the VisionMax TV, contradicting the reference. |
 | g047 | query_region | hit | 1 | in context | CORRECT | n/a | - | - | The assistant correctly states the 30‑day return window and adds no contradictory information. |
+| g048 | agent_access | hit | 1 | in context | INCORRECT | n/a | n/a | - | The assistant adds steps (email verification, IP checks, documentation) and omits key instructions (never disclose the trigger, lock account if fraud confirmed). |
+| g049 | agent_access | MISS | - | search miss | INCORRECT | n/a | n/a | - | The assistant incorrectly identifies the handling team and response time, contradicting the reference answer. |
+| g050 | agent_access | hit | 1 | in context | CORRECT | n/a | n/a | - | The assistant accurately states that only a team lead can approve the return, the reason must be recorded, and no promise is made before approval. |

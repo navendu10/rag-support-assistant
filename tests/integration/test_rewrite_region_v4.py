@@ -14,7 +14,7 @@ import pytest
 from rag_assistant.config import Settings, load_settings, load_stage
 from rag_assistant.eval.metrics import normalise_for_match
 from rag_assistant.ingestion.pipeline import ingest
-from rag_assistant.ingestion.store import connect
+from rag_assistant.ingestion.store import connect_admin
 from rag_assistant.pipeline import Pipeline
 from rag_assistant.schemas import Turn, User, load_golden, load_users
 
@@ -62,7 +62,7 @@ def pipeline(settings: Settings) -> Iterator[Pipeline]:
     stage = load_stage("v4").model_copy(update={"index": owner.collection_name})
     with Pipeline.from_stage(stage, settings) as p:
         yield p
-    with connect(settings.weaviate) as client:
+    with connect_admin(settings) as client:
         client.collections.delete(owner.collection_name)
 
 

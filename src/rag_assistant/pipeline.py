@@ -11,6 +11,11 @@ From Session 6:
   generation.
 - ``region_filter``: customers search only their profile's region and ALL; the filter
   comes from ``user``, never from the message.
+
+From Session 7, ``access_control`` picks the Weaviate key from the user's role: customers
+search the public collection with the customer key, agents search public + internal with
+the agent key (``retrieval/access.py``). Stages without it (v0-v4) connect with the admin
+key: they are the deliberately insecure "before" state.
 """
 
 from __future__ import annotations
@@ -31,9 +36,10 @@ from rag_assistant.config import (
 )
 from rag_assistant.embeddings import Embedder
 from rag_assistant.generation.naive import NaiveGenerator
-from rag_assistant.ingestion.store import open_client
+from rag_assistant.ingestion.store import admin_key, open_client
 from rag_assistant.llm import make_chat_model, timed_calls
 from rag_assistant.query.rewrite import Catalogue, QueryRewriter, RewriteResult, json_completer
+from rag_assistant.retrieval.access import RoleRetrievers, drop_internal
 from rag_assistant.retrieval.factory import Retriever, make_retriever
 from rag_assistant.retrieval.filters import build_region_filter, region_values
 from rag_assistant.retrieval.rerank import Reranker
@@ -52,15 +58,21 @@ class Answer:
     candidates: list[RetrievedChunk] = field(default_factory=list)
     rewrite: RewriteResult | None = None
     region_filter: tuple[str, ...] | None = None
+    security_events: int = 0
 
 
 @dataclass(frozen=True)
 class Retrieval:
-    """Ranked chunks, the search candidates they came from, and how long each step took."""
+    """Ranked chunks, the search candidates they came from, and how long each step took.
+
+    ``security_events`` counts internal chunks the detector removed for a customer
+    (access-control stages only); it should always be 0.
+    """
 
     ranked: list[RetrievedChunk]
     candidates: list[RetrievedChunk]
     timings_ms: dict[str, float]
+    security_events: int = 0
 
 
 def _ms_since(start: float) -> float:
@@ -77,7 +89,7 @@ class Pipeline:
     def __init__(
         self,
         stage: StageConfig,
-        retriever: Retriever,
+        retriever: Retriever | RoleRetrievers,
         generator: NaiveGenerator,
         client: weaviate.WeaviateClient | None = None,
         reranker: Reranker | None = None,
@@ -88,13 +100,16 @@ class Pipeline:
         """Assemble a pipeline from already-built parts.
 
         Pass ``reranker`` exactly when ``stage.rerank`` and ``rewriter`` exactly when
-        ``stage.query_rewrite``. The model names say whose throttle waits to exclude.
+        ``stage.query_rewrite``. ``retriever`` is a ``RoleRetrievers`` exactly when
+        ``stage.access_control``. The model names say whose throttle waits to exclude.
         """
         stage.ensure_supported()
         if stage.rerank != (reranker is not None):
             raise ValueError("pass a reranker exactly when the stage has rerank: true")
         if stage.query_rewrite != (rewriter is not None):
             raise ValueError("pass a rewriter exactly when the stage has query_rewrite: true")
+        if stage.access_control != isinstance(retriever, RoleRetrievers):
+            raise ValueError("pass RoleRetrievers exactly when the stage has access_control: true")
         self.stage = stage
         self._retriever = retriever
         self._generator = generator
@@ -109,19 +124,23 @@ class Pipeline:
         """Build the pipeline for a stage name (or config) using the real services."""
         settings = settings or get_settings()
         stage = load_stage(stage) if isinstance(stage, str) else stage
-        client = open_client(settings.weaviate)
-        if not client.collections.exists(stage.collection_name):
-            client.close()
-            raise RuntimeError(
-                f"Collection {stage.collection_name} not found. "
-                f"Run: python scripts/ingest.py --stage {stage.index_owner}"
+        embedder = Embedder(settings.embedding)
+        manifest = settings.paths.resolve(settings.paths.generated_dir) / "manifest.json"
+        client = None
+        retriever: Retriever | RoleRetrievers
+        if stage.access_control:
+            retriever = RoleRetrievers(stage, settings, embedder, manifest)
+        else:
+            client = open_client(settings.weaviate, admin_key(settings))  # insecure on purpose
+            if not client.collections.exists(stage.collection_name):
+                client.close()
+                raise RuntimeError(
+                    f"Collection {stage.collection_name} not found. "
+                    f"Run: python scripts/ingest.py --stage {stage.index_owner}"
+                )
+            retriever = make_retriever(
+                stage, client.collections.get(stage.collection_name), embedder, manifest
             )
-        retriever = make_retriever(
-            stage,
-            client.collections.get(stage.collection_name),
-            Embedder(settings.embedding),
-            settings.paths.resolve(settings.paths.generated_dir) / "manifest.json",
-        )
         generator = NaiveGenerator(
             make_chat_model(settings, settings.llm.generation_model),
             load_prompts()["naive_answer"],
@@ -156,10 +175,25 @@ class Pipeline:
         self.close()
 
     def close(self) -> None:
-        """Release the Weaviate client, if this pipeline owns one."""
+        """Release the Weaviate client(s) this pipeline owns."""
         if self._client is not None:
             self._client.close()
             self._client = None
+        if isinstance(self._retriever, RoleRetrievers):
+            self._retriever.close()
+
+    def _search_for(self, user: User | None) -> Retriever:
+        """The retriever to use: per role with access control, else the stage's only one."""
+        if isinstance(self._retriever, RoleRetrievers):
+            return self._retriever.for_user(user)
+        return self._retriever
+
+    def _detect(self, chunks: list[RetrievedChunk], user: User | None) -> tuple[list, int]:
+        """Access-control stages: drop internal chunks a customer somehow received."""
+        if not self.stage.access_control or user is None:
+            return chunks, 0
+        detection = drop_internal(chunks, user)
+        return detection.kept, len(detection.dropped)
 
     def retrieve_ranked(
         self,
@@ -169,6 +203,7 @@ class Pipeline:
         rerank_query: str | None = None,
         extra_codes: Sequence[str] = (),
         regions: tuple[str, ...] | None = None,
+        user: User | None = None,
     ) -> Retrieval:
         """The best ``k`` chunks for ``question``, with timings.
 
@@ -181,14 +216,19 @@ class Pipeline:
             rerank_query: the text the cross-encoder scores against (default ``question``).
             extra_codes: product codes from the rewriter, for dynamic alpha.
             regions: allowed ``region`` values, applied inside the search (None: no filter).
+            user: who is asking; access-control stages pick the key and collections from
+                their role (required there).
         """
         start = time.perf_counter()
         codes, filters = tuple(extra_codes), build_region_filter(regions)
+        retriever = self._search_for(user)
         if self._reranker is None:
-            ranked = self._retriever.search(question, k, extra_codes=codes, filters=filters)
-            return Retrieval(ranked, [], {"retrieve": _ms_since(start)})
+            found = retriever.search(question, k, extra_codes=codes, filters=filters)
+            ranked, events = self._detect(found, user)
+            return Retrieval(ranked, [], {"retrieve": _ms_since(start)}, events)
         fetch = max(k, int(self.stage.fetch_k or 0))
-        candidates = self._retriever.search(question, fetch, extra_codes=codes, filters=filters)
+        found = retriever.search(question, fetch, extra_codes=codes, filters=filters)
+        candidates, events = self._detect(found, user)
         retrieve_ms = _ms_since(start)
         rerank_start = time.perf_counter()
         ranked = self._reranker.rerank(
@@ -197,13 +237,12 @@ class Pipeline:
             self.stage.rerank_fusion or "replace",
             self.stage.rerank_blend_weight if self.stage.rerank_blend_weight is not None else 0.5,
         )[:k]
-        return Retrieval(
-            ranked, candidates, {"retrieve": retrieve_ms, "rerank": _ms_since(rerank_start)}
-        )
+        timings = {"retrieve": retrieve_ms, "rerank": _ms_since(rerank_start)}
+        return Retrieval(ranked, candidates, timings, events)
 
-    def retrieve(self, question: str, k: int) -> list[RetrievedChunk]:
+    def retrieve(self, question: str, k: int, user: User | None = None) -> list[RetrievedChunk]:
         """The best ``k`` chunks for ``question`` (searched, then reranked if enabled)."""
-        return self.retrieve_ranked(question, k).ranked
+        return self.retrieve_ranked(question, k, user=user).ranked
 
     def regions_for(self, user: User | None) -> tuple[str, ...] | None:
         """The region filter values for ``user``, or None when the stage doesn't filter.
@@ -265,6 +304,7 @@ class Pipeline:
             rerank_query=standalone,
             extra_codes=codes,
             regions=regions,
+            user=user,
         )
         context = retrieval.ranked[: self.stage.top_k]
         with timed_calls(self._generation_model) as gen:
@@ -284,6 +324,7 @@ class Pipeline:
             candidates=retrieval.candidates,
             rewrite=rewrite,
             region_filter=regions,
+            security_events=retrieval.security_events,
         )
 
 

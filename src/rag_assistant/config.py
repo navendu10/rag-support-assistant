@@ -151,6 +151,12 @@ class Settings(BaseSettings):
     )
 
     groq_api_key: SecretStr
+    # Weaviate API keys (Session 7), read from .env; see docs/security.md. Optional so
+    # unit tests and CI need none. The admin key is for ingestion, setup_access.py and the
+    # deliberately insecure v0-v4 stages; customer and agent keys follow the user's role.
+    weaviate_admin_key: SecretStr | None = None
+    weaviate_customer_key: SecretStr | None = None
+    weaviate_agent_key: SecretStr | None = None
     weaviate: WeaviateSettings
     embedding: EmbeddingSettings
     llm: LLMSettings
@@ -282,6 +288,8 @@ RerankFusion = Literal["replace", "rrf", "blend"]
 INGESTION_FIELDS = ("chunking", "chunk_size", "chunk_overlap", "min_chunk_chars")
 # Reranked stages are scored on recall@5, so at least 5 candidates are needed.
 MIN_FETCH_K = 5
+# access_control stages store each audience in its own collection (Session 7).
+AUDIENCES = ("public", "internal")
 
 
 class StageConfig(BaseModel):
@@ -370,10 +378,28 @@ class StageConfig(BaseModel):
             raise ValueError("use_history: true needs query_rewrite: true")
         return self
 
+    @model_validator(mode="after")
+    def _access_control_owns_its_collections(self) -> StageConfig:
+        """``access_control`` splits chunks into two collections, so it can't reuse one."""
+        if self.access_control and self.index is not None:
+            raise ValueError("access_control: true builds its own collections; remove index")
+        return self
+
     @property
     def collection_name(self) -> str:
-        """Weaviate collection for this stage: ``index`` if set, else e.g. ``Chunks_v0``."""
+        """Weaviate collection for this stage: ``index`` if set, else e.g. ``Chunks_v0``.
+
+        Stages with ``access_control`` have two collections instead; see
+        ``audience_collections``.
+        """
         return self.index or f"Chunks_{self.name}"
+
+    @property
+    def audience_collections(self) -> dict[str, str]:
+        """``access_control`` only: audience -> collection, e.g. public -> Chunks_v5_public."""
+        if not self.access_control:
+            raise ValueError(f"stage {self.name} has access_control: false")
+        return {audience: f"Chunks_{self.name}_{audience}" for audience in AUDIENCES}
 
     @property
     def index_owner(self) -> str:
@@ -400,11 +426,11 @@ class StageConfig(BaseModel):
 
 
 # switch -> (only supported value so far, session that adds the rest, feature)
-# (chunking since Session 3, search since Session 4, rerank since Session 5, and
-# query_rewrite, use_history and region_filter since Session 6.)
+# (chunking since Session 3, search since Session 4, rerank since Session 5,
+# query_rewrite, use_history and region_filter since Session 6, and access_control
+# since Session 7.)
 UNIMPLEMENTED_SWITCHES: dict[str, tuple[object, int, str]] = {
     "min_score": (None, 8, "rejecting low-scoring context"),
-    "access_control": (False, 7, "access control"),
     "grounding": (False, 8, "grounded answers and handoff"),
     "injection_guard": (False, 9, "prompt-injection defences"),
 }

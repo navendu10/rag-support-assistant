@@ -1,5 +1,10 @@
 # Local Weaviate for development. Vectors are computed in Python (FastEmbed),
-# so no vectorizer modules are enabled. API-key auth arrives in Session 7.
+# so no vectorizer modules are enabled.
+# Session 7: anonymous access is off. Every request needs an API key, and role-based
+# access control (RBAC) decides what each key may read. The one static user, "admin", gets
+# its key from .env (WEAVIATE_ADMIN_KEY; create it with
+# `python scripts/setup_access.py --init-admin-key`). The customer and agent keys are
+# database users created at runtime by scripts/setup_access.py. See docs/security.md.
 services:
   weaviate:
     image: cr.weaviate.io/semitechnologies/weaviate:1.40.1
@@ -9,7 +14,13 @@ services:
       - "50051:50051"
     environment:
       QUERY_DEFAULTS_LIMIT: "25"
-      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "false"
+      AUTHENTICATION_APIKEY_ENABLED: "true"
+      AUTHENTICATION_APIKEY_ALLOWED_KEYS: ${WEAVIATE_ADMIN_KEY:?Set WEAVIATE_ADMIN_KEY in .env (python scripts/setup_access.py --init-admin-key)}
+      AUTHENTICATION_APIKEY_USERS: admin
+      AUTHENTICATION_DB_USERS_ENABLED: "true"
+      AUTHORIZATION_RBAC_ENABLED: "true"
+      AUTHORIZATION_RBAC_ROOT_USERS: admin
       PERSISTENCE_DATA_PATH: /var/lib/weaviate
       DEFAULT_VECTORIZER_MODULE: none
       ENABLE_MODULES: ""

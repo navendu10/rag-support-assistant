@@ -21,7 +21,7 @@ from rag_assistant.eval.report import render_report
 from rag_assistant.eval.rewrites import RewriteChecker
 from rag_assistant.llm import make_chat_model
 from rag_assistant.pipeline import Pipeline
-from rag_assistant.schemas import GoldenItem, User, load_golden, load_users
+from rag_assistant.schemas import GoldenItem, User, load_golden, load_manifest, load_users
 
 SUBSET_DIR = "subset"
 
@@ -49,6 +49,12 @@ def output_dir(settings: Settings, stage: StageConfig, filtered: bool) -> Path:
     return base / SUBSET_DIR if filtered else base
 
 
+def internal_doc_ids(settings: Settings) -> frozenset[str]:
+    """Doc ids with ``audience=internal`` in the manifest (for agent internal access)."""
+    manifest = settings.paths.resolve(settings.paths.generated_dir) / "manifest.json"
+    return frozenset(d.doc_id for d in load_manifest(manifest) if d.audience == "internal")
+
+
 def evaluate_item(
     item: GoldenItem,
     user: User,
@@ -57,6 +63,7 @@ def evaluate_item(
     recall_k: int,
     internal: str = "",
     checker: RewriteChecker | None = None,
+    internal_ids: frozenset[str] = frozenset(),
 ) -> ResultRow:
     """Answer one golden question and score it.
 
@@ -100,7 +107,16 @@ def evaluate_item(
         context_doc_ids=[c.doc_id for c in answer.context],
         context_audiences=context_audiences,
         answer=answer.text,
-        checks=check_item(item, user, retrieved_ids, context_audiences, answer.text, candidate_ids),
+        checks=check_item(
+            item,
+            user,
+            retrieved_ids,
+            context_audiences,
+            answer.text,
+            candidate_ids,
+            [c.doc_id for c in answer.context],
+            internal_ids,
+        ),
         correctness=judge.correctness(item, answer.text),
         handoff=judge.handoff(item, answer.text) if item.expect_handoff else None,
         leak_judgement=(
@@ -112,6 +128,7 @@ def evaluate_item(
         candidate_doc_ids=candidate_ids,
         rewrite=rewrite,
         region_filter=None if answer.region_filter is None else list(answer.region_filter),
+        security_events=answer.security_events if pipeline.stage.access_control else None,
     )
 
 
@@ -145,11 +162,19 @@ def answer_items(
     recall_k = settings.eval.recall_k
     internal = internal_reference(settings.paths.resolve(settings.paths.generated_dir))
     checker = RewriteChecker.from_settings(settings) if stage.query_rewrite else None
+    internal_ids = internal_doc_ids(settings)
     rows: list[ResultRow] = []
     with Pipeline.from_stage(stage, settings) as pipeline:
         for n, item in enumerate(items, start=1):
             row = evaluate_item(
-                item, users[item.user_id], pipeline, judge, recall_k, internal, checker
+                item,
+                users[item.user_id],
+                pipeline,
+                judge,
+                recall_k,
+                internal,
+                checker,
+                internal_ids,
             )
             rows.append(row)
             hit = {True: "hit", False: "MISS", None: "n/a"}[row.checks.recall_hit]
@@ -195,6 +220,11 @@ def run_evaluation(
             else {}
         ),
         **({"region_filter": "user profile region + ALL"} if stage.region_filter else {}),
+        **(
+            {"access_control": "per-audience collections; Weaviate key chosen by user role"}
+            if stage.access_control
+            else {}
+        ),
     }
     out_dir = output_dir(settings, stage, filtered=bool(filters))
     summary = write_outputs(out_dir, meta, rows)
@@ -225,7 +255,11 @@ def missing_items(items: Sequence[GoldenItem], stored: Sequence[ResultRow]) -> l
 
 
 def rescore_row(
-    row: ResultRow, item: GoldenItem, user: User, checker: RewriteChecker | None = None
+    row: ResultRow,
+    item: GoldenItem,
+    user: User,
+    checker: RewriteChecker | None = None,
+    internal_ids: frozenset[str] = frozenset(),
 ) -> ResultRow:
     """Recompute the string and metadata checks for a stored row.
 
@@ -240,6 +274,8 @@ def rescore_row(
         row.context_audiences,
         row.answer,
         row.candidate_doc_ids,
+        row.context_doc_ids,
+        internal_ids,
     )
     update: dict[str, object] = {"checks": checks, "must_not_contain": item.must_not_contain}
     if row.rewrite is not None and checker is not None:
@@ -256,8 +292,9 @@ def _rescored_full_run(
     by_id = {i.id: i for i in items}
     users = {u.user_id: u for u in load_users(settings.paths.resolve(settings.paths.users_file))}
     checker = RewriteChecker.from_settings(settings) if stage.query_rewrite else None
+    internal_ids = internal_doc_ids(settings)
     stored = [
-        rescore_row(r, by_id[r.id], users[r.user_id], checker)
+        rescore_row(r, by_id[r.id], users[r.user_id], checker, internal_ids)
         for r in load_rows(out_dir)
         if r.id in by_id
     ]

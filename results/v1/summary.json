@@ -8,27 +8,27 @@
     "reasoning_effort": "low",
     "top_k": 4,
     "recall_k": 5,
-    "extended": "2026-10-25: added g041, g042, g043, g044; 2026-11-01: added g045, g046, g047",
-    "rescored": "2026-10-25",
+    "extended": "2026-10-25: added g041, g042, g043, g044; 2026-11-01: added g045, g046, g047; 2026-11-11: added g048, g049, g050",
+    "rescored": "2026-11-11",
     "leak_judged": "2026-10-28"
   },
   "overall": {
-    "questions": 47,
+    "questions": 50,
     "recall_at_k": {
-      "count": 36,
-      "total": 42
+      "count": 38,
+      "total": 45
     },
     "hit_at_1": {
-      "count": 23,
-      "total": 42
+      "count": 24,
+      "total": 45
     },
     "mrr": {
-      "value": 0.667,
-      "total": 42
+      "value": 0.65,
+      "total": 45
     },
     "correctness": {
-      "count": 28,
-      "total": 47
+      "count": 29,
+      "total": 50
     },
     "retrieval_leaks": {
       "count": 4,
@@ -63,28 +63,44 @@
       "count": 0,
       "total": 0
     },
+    "agent_internal_access": {
+      "count": 1,
+      "total": 4
+    },
+    "agent_internal_retrieval": {
+      "count": 3,
+      "total": 4
+    },
+    "agent_internal_context": {
+      "count": 3,
+      "total": 4
+    },
+    "security_events": {
+      "count": 0,
+      "total": 0
+    },
     "rewrite_flagged": {
       "count": 0,
       "total": 0
     },
     "latency_ms": {
-      "p50": 920.0,
-      "p95": 48381.2,
+      "p50": 921.0,
+      "p95": 48228.2,
       "generate_excludes_waits": false,
       "retrieve": {
-        "mean": 62.7,
-        "p95": 242.0,
-        "n": 47
+        "mean": 68.4,
+        "p95": 320.4,
+        "n": 50
       },
       "generate": {
-        "mean": 870.9,
-        "p95": 1067.3,
-        "n": 3
+        "mean": 866.1,
+        "p95": 1130.0,
+        "n": 6
       },
       "generate_wait": {
         "mean": 0.0,
         "p95": 0.0,
-        "n": 3
+        "n": 6
       }
     }
   },
@@ -137,6 +153,22 @@
         "total": 0
       },
       "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
         "count": 0,
         "total": 0
       },
@@ -211,6 +243,22 @@
         "count": 0,
         "total": 0
       },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
       "rewrite_flagged": {
         "count": 0,
         "total": 0
@@ -282,6 +330,22 @@
         "count": 0,
         "total": 0
       },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
       "rewrite_flagged": {
         "count": 0,
         "total": 0
@@ -350,6 +414,22 @@
         "total": 0
       },
       "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
         "count": 0,
         "total": 0
       },
@@ -429,6 +509,22 @@
         "count": 0,
         "total": 0
       },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
       "rewrite_flagged": {
         "count": 0,
         "total": 0
@@ -497,6 +593,22 @@
         "total": 0
       },
       "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 1
+      },
+      "agent_internal_retrieval": {
+        "count": 1,
+        "total": 1
+      },
+      "agent_internal_context": {
+        "count": 1,
+        "total": 1
+      },
+      "security_events": {
         "count": 0,
         "total": 0
       },
@@ -571,6 +683,22 @@
         "count": 0,
         "total": 0
       },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
       "rewrite_flagged": {
         "count": 0,
         "total": 0
@@ -639,6 +767,22 @@
         "total": 0
       },
       "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
         "count": 0,
         "total": 0
       },
@@ -713,6 +857,22 @@
         "count": 0,
         "total": 0
       },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
       "rewrite_flagged": {
         "count": 0,
         "total": 0
@@ -730,6 +890,98 @@
           "mean": 4715.2,
           "p95": 22038.3,
           "n": 12
+        }
+      }
+    },
+    "agent_access": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 2,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 1,
+        "total": 3
+      },
+      "mrr": {
+        "value": 0.417,
+        "total": 3
+      },
+      "correctness": {
+        "count": 1,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 0
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_access": {
+        "count": 1,
+        "total": 3
+      },
+      "agent_internal_retrieval": {
+        "count": 2,
+        "total": 3
+      },
+      "agent_internal_context": {
+        "count": 2,
+        "total": 3
+      },
+      "security_events": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 1068.1,
+        "p95": 1150.4,
+        "generate_excludes_waits": true,
+        "retrieve": {
+          "mean": 158.7,
+          "p95": 401.5,
+          "n": 3
+        },
+        "generate": {
+          "mean": 861.4,
+          "p95": 1111.3,
+          "n": 3
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
         }
       }
     }

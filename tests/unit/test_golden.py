@@ -21,6 +21,7 @@ FAILURE_TAGS = (
     "leak",
     "hallucination",
     "injection",
+    "agent_access",
 )
 
 
@@ -67,8 +68,9 @@ def test_golden_ids_are_unique_and_sequential(golden: list[GoldenItem]) -> None:
 
 
 def test_golden_size(golden: list[GoldenItem]) -> None:
-    """40 items from Session 1, 4 product_code items (Session 4), 3 query_region (Session 6)."""
-    assert len(golden) == 47
+    """40 items from Session 1, 4 product_code (Session 4), 3 query_region (Session 6) and
+    3 agent_access (Session 7)."""
+    assert len(golden) == 50
 
 
 def test_tag_minimums(golden: list[GoldenItem]) -> None:
@@ -177,6 +179,22 @@ def test_session_6_query_region_questions(golden: list[GoldenItem]) -> None:
     counts = Counter(g.failure_tag for g in golden)
     assert counts["query_region"] == 7
     assert sum(1 for g in golden if g.failure_tag == "query_region" and g.history) == 4
+
+
+PLAYBOOKS = {"pb-goodwill-credits", "pb-fraud-checks", "pb-escalation", "pb-refund-exceptions"}
+
+
+def test_agent_questions_cover_every_playbook(
+    golden: list[GoldenItem], users: dict[str, User], docs: dict[str, DocMetadata]
+) -> None:
+    """g021 plus the Session 7 agent_access items ask agents about all four playbooks."""
+    agent_items = [g for g in golden if users[g.user_id].role == "agent" and g.expected_doc_ids]
+    covered = {d for g in agent_items for d in g.expected_doc_ids}
+    assert covered == PLAYBOOKS
+    assert all(docs[d].audience == "internal" for d in covered)
+    new = [g for g in golden if g.failure_tag == "agent_access"]
+    assert [g.id for g in new] == ["g048", "g049", "g050"]
+    assert all(g.user_id == "agent_01" and g.must_not_contain == [] for g in new)
 
 
 def test_leak_items_guard_canary_and_amounts(

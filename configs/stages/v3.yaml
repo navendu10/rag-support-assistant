@@ -26,7 +26,7 @@ rerank_blend_weight: 0.5 # not tuned (results/v3/rerank_sweep.md)
 query_rewrite: false     # Session 6 (v4a)
 use_history: false       # Session 6 (v4a)
 region_filter: false     # Session 6 (v4)
-access_control: false    # Session 7
+access_control: false    # Session 7 (v5)
 grounding: false         # Session 8
 injection_guard: false   # Session 9
 top_k: 4

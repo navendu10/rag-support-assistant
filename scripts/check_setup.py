@@ -1,7 +1,11 @@
 """Check that the local development environment is ready.
 
-Runs four independent checks (Python version, Weaviate, FastEmbed, Groq) and
+Runs independent checks (Python version, Weaviate and its keys, FastEmbed, Groq) and
 prints a PASS/FAIL line for each. Exits with code 1 if any check fails.
+
+Since Session 7 Weaviate needs an API key. The checks confirm that anonymous access is
+refused, that the admin key works, and that the customer and agent keys can read
+exactly what their roles allow (see docs/security.md).
 
 Usage:
     python scripts/check_setup.py
@@ -12,9 +16,11 @@ from __future__ import annotations
 import sys
 from collections.abc import Callable
 
-from rag_assistant.config import Settings, load_settings
+from rag_assistant.config import Settings, load_settings, load_stage
+from rag_assistant.schemas import Role
 
 REQUIRED_PYTHON = (3, 12)
+ACCESS_STAGE = "v5"
 TEST_SENTENCE = "My laptop charger stopped working after two weeks."
 GROQ_PROMPT = "Say hello in five words"
 
@@ -30,25 +36,40 @@ def check_python() -> CheckResult:
 
 
 def check_weaviate(settings: Settings) -> CheckResult:
-    """Connect to Weaviate and ask whether it is ready."""
-    import weaviate
+    """Connect with the admin key, ask whether Weaviate is ready and list collections."""
+    from rag_assistant.ingestion.store import connect_admin
 
     cfg = settings.weaviate
-    client = weaviate.connect_to_custom(
-        http_host=cfg.host,
-        http_port=cfg.http_port,
-        http_secure=cfg.secure,
-        grpc_host=cfg.host,
-        grpc_port=cfg.grpc_port,
-        grpc_secure=cfg.secure,
-    )
-    try:
+    with connect_admin(settings) as client:
         if not client.is_ready():
             return False, f"Weaviate at {cfg.url} is not ready"
         version = client.get_meta().get("version", "unknown")
-        return True, f"Weaviate {version} ready at {cfg.url} (gRPC {cfg.grpc_port})"
-    finally:
-        client.close()
+        names = sorted(client.collections.list_all())
+        return True, f"Weaviate {version} at {cfg.url} (admin key); collections: {', '.join(names)}"
+
+
+def check_anonymous_refused(settings: Settings) -> CheckResult:
+    """Without a key, reading the schema must be refused (HTTP 401)."""
+    import httpx
+
+    status = httpx.get(
+        f"{str(settings.weaviate.url).rstrip('/')}/v1/schema", timeout=10
+    ).status_code
+    return status == 401, f"anonymous GET /v1/schema -> HTTP {status} (expected 401)"
+
+
+def check_role_key(settings: Settings, role: Role) -> CheckResult:
+    """The role's key reads exactly the v5 collections its role allows."""
+    from rag_assistant.ingestion.store import connect
+    from rag_assistant.retrieval.access import key_for_role
+    from rag_assistant.security.probes import describe_mismatches, read_data
+
+    collections = load_stage(ACCESS_STAGE).audience_collections
+    with connect(settings.weaviate, key_for_role(role, settings)) as client:
+        observed = {audience: read_data(client, name) for audience, name in collections.items()}
+    problems = describe_mismatches(role, observed)
+    detail = ", ".join(f"{a} {o}" for a, o in observed.items())
+    return not problems, f"{role} key: {detail}" + (f" ({'; '.join(problems)})" if problems else "")
 
 
 def check_fastembed(settings: Settings) -> CheckResult:
@@ -105,6 +126,9 @@ def main() -> int:
 
     results += [
         run_check("Weaviate", lambda: check_weaviate(settings)),
+        run_check("Anonymous", lambda: check_anonymous_refused(settings)),
+        run_check("Customer", lambda: check_role_key(settings, "customer")),
+        run_check("Agent", lambda: check_role_key(settings, "agent")),
         run_check("FastEmbed", lambda: check_fastembed(settings)),
         run_check("Groq", lambda: check_groq(settings)),
     ]

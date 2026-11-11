@@ -26,7 +26,7 @@ from rag_assistant.eval.rerank_eval import (
     summary_row,
     threshold_table,
 )
-from rag_assistant.ingestion.store import connect
+from rag_assistant.ingestion.store import connect_admin
 from rag_assistant.retrieval.factory import make_retriever
 from rag_assistant.retrieval.rerank import Reranker
 from rag_assistant.schemas import load_golden, load_users
@@ -59,7 +59,7 @@ def main() -> int:
     }
     reranker = Reranker(str(stage.rerank_model))
     reranker.warm_up()
-    with connect(settings.weaviate) as client:
+    with connect_admin(settings) as client:
         retriever = make_retriever(
             stage,
             client.collections.get(stage.collection_name),
