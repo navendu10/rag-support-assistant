@@ -45,9 +45,12 @@ src/rag_assistant/
                            codes (product/error code detection), factory (pick per stage),
                            rerank (FastEmbed cross-encoder over fetch_k candidates, fused
                            with the search score), rerank_input (reranker text variants),
-                           filters (region filter from the user profile)
+                           filters (region filter from the user profile), access (Weaviate
+                           key and collections by user role, RRF merge, SECURITY detector)
   query/                   rewrite (small-model query rewriter with history and catalogue,
                            validated JSON, retry then raw-message fallback), describe (CLI text)
+  security/                access_setup (roles, database users, .env keys), probes (what a key
+                           may read)
 configs/stages/<stage>.yaml  StageConfig switches; unimplemented values raise NotImplementedError;
                            `index: Chunks_vN` reuses another stage's collection (ingest skips it)
 configs/prompts.yaml       all prompt templates (answer + judges)
@@ -57,6 +60,7 @@ results/<stage>/           committed full evaluation runs (results.jsonl, summar
 scripts/                   CLI entry points (check_setup.py, ...)
 tests/unit/                fast, no network
 tests/integration/         need Docker/Groq; mark with @pytest.mark.integration
+tests/security/            access-control tests against Weaviate RBAC (integration + security)
 docs/                      architecture, setup, sessions log, failures/, adr/
 ```
 
@@ -75,7 +79,9 @@ docker compose ps                             # check health
 python scripts/check_setup.py                 # end-to-end environment check
 python scripts/generate_data.py               # rebuild data/generated/ (deterministic)
 python scripts/data_report.py                 # summary of docs and golden set
-python scripts/ingest.py --stage v0           # (re)build the stage's Weaviate collection
+python scripts/setup_access.py --init-admin-key   # WEAVIATE_ADMIN_KEY in .env (before compose up)
+python scripts/setup_access.py                # roles + customer/agent users, keys -> .env (safe to re-run)
+python scripts/ingest.py --stage v0           # (re)build the stage's Weaviate collection (admin key)
 python scripts/ask.py --stage v0 --user cust_uk_01 "question"
 python scripts/ask.py --stage v4 --user cust_uk_01 --history-file turns.json "Can I return it?"
 python scripts/chat.py --stage v4 --user cust_uk_01   # interactive, keeps history, shows rewrites
@@ -92,6 +98,7 @@ python scripts/sweep_rerank.py                     # reranker input x fusion x f
 python scripts/evaluate.py --stage v0 --add-leak-judge  # LLM leak judge on stored answers
 python scripts/show_chunks.py --stage v1 --doc returns-uk-2026-print [--grep text]
 pytest -m integration                         # needs Weaviate + Groq (skipped by default)
+pytest -m security                            # access-control tests against Weaviate RBAC (local)
 ruff check . ; ruff format .                  # lint and format
 pytest                                        # all tests
 pytest tests/unit                             # fast tests only (what CI runs)
@@ -108,6 +115,9 @@ docker compose down                           # stop (add -v to wipe data)
   prompts belong in `configs/` and are read via `rag_assistant.config`.
 - **Never commit secrets.** Keys live only in `.env` (git-ignored); use `SecretStr`; never
   print or log a secret value. Update `.env.example` when adding a variable.
+- **Access is decided by role, at the database.** Customer code paths use the customer
+  Weaviate key only; the admin key is for ingestion, `setup_access.py` and v0-v4. Every new
+  feature that reads documents must respect roles (see `docs/security.md`).
 - Keep pinned versions in `requirements*.txt`; verify current stable versions before adding.
 - Ruff must pass (lint + format). No unused code or commented-out blocks.
 

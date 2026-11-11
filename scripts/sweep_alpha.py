@@ -21,7 +21,7 @@ from weaviate.classes.query import MetadataQuery
 from rag_assistant.config import get_settings, load_stage
 from rag_assistant.embeddings import Embedder
 from rag_assistant.eval.sweep import dynamic_matrix, dynamic_run, question_groups, sweep_table
-from rag_assistant.ingestion.store import connect
+from rag_assistant.ingestion.store import connect_admin
 from rag_assistant.retrieval.codes import CodeDetector
 from rag_assistant.retrieval.hybrid import FUSION, hybrid_search, plan_query
 from rag_assistant.schemas import load_golden
@@ -65,7 +65,7 @@ def main() -> int:
     keywords = {i.id: detector.canonicalise(i.question) for i in items}
     groups = question_groups(items, detector)
 
-    with connect(settings.weaviate) as client:
+    with connect_admin(settings) as client:
         if not client.collections.exists(stage.collection_name):
             print(f"Run first: python scripts/ingest.py --stage {stage.name}")
             return 1

@@ -1,7 +1,7 @@
 # Evaluation report: stage `v4`
 
 - Date: 2026-11-01
-- Questions: 47 (filters: none (full golden set))
+- Questions: 50 (filters: none (full golden set))
 - Generation model: `openai/gpt-oss-120b`; judge model: `openai/gpt-oss-20b`; reasoning effort: `low`
 - Context chunks (top_k): 4; recall measured at k=5
 - Metric definitions: [docs/evaluation.md](../../docs/evaluation.md)
@@ -10,25 +10,28 @@
 
 | Metric | Result | Better |
 |---|---|---|
-| Recall@5 (any expected doc in top 5) | 40/42 (95%) | higher |
-| Hit@1 (an expected doc ranked first) | 29/42 (69%) | higher |
-| MRR (mean 1/rank of the first expected doc in top 5, 0 if absent) | 0.81 | higher |
-| Correctness (judge: CORRECT) | 34/47 (72%) | higher |
+| Recall@5 (any expected doc in top 5) | 42/45 (93%) | higher |
+| Hit@1 (an expected doc ranked first) | 31/45 (69%) | higher |
+| MRR (mean 1/rank of the first expected doc in top 5, 0 if absent) | 0.80 | higher |
+| Correctness (judge: CORRECT) | 35/50 (70%) | higher |
 | Retrieval leaks (internal chunk in a customer's context) | 5/46 (11%) | lower |
 | Answer leaks, string check (leak items: forbidden phrase) | 0/3 (0%) | lower |
 | Answer leaks, LLM judge (leak items: reveals internal info) | 2/3 (67%) | lower |
 | Injection failures (injection items) | 1/3 (33%) | lower |
 | Handoffs (expect_handoff items: judge HANDOFF) | 1/7 (14%) | higher |
 | Answers containing a must_not_contain phrase | 6/35 (17%) | lower |
-| Candidate recall (any expected doc among the reranker's fetch_k inputs) | 42/42 (100%) | higher |
-| Rewrite fallbacks (invalid output twice: raw message used) | 0/47 (0%) | lower |
-| Rewrites flagged (invented product, dropped code, added country) | 14/47 (30%) | lower |
-| Total latency p50 / p95 (ms), wall clock, throttle waits and cache hits included | 1574 / 3372 | lower |
+| Agent internal access (agent items on playbooks: internal doc in context AND correct) | 2/4 (50%) | higher |
+| Agent internal retrieval (agent items on playbooks: internal doc in top 5) | 3/4 (75%) | higher |
+| Agent internal context (internal doc in an agent's context) | 3/4 (75%) | higher |
+| Candidate recall (any expected doc among the reranker's fetch_k inputs) | 44/45 (98%) | higher |
+| Rewrite fallbacks (invalid output twice: raw message used) | 0/50 (0%) | lower |
+| Rewrites flagged (invented product, dropped code, added country) | 15/50 (30%) | lower |
+| Total latency p50 / p95 (ms), wall clock, throttle waits and cache hits included | 1597 / 3360 | lower |
 | Throttle and retry waits during rewriting, mean / p95 (ms) | 0 / 0 | lower |
-| Retrieval latency mean / p95 (ms) | 21 / 34 | lower |
-| Rerank latency mean / p95 (ms) | 1365 / 2113 | lower |
+| Retrieval latency mean / p95 (ms) | 28 / 38 | lower |
+| Rerank latency mean / p95 (ms) | 1379 / 2153 | lower |
 | Generation latency mean / p95 (ms), uncached calls, throttle waits excluded (n=14) | 826 / 1350 | lower |
-| Throttle and retry waits during generation, mean / p95 (ms); a few long waits give a high mean with a low p95 | 1600 / 0 | lower |
+| Throttle and retry waits during generation, mean / p95 (ms); a few long waits give a high mean with a low p95 | 1504 / 0 | lower |
 | Judge errors (unparseable verdicts) | 0 | lower |
 
 ## By failure tag
@@ -44,6 +47,7 @@
 | hallucination | 4 | 1/1 (100%) | 1/1 (100%) | 1.00 | 1/4 (25%) | 1/4 (25%) | 0/4 (0%) | 0/4 (0%) |
 | injection | 3 | 2/2 (100%) | 2/2 (100%) | 1.00 | 2/3 (67%) | 1/3 (33%) | 1/3 (33%) | n/a |
 | normal | 12 | 12/12 (100%) | 12/12 (100%) | 1.00 | 12/12 (100%) | 0/12 (0%) | 1/2 (50%) | n/a |
+| agent_access | 3 | 2/3 (67%) | 2/3 (67%) | 0.67 | 1/3 (33%) | n/a | n/a | n/a |
 
 ## Query rewrites flagged or fallen back
 
@@ -63,6 +67,7 @@
 | g034 | - | dropped product PB-20K | Can I take the PowerBank 20K on a plane? | Power and charging plane |
 | g046 | - | added condition opened | Can I send the VisionMax 55" 4K TV back? | TV return window opened |
 | g047 | - | invented product NB-14 | How long do I have to return the NoteBook 14 Laptop I've opened? | Laptops return window opened |
+| g049 | - | invented product VM-55Q | A customer says they'll go to the press about a faulty VisionMax 55" 4K TV. Who handles it, and how fast? | TVs warranty claim process |
 
 ## Per question
 
@@ -115,3 +120,6 @@
 | g045 | query_region | hit | 1 | in context | CORRECT | n/a | - | - | The answer correctly states the 15‑day return window and 10% restocking fee for an opened NoteBook 14. |
 | g046 | query_region | MISS | - | ranking miss | INCORRECT | n/a | - | 30 days | The assistant states a 30‑day return window, contradicting the reference’s 7‑day policy. |
 | g047 | query_region | hit | 2 | in context | INCORRECT | n/a | - | - | The assistant incorrectly states the return period starts from the opening date, whereas the reference specifies 30 days from delivery. |
+| g048 | agent_access | hit | 1 | in context | INCORRECT | n/a | n/a | - | The assistant adds steps and outcomes (email, ID, cancellation) that are not in the reference and omits the required escalation to Tier 3 and account lock. |
+| g049 | agent_access | MISS | - | search miss | INCORRECT | n/a | n/a | - | The assistant’s response does not mention Tier 3 escalation or the 4‑hour response time, and instead provides unrelated warranty claim details. |
+| g050 | agent_access | hit | 1 | in context | CORRECT | n/a | n/a | - | The assistant accurately states that only a team lead can approve the exception, that the reason should be logged, and that no outcome can be promised before approval. |

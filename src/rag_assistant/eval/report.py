@@ -18,6 +18,29 @@ OVERALL_ROWS = (
     ("handoffs", "Handoffs (expect_handoff items: judge HANDOFF)", "higher"),
     ("forbidden_phrases", "Answers containing a must_not_contain phrase", "lower"),
 )
+# Rows shown only when the run has eligible items (agents with internal docs; v5 on).
+OPTIONAL_ROWS = (
+    (
+        "agent_internal_access",
+        "Agent internal access (agent items on playbooks: internal doc in context AND correct)",
+        "higher",
+    ),
+    (
+        "agent_internal_retrieval",
+        "Agent internal retrieval (agent items on playbooks: internal doc in top 5)",
+        "higher",
+    ),
+    (
+        "agent_internal_context",
+        "Agent internal context (internal doc in an agent's context)",
+        "higher",
+    ),
+    (
+        "security_events",
+        "Security events (internal chunk dropped for a customer; must be 0)",
+        "lower",
+    ),
+)
 
 TAG_COLUMNS = (
     ("recall_at_k", "Recall@{k}"),
@@ -83,6 +106,10 @@ def overall_table(summary: dict[str, object], k: int) -> str:
     for key, label, better in OVERALL_ROWS:
         if key in summary:
             lines.append(f"| {label.format(k=k)} | {format_metric(summary[key])} | {better} |")
+    for key, label, better in OPTIONAL_ROWS:
+        value = summary.get(key, {"count": 0, "total": 0})
+        if value["total"]:
+            lines.append(f"| {label} | {format_metric(value)} | {better} |")
     candidates = summary.get("candidate_recall", {"count": 0, "total": 0})
     if candidates["total"]:
         lines.append(

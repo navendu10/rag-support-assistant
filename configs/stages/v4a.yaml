@@ -26,7 +26,7 @@ rerank_blend_weight: 0.5
 query_rewrite: true      # v3: false
 use_history: true        # v3: false
 region_filter: false     # v4 turns it on
-access_control: false    # Session 7
+access_control: false    # Session 7 (v5)
 grounding: false         # Session 8
 injection_guard: false   # Session 9
 top_k: 4

@@ -12,7 +12,7 @@ import pytest
 from rag_assistant.config import Settings, StageConfig, load_settings, load_stage
 from rag_assistant.embeddings import Embedder
 from rag_assistant.ingestion.pipeline import ingest
-from rag_assistant.ingestion.store import connect
+from rag_assistant.ingestion.store import connect_admin
 from rag_assistant.retrieval.factory import make_retriever
 from rag_assistant.retrieval.hybrid import HybridRetriever
 from rag_assistant.retrieval.vector import RetrievedChunk
@@ -41,14 +41,14 @@ def stage(settings: Settings) -> Iterator[StageConfig]:
     except Exception as exc:  # noqa: BLE001
         pytest.skip(f"Weaviate unavailable: {exc}")
     yield stage
-    with connect(settings.weaviate) as client:
+    with connect_admin(settings) as client:
         client.collections.delete(stage.collection_name)
 
 
 def _search(stage: StageConfig, settings: Settings, question: str) -> list[RetrievedChunk]:
     """Top 5 chunks for ``question`` with the stage's retriever."""
     manifest = settings.paths.resolve(settings.paths.generated_dir) / "manifest.json"
-    with connect(settings.weaviate) as client:
+    with connect_admin(settings) as client:
         retriever = make_retriever(
             stage,
             client.collections.get(stage.collection_name),

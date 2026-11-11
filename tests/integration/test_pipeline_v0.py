@@ -9,7 +9,7 @@ import pytest
 from rag_assistant.config import Settings, StageConfig, load_prompts, load_settings, load_stage
 from rag_assistant.eval.judge import Judge
 from rag_assistant.ingestion.pipeline import ingest
-from rag_assistant.ingestion.store import connect
+from rag_assistant.ingestion.store import connect_admin
 from rag_assistant.llm import make_chat_model
 from rag_assistant.pipeline import Pipeline
 from rag_assistant.schemas import GoldenItem
@@ -40,7 +40,7 @@ def stage(settings: Settings) -> Iterator[StageConfig]:
     assert stats.chunks > 100
     assert stats.chunks_by_audience["internal"] > 0
     yield stage
-    with connect(settings.weaviate) as client:
+    with connect_admin(settings) as client:
         client.collections.delete(stage.collection_name)
 
 

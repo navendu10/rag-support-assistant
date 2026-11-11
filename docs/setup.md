@@ -34,12 +34,24 @@ notepad .env
 The file must contain a line of the form `GROQ_API_KEY=gsk_...`. `.env` is git-ignored;
 never commit it.
 
+Weaviate needs API keys (Session 7). Create the admin key **before** starting Weaviate.
+Docker Compose reads it from `.env` and refuses to start without it:
+
+```powershell
+python scripts/setup_access.py --init-admin-key   # writes a random WEAVIATE_ADMIN_KEY to .env
+```
+
 ## 4. Start Weaviate
 
 ```powershell
 docker compose up -d
 docker compose ps        # STATUS should become "healthy"
+python scripts/ingest.py --stage v5    # the per-audience collections (admin key)
+python scripts/setup_access.py         # roles + customer/agent users; writes their keys to .env
 ```
+
+`setup_access.py` is safe to re-run: it keeps keys that still work and rotates stale ones.
+The keys, roles and who uses which are described in [security.md](security.md).
 
 Weaviate listens on `http://localhost:8080` (REST) and `localhost:50051` (gRPC), stores
 data in the named volume `weaviate_data`, and is capped at 1 GB of memory. To stop it, run
@@ -53,8 +65,15 @@ ruff check .
 pytest
 ```
 
-`check_setup.py` prints a `[PASS]`/`[FAIL]` line for Python, config, Weaviate, FastEmbed
-and Groq, and exits with code 1 if anything fails. The first FastEmbed run downloads the
+`check_setup.py` prints a `[PASS]`/`[FAIL]` line for each check, and exits with code 1 if
+anything fails:
+
+- Python and the config
+- Weaviate, using the admin key (it also lists the collections)
+- that anonymous access is refused
+- that the customer key reads only the public collection
+- that the agent key reads both collections
+- FastEmbed and Groq The first FastEmbed run downloads the
 model (about 130 MB).
 
 ## Configuration

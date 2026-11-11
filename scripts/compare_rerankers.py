@@ -21,7 +21,7 @@ from rag_assistant.config import get_settings, load_stage
 from rag_assistant.embeddings import Embedder
 from rag_assistant.eval.rerank_eval import latency_stats, rank_table
 from rag_assistant.eval.sweep import metrics_cell, score_group
-from rag_assistant.ingestion.store import connect
+from rag_assistant.ingestion.store import connect_admin
 from rag_assistant.retrieval.factory import make_retriever
 from rag_assistant.retrieval.rerank import Reranker
 from rag_assistant.schemas import load_golden
@@ -51,7 +51,7 @@ def main() -> int:
     groups = {"all": scored, "ranking": [i for i in scored if i.failure_tag == "ranking"]}
     manifest = settings.paths.resolve(settings.paths.generated_dir) / "manifest.json"
 
-    with connect(settings.weaviate) as client:
+    with connect_admin(settings) as client:
         if not client.collections.exists(stage.collection_name):
             print(f"Run first: python scripts/ingest.py --stage {stage.index_owner}")
             return 1

@@ -52,12 +52,12 @@ Full details and troubleshooting: [docs/setup.md](docs/setup.md).
 A deterministic, template-generated knowledge base of 53 documents: 8 product manuals,
 regional return policies, store policies, 30 help-centre FAQs, 4 internal playbooks and
 one marketplace listing. Each family is designed to trigger specific RAG failures. A
-47-question golden set measures them. See [docs/data.md](docs/data.md).
+50-question golden set measures them. See [docs/data.md](docs/data.md).
 
 ## Results
 
-Output of `python scripts/compare_stages.py` on the 47-question golden set (every stage is
-scored on the same questions; Session 6 added g045-g047 to every stage). Definitions are in [docs/evaluation.md](docs/evaluation.md).
+Output of `python scripts/compare_stages.py` on the 50-question golden set (every stage is
+scored on the same questions; Sessions 6 and 7 added g045-g050 to every stage). Definitions are in [docs/evaluation.md](docs/evaluation.md).
 Each stage has its own write-up:
 
 - v0, the baseline: [00-baseline](docs/failures/00-baseline.md).
@@ -84,18 +84,28 @@ Each stage has its own write-up:
     of 47, and the vague and regional questions from 1 to 4 of 7.
   - The filter can't separate the outdated UK policy from the current one, so one stale
     answer got worse. It is personalisation, not access control.
+- v5, access control: [05-access-control](docs/failures/05-access-control.md).
+  - Internal playbooks live in their own Weaviate collection, and database roles let the
+    customer key read only the public one. Weaviate refuses the request; it isn't filtered.
+  - Customer retrieval leaks fall from 5/46 to 0/46, and judged answer leaks to 0/3.
+    Agents keep their access.
+  - Without the playbook, one leak question now **invents** a no-exceptions policy. That
+    is for grounding (Session 8).
 
-| Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs | Rewrite fallbacks |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| v0 | 38/42 (90%) | 24/42 (57%) | 0.70 | n/a | 28/47 (60%) | 5/46 (11%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | 1/7 (14%) | n/a |
-| v1 | 36/42 (86%) | 23/42 (55%) | 0.67 | n/a | 28/47 (60%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 1/7 (14%) | n/a |
-| v2 | 36/42 (86%) | 23/42 (55%) | 0.67 | n/a | 28/47 (60%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) | n/a |
-| v3 | 38/42 (90%) | 25/42 (60%) | 0.71 | 42/42 (100%) | 30/47 (64%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) | n/a |
-| v4a | 39/42 (93%) | 28/42 (67%) | 0.75 | 42/42 (100%) | 30/47 (64%) | 4/46 (9%) | 0/3 (0%) | 1/3 (33%) | 1/3 (33%) | 0/7 (0%) | 0/47 (0%) |
-| v4 | 40/42 (95%) | 29/42 (69%) | 0.81 | 42/42 (100%) | 34/47 (72%) | 5/46 (11%) | 0/3 (0%) | 2/3 (67%) | 1/3 (33%) | 1/7 (14%) | 0/47 (0%) |
+| Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs | Rewrite fallbacks | Agent internal retrieval | Agent internal access |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| v0 | 40/45 (89%) | 26/45 (58%) | 0.69 | n/a | 29/50 (58%) | 5/46 (11%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | 1/7 (14%) | n/a | 3/4 (75%) | 2/4 (50%) |
+| v1 | 38/45 (84%) | 24/45 (53%) | 0.65 | n/a | 29/50 (58%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 1/7 (14%) | n/a | 3/4 (75%) | 1/4 (25%) |
+| v2 | 38/45 (84%) | 24/45 (53%) | 0.65 | n/a | 29/50 (58%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) | n/a | 3/4 (75%) | 1/4 (25%) |
+| v3 | 40/45 (89%) | 27/45 (60%) | 0.71 | 44/45 (98%) | 31/50 (62%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) | n/a | 3/4 (75%) | 1/4 (25%) |
+| v4a | 41/45 (91%) | 30/45 (67%) | 0.75 | 44/45 (98%) | 31/50 (62%) | 4/46 (9%) | 0/3 (0%) | 1/3 (33%) | 1/3 (33%) | 0/7 (0%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) |
+| v4 | 42/45 (93%) | 31/45 (69%) | 0.80 | 44/45 (98%) | 35/50 (70%) | 5/46 (11%) | 0/3 (0%) | 2/3 (67%) | 1/3 (33%) | 1/7 (14%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) |
+| v5 | 42/45 (93%) | 33/45 (73%) | 0.83 | 45/45 (100%) | 39/50 (78%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 1/3 (33%) | 1/7 (14%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) |
 
-Higher is better for recall, hit@1, MRR, candidate recall, correctness and handoffs; lower is better for
-leaks and injection failures.
+Higher is better for recall, hit@1, MRR, candidate recall, correctness, handoffs and agent
+internal access; lower is better for leaks, injection failures and rewrite fallbacks.
+Retrieval and answer leaks count customers only. v0-v4 are read with the Weaviate admin key,
+because they are the insecure "before" state (see [docs/security.md](docs/security.md)).
 
 ## Session status
 
@@ -108,7 +118,7 @@ leaks and injection failures.
 | 4 | Fix 2: product-code confusion (hybrid search, stage v2) | ✅ Done |
 | 5 | Fix 3: poor ranking (cross-encoder reranking, stage v3) | ✅ Done |
 | 6 | Fix 4: vague queries and wrong region (query rewriting, region filter, stages v4a/v4) | ✅ Done |
-| 7 | Fix 5: internal-document leaks (access control, Weaviate API keys) | ⏳ Planned |
+| 7 | Fix 5: internal-document leaks (per-audience collections, Weaviate RBAC keys, stage v5) | ✅ Done |
 | 8 | Fix 6: hallucination (grounding, citations, handoff) | ⏳ Planned |
 | 9 | Fix 7: prompt injection | ⏳ Planned |
 | 10 | Agent tools: LangGraph agent with order lookup, warranty check and ticket creation | ⏳ Planned |

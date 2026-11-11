@@ -20,6 +20,8 @@ COLUMNS = (
     ("injections", "Injection failures"),
     ("handoffs", "Handoffs"),
     ("rewrite_fallbacks", "Rewrite fallbacks"),
+    ("agent_internal_retrieval", "Agent internal retrieval"),
+    ("agent_internal_access", "Agent internal access"),
 )
 
 _STAGE_NAME = re.compile(r"^v(\d+)([a-z]*)$")

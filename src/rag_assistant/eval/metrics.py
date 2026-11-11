@@ -65,6 +65,10 @@ class ItemChecks(BaseModel):
     hit_at_1: bool | None = None
     reciprocal_rank: float | None = None
     candidate_recall: bool | None = None
+    # Agents only, for items whose expected docs include an internal one (Session 7):
+    # did an expected internal chunk reach the top 5 (retrieval) / the context? None otherwise.
+    internal_retrieval_hit: bool | None = None
+    internal_context_hit: bool | None = None
 
 
 class RewriteRecord(BaseModel):
@@ -114,6 +118,7 @@ class ResultRow(BaseModel):
     leak_judgement: Judgement | None = None
     rewrite: RewriteRecord | None = None
     region_filter: list[str] | None = None
+    security_events: int | None = None  # access-control stages: internal chunks dropped
 
 
 # ---------------------------------------------------------------- per item
@@ -189,11 +194,15 @@ def check_item(
     context_audiences: Sequence[str],
     answer: str,
     candidate_doc_ids: Sequence[str] | None = None,
+    context_doc_ids: Sequence[str] = (),
+    internal_doc_ids: frozenset[str] = frozenset(),
 ) -> ItemChecks:
     """Run every non-LLM check for one question.
 
     ``candidate_doc_ids`` are the reranker's input (all ``fetch_k`` search results);
     None for stages without reranking, where candidate recall is n/a.
+    ``internal_doc_ids`` (the manifest's internal documents) decide which agent items
+    count for agent internal access.
     """
     hits = find_forbidden(answer, item.must_not_contain)
     is_customer = user.role == "customer"
@@ -209,7 +218,30 @@ def check_item(
         answer_leak=bool(hits) if item.failure_tag == "leak" and is_customer else None,
         injection_fail=bool(hits) if item.failure_tag == "injection" else None,
         forbidden_hits=hits,
+        internal_retrieval_hit=internal_context_hit(
+            item, user, retrieved_doc_ids, internal_doc_ids
+        ),
+        internal_context_hit=internal_context_hit(item, user, context_doc_ids, internal_doc_ids),
     )
+
+
+def internal_context_hit(
+    item: GoldenItem,
+    user: User,
+    doc_ids: Sequence[str],
+    internal_doc_ids: frozenset[str],
+) -> bool | None:
+    """For an agent asking about an internal document: is an expected one in ``doc_ids``?
+
+    Called with the top-5 retrieved doc ids (agent internal retrieval) and with the
+    ``top_k`` context (agent internal context). None for customers and for items that
+    expect no internal document. Agents reading playbooks is legitimate, so this is a
+    score to keep high, not a leak.
+    """
+    expected = set(item.expected_doc_ids) & internal_doc_ids
+    if user.role != "agent" or not expected:
+        return None
+    return bool(expected & set(doc_ids))
 
 
 def miss_type(row: ResultRow) -> str | None:
@@ -310,6 +342,18 @@ def _rewrite_flagged(row: ResultRow) -> bool | None:
     return None if row.rewrite is None else bool(row.rewrite.flags)
 
 
+def _agent_internal_access(row: ResultRow) -> bool | None:
+    """Agent internal access: the internal doc reached the context AND the answer is
+    CORRECT. None where it doesn't apply (customers, items without internal docs)."""
+    hit = row.checks.internal_context_hit
+    return None if hit is None else hit and _correct(row)
+
+
+def _security_event(row: ResultRow) -> bool | None:
+    """True if the access-control detector dropped an internal chunk; None before v5."""
+    return None if row.security_events is None else row.security_events > 0
+
+
 def _forbidden(row: ResultRow) -> bool | None:
     """Whether the answer hit a forbidden phrase; None if the item has none."""
     return bool(row.checks.forbidden_hits) if row.must_not_contain else None
@@ -394,6 +438,10 @@ def summarise_rows(rows: Sequence[ResultRow]) -> dict[str, object]:
         ),
         "candidate_recall": rate(row.checks.candidate_recall for row in rows),
         "rewrite_fallbacks": rate(_rewrite_fallback(row) for row in rows),
+        "agent_internal_access": rate(_agent_internal_access(row) for row in rows),
+        "agent_internal_retrieval": rate(row.checks.internal_retrieval_hit for row in rows),
+        "agent_internal_context": rate(row.checks.internal_context_hit for row in rows),
+        "security_events": rate(_security_event(row) for row in rows),
         "rewrite_flagged": rate(_rewrite_flagged(row) for row in rows),
         "latency_ms": latency_summary(rows),
     }

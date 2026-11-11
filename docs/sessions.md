@@ -388,3 +388,75 @@ the user profile.
 
 **Next:** Session 7, access control: keep internal playbooks out of customer searches,
 before ranking.
+
+## Session 7: Structural access control (2026-11-11)
+
+**Goal:** fix failure #5, internal documents reaching customers, as stage v5 = v4 +
+`access_control`. Customers must be **unable** to read internal documents at the database,
+not just filtered away from them, and agents must keep full access.
+
+**Built**
+- **Two collections:** `Chunks_v5_public` and `Chunks_v5_internal`, v2's chunks routed by
+  `audience`.
+- **Weaviate auth and RBAC:**
+  - anonymous access off, a static admin key from `.env`
+  - roles `customer_reader` (public only) and `agent_reader` (both)
+  - database users `customer-bot` and `agent-copilot`, created by
+    `scripts/setup_access.py`, which is safe to re-run
+- **Key by role:** the pipeline picks the key from the user's role. Agents search both
+  collections and merge them by RRF.
+- **A SECURITY detector:** the tripwire, not the control.
+- **v0-v4:** read with the admin key, on purpose.
+- **Golden set:** g048-g050 (agent questions on the playbooks).
+- **Metrics:** agent internal access and security events.
+- **Tests and checks:** `tests/security/` (11 tests), and `check_setup.py` checks for each
+  key.
+
+**How it went**
+1. Restarted Weaviate with auth on the existing volume. Before the switch I recorded
+   Chunks_v0 117, v1 162 and v2 162 objects; afterwards, with the admin key, the counts
+   are identical. Anonymous requests now get HTTP 401.
+2. With the customer key, every forbidden action raises `InsufficientPermissionsError`, not
+   an empty result:
+   - fetch or hybrid on the internal collection
+   - reading its config, or even `exists()`
+   - writes, and reading older collections
+
+   `list_all()` shows only the public collection.
+3. The full v5 evaluation, plus `--only-missing` for v0-v4 (3 questions each).
+
+**Results** (50 questions)
+
+| Stage | Recall@5 | Hit@1 | MRR | Correctness | Retrieval leaks | Answer leaks (judge) | Agent internal access |
+|---|---|---|---|---|---|---|---|
+| v4 | 42/45 | 31/45 | 0.80 | 35/50 | 5/46 | 2/3 | 2/4 |
+| v5 | 42/45 | 33/45 | 0.83 | **39/50** | **0/46** | **0/3** | 2/4 |
+
+**What happened** (details in [05-access-control](failures/05-access-control.md))
+- **Leaks:** no customer context contains an internal chunk, the detector never fired, and
+  the judge's 0/3 is a real zero (I read the answers).
+- **g018 and g019** are now correct: g019 hands off, and g018 says the credit is reviewed
+  by support.
+- **g020 now invents a policy:** "we can't make an exception… we aren't able to accept
+  them". **g023** still invents "we don't price-match". Both go to Session 8.
+- **g016, g017 (stale) and g047 flipped to correct** through context-order and generation
+  variance, not access control. The stale document is still in the context.
+- **Agents kept access.** Agent internal retrieval is 3/4 and agent internal access 2/4
+  in v4 and v5 alike: no access bug, no regression.
+  - g048: the playbook is rank 1, but the answer invents steps and even says the mismatch
+    triggered the check, which the playbook forbids (answer quality, Session 8).
+  - g049: the rewrite turns "press" into "TVs warranty claim process", and the reranker
+    scores the escalation playbook 0.0, so it misses in every stage. The playbook *is* in
+    v5's agent candidates (search rank 12).
+  - The prompt answers agents as if they were customers.
+
+**Lessons**
+- Anything the question can influence (rewriting, search, ranking, filters) is not a
+  security boundary. Session 6's region filter freed the slot the leak used.
+- Test the refusal, not the absence: an empty result can mean "filtered" or "nothing
+  there". A permission error means "not allowed".
+- Taking a document away doesn't make the model say "I don't know". It can invent a
+  confident policy instead, which is the next failure.
+
+**Next:** Session 8, grounding: citations, abstaining and handing off when the context
+doesn't contain the answer (g020, g023, g018-style inventions).

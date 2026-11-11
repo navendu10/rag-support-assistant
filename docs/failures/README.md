@@ -9,8 +9,9 @@ failure, and an honest account of what did and did not reproduce.
 
 **Fixes so far:** [01-chunking.md](01-chunking.md) (stage v1) and
 [02-hybrid-search.md](02-hybrid-search.md) (stage v2),
-[03-reranking.md](03-reranking.md) (stage v3) and
-[04-query-and-region.md](04-query-and-region.md) (stages v4a and v4).
+[03-reranking.md](03-reranking.md) (stage v3),
+[04-query-and-region.md](04-query-and-region.md) (stages v4a and v4) and
+[05-access-control.md](05-access-control.md) (stage v5).
 
 | # | Failure | Example symptom | Planned fix | Page |
 |---|---------|-----------------|-------------|------|
@@ -18,7 +19,7 @@ failure, and an honest account of what did and did not reproduce.
 | 2 | Product-code confusion | An "XR-2200" question gets the XR-2000's reset steps in its context | Hybrid (BM25 + vector) search, keyword-heavy only when a code is detected | [02-hybrid-search](02-hybrid-search.md) |
 | 3 | Poor ranking | Right chunk retrieved but ranked 8th | Cross-encoder reranking of the top 20 search candidates | [03-reranking](03-reranking.md) |
 | 4 | Vague queries and wrong region | "How long is the warranty?" answered with the US policy for a UK customer | Query rewriting with chat history (small model, catalogue), region filter from the user profile | [04-query-and-region](04-query-and-region.md) |
-| 5 | Internal-document leaks | Staff-only margin notes quoted to a customer | Access-level metadata and filtering | _pending_ |
+| 5 | Internal-document leaks | Staff-only margin notes quoted to a customer | Per-audience collections and Weaviate RBAC: the customer key can't read internal documents | [05-access-control](05-access-control.md) |
 | 6 | Hallucination | Confident answer with no supporting source | Grounded prompts, citations, abstain when unsure | _pending_ |
 | 7 | Prompt injection | A document or message says "ignore previous instructions" | Context sanitising, instruction hierarchy, output checks | _pending_ |
 

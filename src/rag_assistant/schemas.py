@@ -27,6 +27,7 @@ FailureTag = Literal[
     "injection",
     "stale",
     "normal",
+    "agent_access",
 ]
 
 DOC_ID_PATTERN = r"^[a-z0-9]+(-[a-z0-9]+)*$"

@@ -7,6 +7,76 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-11 (Session 7: structural access control)
+
+### Added
+
+- Stage **v5** (`configs/stages/v5.yaml`): v4 plus `access_control: true`.
+  - Chunks are stored by audience in `Chunks_v5_public` (152) and `Chunks_v5_internal` (10),
+    with v2's chunking unchanged.
+  - A unit test proves the two collections hold exactly v2's chunk texts.
+- Weaviate authentication and RBAC (Weaviate 1.40.1):
+  - `docker-compose.yml` turns anonymous access off and turns API keys, RBAC and database
+    users on.
+  - The only static user is `admin`, with `WEAVIATE_ADMIN_KEY` read from `.env`; Compose
+    refuses to start without it.
+- `scripts/setup_access.py` (`security/access_setup.py`):
+  - `--init-admin-key` writes a random admin key.
+  - Otherwise it creates the roles `customer_reader` (public collection only) and
+    `agent_reader` (both), and the database users `customer-bot` and `agent-copilot`.
+  - It writes `WEAVIATE_CUSTOMER_KEY` and `WEAVIATE_AGENT_KEY` to `.env`, printed masked.
+  - It is safe to re-run: roles are re-asserted, extra roles revoked, and working keys
+    kept (stale ones are rotated).
+- `retrieval/access.py`:
+  - The key is chosen from the user's role (`key_for_role`).
+  - Lazy per-role connections (`RoleRetrievers`).
+  - Agents search both collections and merge them with RRF (`MergedRetriever`).
+  - A SECURITY detector (`drop_internal`) drops and logs any internal chunk that reaches a
+    customer. It never fired.
+- `security/probes.py`: tells a permission refusal apart from an empty result.
+  `check_setup.py` uses it to check every key (anonymous refused, admin, customer, agent).
+- Evaluation:
+  - an `agent_access` tag and golden items g048-g050 (agent questions on the fraud,
+    escalation and refund-exception playbooks; with g021 they cover all four)
+  - an **agent internal access** score (internal doc in context **and** correct), and beside it
+    **agent internal retrieval** (internal doc in the top 5), so a missed playbook and a wrong
+    answer are told apart. All stages were rescored to add it, with no LLM calls
+  - `security_events` per row, and a column in `compare_stages`
+  - v0-v4 answered the new items with `--only-missing`
+- `tests/security/` (`pytest -m security`, local only). The customer key is **refused**
+  on:
+  - internal queries (fetch and hybrid)
+  - internal config and `exists`
+  - writes and older collections
+
+  Attack prompts and the leak questions never retrieve internal chunks, and agents do
+  retrieve their playbooks. Unit tests cover key isolation, merging, the detector, the
+  setup helpers and the metrics.
+- Docs: `docs/failures/05-access-control.md`, ADR 0005 and `docs/security.md` (the
+  keys, the setup order, and the rule for later features).
+
+### Changed
+
+- Every Weaviate connection is authenticated. `open_client` / `connect` take a key, and
+  `connect_admin` is used by ingestion, scripts, integration tests and the v0-v4 stages,
+  which are read with the admin key because they are the insecure "before" state.
+- `access_control` is implemented, and a stage with it can't set `index`.
+- `Pipeline.retrieve_ranked` takes the `user`.
+- `.env.example` lists the three Weaviate keys.
+- `docs/setup.md` and CLAUDE.md describe the new setup order.
+
+### Results
+
+- v5 against v4:
+  - customer retrieval leaks 5/46 → **0/46**
+  - judged answer leaks 2/3 → **0/3**
+  - correctness 35/50 → **39/50**
+  - agent internal retrieval 3/4 and access 2/4, both unchanged. g048 is an answer-quality
+    failure, and g049 a retrieval miss caused by the rewrite and the reranker. Neither is
+    an access bug
+- Without the playbook, g020 now **invents** a no-exceptions policy, and g023 still invents
+  a no-price-match policy. Both go to Session 8.
+
 ## [0.7.0] - 2026-11-01 (Session 6: query rewriting and region filters)
 
 ### Added
