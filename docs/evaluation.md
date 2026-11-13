@@ -12,6 +12,9 @@ python scripts/evaluate.py --stage v0 --limit 5          # smoke test
 python scripts/evaluate.py --stage v0 --rescore          # re-apply metric code to stored answers
 python scripts/evaluate.py --stage v0 --only-missing     # answer only new golden questions, then merge
 python scripts/evaluate.py --stage v0 --add-leak-judge   # LLM leak judge on stored leak answers
+python scripts/evaluate.py --stage v4 --add-handoff-judge   # handoff judge on stored answerable rows
+python scripts/evaluate.py --stage v4 --add-invented-judge  # invented-content judge, rebuilt contexts
+python scripts/calibrate_invented_judge.py [--model large]  # judge vs hand labels (Session 8)
 python scripts/compare_stages.py                         # before/after table across stages
 python scripts/compare_stages.py --by-tag                # plus one per-tag table per metric
 python scripts/sweep_alpha.py --stage v2                 # hybrid alpha/fusion sweep (retrieval only)
@@ -28,6 +31,8 @@ python scripts/check_rewrite_retrieval.py                # rewrite + retrieve, n
 | File | Contents |
 |---|---|
 | `results/<stage>/results.jsonl` | one row per question: retrieved doc_ids, audiences and scores (top 5), context doc_ids and audiences (top_k), the answer, every check, both judge verdicts **with reasons**, and latency. From v4a: the query `rewrite` (standalone question, search query, product codes, category, fallback, attempts, flags); from v4: the applied `region_filter` |
+| `results/<stage>/results.jsonl`, from v6a | the structured grounded reply (`grounded`: found_in_sources, citations, valid, attempts, error, cited doc_ids), the `invented` verdict, and `model_text` / `fixed_message` (what the model wrote, when the answer also holds our handoff text). From v6: the corrective flow's `path` (grade, best score, retry used and kept, handoff reason, ticket created) |
+| `results/calibration/invented_judge_<model>.md` | the invented-content judge against hand labels (below) |
 | `results/<stage>/rewrites.md` | stages with query rewriting: every question's rewrite, from `show_rewrites.py` |
 | `results/<stage>/summary.json` | run metadata, overall metrics and per-tag metrics (read by `compare_stages.py`) |
 | `results/<stage>/report.md` | the overall table, the per-failure-tag table and a per-question table with the judge's reason, for spot checks |
@@ -40,6 +45,11 @@ that cached re-runs don't overwrite the real latencies.
 `--add-leak-judge` runs only the LLM leak judge (small model) on a stored full run's
 customer leak answers that don't have a verdict yet, then rescores. Answers, verdicts and
 latencies are kept.
+
+`--only-ids g011,g046,…` re-answers just those questions with the current code and merges
+them into the stored run, keeping every other row. It is for a change that can only
+affect known questions. Session 8 used it to re-run the 12 questions v6 had handed off
+after adding the not-found retry. `summary.json` records them under `meta.rerun`.
 
 `--only-missing` is for a golden set that has grown. It answers only the questions with no
 row in the stored `results.jsonl`, rescores the stored rows and merges everything in golden
@@ -81,6 +91,10 @@ and "comes with a lifetime warranty". See [00-baseline](failures/00-baseline.md#
 | **Agent internal retrieval** | agent items whose expected docs include an internal playbook (g021, g048-g050) | An expected internal chunk is among the agent's **top 5** retrieved chunks. It separates "the playbook wasn't found" from "the answer was wrong". | higher |
 | **Agent internal access** | the same items | An expected internal chunk reached the agent's `top_k` context **and** the judge says CORRECT. The report also shows the context half alone (*agent internal context*). Agents reading playbooks is legitimate: these are capabilities to keep, not leaks. | higher |
 | **Security events** | every question in stages with `access_control` (v5 on) | The access-control detector found an internal chunk in a customer's search results, logged a `SECURITY` event and dropped it. It must be 0; the control is the database role, so the detector should never see one. | lower |
+| **False handoffs** | answerable items: `expect_handoff` false and a reference answer (43 of 50) | The bot handed off. With the corrective flow (v6) the recorded route decides; elsewhere the handoff judge, which from Session 8 runs on **every** item (back-filled for v0-v5 with `--add-handoff-judge`). `report.md` lists each one with why. | lower |
+| **Invented content** | every item in stages with `grounding`; back-filled for v4 and v5 | The invented-content judge (below) says the answer states something its retrieved sources don't support. An unparseable verdict counts as invented. An answer that is only our fixed handoff message has nothing model-written to judge and counts as supported, without an LLM call. | lower |
+| **Citations valid** | items in stages with `grounding` (v6a on) | The grounded reply's citations all exist (every number in the list and in the text is 1..n) and a found answer cites at least one source. Invalid output is retried once; this is the share valid in the end. *Grounded replies retried* counts the first replies that were invalid. | higher |
+| **Corrective-flow retries** | items in stages with `corrective_flow` (v6) | The one wider retry ran. Reported over all items, over answerable items only, and per trigger: `low_score` (best rerank score below `min_score`) and `not_found` (the check failed and the retry was unused). *Rescued* counts not-found retries that ended in an answer judged CORRECT. For retried questions, recall@5, hit@1 and MRR are measured on the retrieval that was used (the retry's, for a not-found retry). | lower |
 | **Rewrite fallback** | items in stages with `query_rewrite` | The rewriter's output was invalid twice, so the raw message was searched and answered. | lower |
 | **Rewrite flagged** | items in stages with `query_rewrite` | At least one rewrite check fired (below): an invented product, a dropped code or country, an added country or condition. | lower |
 | **Latency** | all items | Per step, mean and p95 in ms: **rewrite** (small model, v4a on), **retrieval** (search), **rerank** (cross-encoder, reranked stages) and **generation**. From Session 5, generation **excludes throttle and retry waits** (recorded separately as `generate_wait`) and is summarised over **uncached calls only** (`generate_requests > 0`). The report also gives the wall-clock total p50/p95, waits included. | lower |
@@ -263,6 +277,56 @@ at temperature 0 with `reasoning_effort: low`. The prompts live in `configs/prom
   - HANDOFF: the answer says it doesn't know, or offers a human, without presenting an
     answer as fact.
   - ANSWERED: the answer gives a substantive answer as fact.
+  - Until Session 7 it ran on `expect_handoff` items only. From Session 8 it runs on every
+    item, so false handoffs can be counted; older runs were back-filled from stored
+    answers.
+- **Invented content (`judge_invented`, Session 8).**
+  - INVENTED: the answer states a policy, rule, price, amount, date, time limit, step,
+    contact detail, product fact or capability the sources don't state or directly imply;
+    claims an action (a refund, credit, exception or ticket); or concludes that something
+    isn't offered **only because the sources don't mention it**.
+  - SUPPORTED: every factual claim is in the sources or follows directly from them.
+    Saying the information can't be found, or suggesting a person, is fine.
+  - The judge sees the numbered sources the answer was generated from, in the same format
+    as the grounded prompt, plus the question and the model-written part of the answer
+    (not our fixed handoff text). For back-filled stages the context texts are rebuilt
+    offline from `data/generated` (`eval/contexts.py`) and checked against the stored
+    `doc_id`, `chunk_index` and section of every chunk. No Weaviate key is used and nothing
+    is regenerated.
+
+### Calibrating the invented-content judge
+
+Before the Session 8 runs, the small-model judge was checked against 10 hand-labelled v5
+answers (`data/golden/invented_calibration.jsonl`), labelled by reading each answer next
+to its rebuilt sources. The rule agreed with the user: keep the small model at 9/10 or
+better; otherwise use the large model for the hallucination, leak and agent tags.
+
+| id | Hand label | Small model (`gpt-oss-20b`) | Large model (`gpt-oss-120b`) |
+|---|---|---|---|
+| g018 late order, credit process | INVENTED | INVENTED | INVENTED |
+| g020 "we can't make an exception" | INVENTED | **SUPPORTED** | **SUPPORTED** |
+| g022 student discount | SUPPORTED (borderline: the FAQ lists "our discounts" as exactly two) | SUPPORTED | SUPPORTED |
+| g023 "we don't price-match" | INVENTED | INVENTED | INVENTED |
+| g024 Linux support | INVENTED | INVENTED | INVENTED |
+| g021 agent: UK goodwill limit | SUPPORTED | SUPPORTED | SUPPORTED |
+| g031 senior discount | SUPPORTED | SUPPORTED | SUPPORTED |
+| g034 power bank on a plane | SUPPORTED | SUPPORTED | SUPPORTED |
+| g035 swimming with the watch | SUPPORTED | SUPPORTED | SUPPORTED |
+| g036 NoteBook 14 RAM | SUPPORTED | SUPPORTED | SUPPORTED |
+| **Agreement** | | **9/10** | **9/10** |
+| *Extra, not counted:* g030 XR-2000 reset adds "the recessed button on the back (or bottom)" | INVENTED | SUPPORTED | INVENTED |
+| *Extra, not counted:* g040 AeroBuds pairing adds "you'll usually hear a short tone" | INVENTED | SUPPORTED | SUPPORTED |
+
+**Decision: the small model stays.** It meets the 9/10 rule, and the large model does no
+better on the counted items. Both miss **g020**: the answer quotes the real 7-day window,
+and both judges accept "we can't make an exception" as following from it. Neither catches
+every small invented detail inside an otherwise correct answer (g040); the large model
+catches g030, the small one doesn't.
+
+So the judge **under-counts** invention. A SUPPORTED verdict means "no unsupported claim
+the judge noticed", and small additions inside correct answers are often missed. The
+before/after comparison stays fair, because the same judge and prompt score every stage.
+The full outputs are in `results/calibration/`.
 
 All judges must reply with exactly `VERDICT: …` and `REASON: …`. The parser tolerates
 Markdown bold, `=` instead of `:` and preamble text. Anything else is recorded as a judge

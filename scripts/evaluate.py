@@ -5,12 +5,19 @@ Usage:
     python scripts/evaluate.py --stage v0 --rescore
     python scripts/evaluate.py --stage v0 --only-missing
     python scripts/evaluate.py --stage v0 --add-leak-judge
+    python scripts/evaluate.py --stage v4 --add-handoff-judge
+    python scripts/evaluate.py --stage v4 --add-invented-judge
+    python scripts/evaluate.py --stage v6 --only-ids g011,g046
 
 Filtered runs (--tag/--limit) are written to results/<stage>/subset/ (git-ignored).
 --rescore re-applies the current metric code to the stored full run (no LLM calls).
 --only-missing answers only golden questions the stored full run lacks, then rescores
 and merges, so the stored rows keep their real (uncached) latencies.
 --add-leak-judge runs only the LLM leak judge on stored customer leak answers (small model).
+--add-handoff-judge runs the handoff judge on stored answers without a verdict (false handoffs).
+--add-invented-judge runs the invented-content judge on stored answers, with their contexts
+rebuilt offline from data/generated (no Weaviate, nothing regenerated).
+--only-ids re-answers just those golden questions and merges them into the stored run.
 """
 
 from __future__ import annotations
@@ -23,7 +30,10 @@ from typing import get_args
 from rag_assistant.config import get_settings, load_stage
 from rag_assistant.eval.metrics import format_metric
 from rag_assistant.eval.runner import (
+    add_handoff_judgements,
+    add_invented_judgements,
     add_leak_judgements,
+    evaluate_ids,
     evaluate_missing,
     rescore,
     run_evaluation,
@@ -51,8 +61,30 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="run the LLM leak judge on the stored full run's customer leak answers",
     )
+    mode.add_argument(
+        "--only-ids",
+        help="comma-separated golden ids to re-answer and merge into the stored full run",
+    )
+    mode.add_argument(
+        "--add-handoff-judge",
+        action="store_true",
+        help="run the handoff judge on stored answers that have no verdict (false handoffs)",
+    )
+    mode.add_argument(
+        "--add-invented-judge",
+        action="store_true",
+        help="run the invented-content judge on stored answers and rebuilt contexts",
+    )
     args = parser.parse_args()
-    if (args.rescore or args.only_missing or args.add_leak_judge) and (args.tag or args.limit):
+    stored_modes = (
+        args.rescore,
+        args.only_missing,
+        args.add_leak_judge,
+        args.add_handoff_judge,
+        args.add_invented_judge,
+        args.only_ids,
+    )
+    if any(stored_modes) and (args.tag or args.limit):
         parser.error("these modes use the stored full run; drop --tag and --limit")
     return args
 
@@ -68,6 +100,13 @@ def main() -> int:
         out = evaluate_missing(stage, settings)
     elif args.add_leak_judge:
         out = add_leak_judgements(stage, settings)
+    elif args.only_ids:
+        ids = [i.strip() for i in args.only_ids.split(",") if i.strip()]
+        out = evaluate_ids(stage, settings, ids)
+    elif args.add_handoff_judge:
+        out = add_handoff_judgements(stage, settings)
+    elif args.add_invented_judge:
+        out = add_invented_judgements(stage, settings)
     else:
         out = run_evaluation(stage, settings, args.tag, args.limit)
     s = out.summary
@@ -82,10 +121,14 @@ def main() -> int:
         "answer_leaks_judged",
         "injections",
         "handoffs",
+        "false_handoffs",
+        "invented_content",
+        "citations_valid",
+        "flow_retries_answerable",
     ):
-        print(f"  {key:<16} {format_metric(s[key])}")
+        print(f"  {key:<24} {format_metric(s[key])}")
     if s["judge_errors"]:
-        print(f"  judge_errors     {s['judge_errors']} (see results.jsonl)")
+        print(f"  {'judge_errors':<24} {s['judge_errors']} (see results.jsonl)")
     return 0
 
 

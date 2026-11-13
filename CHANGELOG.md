@@ -7,6 +7,70 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-12 (Session 8: grounding, citations and human handoff)
+
+### Added
+
+- Stage **v6a** (`configs/stages/v6a.yaml`): v5 plus `grounding: true`.
+  `generation/grounded.py`:
+  - role-aware prompts (customer or agent, from the profile) with numbered sources
+  - structured output (`answer`, `citations`, `found_in_sources`)
+  - code checks that every cited number exists; invalid output is retried once, then
+    "not found"
+  - rendered answers end with a "Sources:" list (`ask.py` and `chat.py` print it)
+- Stage **v6** (`configs/stages/v6.yaml`): v6a plus `corrective_flow: true`, a LangGraph
+  graph (`graph/corrective.py`): rewrite -> retrieve -> grade -> (retry) -> generate ->
+  check -> answer | handoff.
+  - One retry per question, with one budget shared by two triggers: a low best rerank
+    score (`min_score: 0.1`) or a not-found/invalid answer. The wider search is the
+    original message plus the resolved products' catalogue names and codes,
+    `retry_fetch_k: 30` and `retry_top_k: 8`; reranking and regeneration use the
+    standalone question. The score never hands off by itself.
+  - The retry reuses the same user, connection, collections and region filter; unit tests
+    prove it can't widen access.
+  - `graph/handoff.py`: customers get a polite message and a ticket in
+    `data/tickets/tickets.jsonl` (git-ignored); agents get "not found in the knowledge
+    base" with the closest sources. The model's not-found answer is shown only when it is
+    valid and cites sources.
+- Evaluation:
+  - **false handoffs** (answerable questions handed off; the flow's route in v6, the
+    handoff judge elsewhere, which now runs on every question), listed in `report.md`
+  - **invented content**, a new small-model judge (`judge_invented`) on the answer and its
+    numbered sources; calibrated against 10 hand labels at 9/10
+    (`scripts/calibrate_invented_judge.py`, `data/golden/invented_calibration.jsonl`)
+  - **citation validity**, grounded re-attempts and corrective-flow retries
+  - `--add-invented-judge` and `--add-handoff-judge` back-fill stored runs; contexts are
+    rebuilt offline from `data/generated` and checked chunk by chunk (`eval/contexts.py`)
+  - each row stores `grounded`, `path` (with `retry_trigger` and `retry_changed_outcome`),
+    `model_text`, `fixed_message` and `invented`; the report counts retries per trigger
+    and not-found retries that ended in a correct answer
+  - `--only-ids` re-answers chosen questions and merges them into the stored run
+- `docs/failures/06-grounding-and-handoff.md` and
+  `docs/adr/0006-langgraph-corrective-flow.md`.
+- `langgraph==1.2.15` pinned (already installed as a LangChain dependency).
+
+### Changed
+
+- `grounding`, `corrective_flow` and `min_score` are implemented; `min_score` and
+  `retry_fetch_k` are only valid with `corrective_flow`. Every stage file states
+  `corrective_flow: false`.
+- An access-control stage may reuse another access-control stage's collections with
+  `index:` (v6a and v6 read `Chunks_v5_public` and `Chunks_v5_internal`).
+- `Retrieval` moved to `retrieval/result.py` and records the best rerank score.
+- v4 and v5 were back-filled with the invented-content judge (9/50 each), and v0-v5
+  with the handoff judge on every answerable question.
+
+### Results
+
+- v5 -> v6a -> v6: invented content (judge) 9/50 -> 1/50 -> 2/50 (all judge mistakes on
+  reading); expected handoffs 1/7 -> 6/7 -> 7/7; citations valid 50/50; correctness
+  39 -> 33 -> 39; false handoffs 2/43 -> 5/43 -> 4/43. The not-found retry fired on 5
+  questions and rescued 1 (g048); the first v6, with a low-score retry only, had 5/43
+  false handoffs and 38/50 correct.
+- Issue #10: g049's rewrite changes the topic ("press" -> "TVs warranty claim process").
+- False handoffs back-filled for v0-v5 with the handoff judge (v5: 2/43, g011 and g028);
+  v6's three new ones (g046, g048, g049) are retrieval misses.
+
 ## [0.8.0] - 2026-11-11 (Session 7: structural access control)
 
 ### Added

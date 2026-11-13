@@ -19,13 +19,14 @@ hybrid:
 rerank: true
 rerank_model: Xenova/ms-marco-MiniLM-L-6-v2
 fetch_k: 20
-min_score: null          # Session 8
+min_score: null          # Session 8: v6 only
 rerank_fusion: blend
 rerank_blend_weight: 0.5
 query_rewrite: true
 use_history: true
 region_filter: true
 access_control: true     # v4: false
-grounding: false         # Session 8
+grounding: false         # Session 8 (v6a)
+corrective_flow: false   # Session 8 (v6)
 injection_guard: false   # Session 9
 top_k: 4

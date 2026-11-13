@@ -8,9 +8,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 from pydantic import SecretStr
 
-from rag_assistant.config import StageConfig, load_settings, load_stage
+from rag_assistant.config import STAGES_DIR, load_settings, load_stage
 from rag_assistant.eval.metrics import (
     ItemChecks,
     Judgement,
@@ -83,14 +84,19 @@ def test_unknown_audience_is_an_error() -> None:
         split_by_audience([chunk], ["public", "internal"])  # type: ignore[list-item]
 
 
-def test_access_control_stage_config() -> None:
-    """v5 names its two collections and can't also reuse another stage's index."""
+def test_access_control_stage_config(tmp_path: Path) -> None:
+    """v5 names its two collections; v6a reuses them; reusing a single-collection index
+    (or v5's from a stage without access control) is refused."""
     assert V5.audience_collections == {
         "public": "Chunks_v5_public",
         "internal": "Chunks_v5_internal",
     }
-    with pytest.raises(ValueError, match="access_control"):
-        StageConfig.model_validate({**V5.model_dump(), "index": "Chunks_v2"})
+    assert load_stage("v6a").audience_collections == V5.audience_collections
+    (tmp_path / "v2.yaml").write_text((STAGES_DIR / "v2.yaml").read_text(), encoding="utf-8")
+    probe = {**V5.model_dump(), "name": "probe", "index": "Chunks_v2"}
+    (tmp_path / "probe.yaml").write_text(yaml.safe_dump(probe), encoding="utf-8")
+    with pytest.raises(ValueError, match="only one of them has access_control"):
+        load_stage("probe", stages_dir=tmp_path)
     with pytest.raises(ValueError, match="access_control: false"):
         _ = load_stage("v4").audience_collections
 

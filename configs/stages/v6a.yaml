@@ -1,0 +1,34 @@
+# Stage v6a: v5 plus grounded generation (Session 8).
+# The answer prompt depends on the asker's role (customer or agent), numbers the sources
+# [1]..[n], and allows only claims the sources state, each with a citation. The model
+# returns structured output (answer, citations, found_in_sources); code checks every
+# citation number. No corrective flow and no handoff yet: that is v6.
+# Retrieval is v5's, unchanged: same collections, keys, filters and reranking.
+name: v6a
+description: v5 + grounded, cited, role-aware generation
+index: Chunks_v5         # reuse v5's per-audience collections (Chunks_v5_public/_internal)
+chunking: structure
+chunk_size: 1200
+chunk_overlap: 150
+min_chunk_chars: 200
+search: hybrid
+hybrid:
+  alpha_strategy: dynamic
+  code_alpha: 0.25
+  default_alpha: 1.0
+  fusion: relative_score
+  query_properties: [text, title, product_code^2]
+rerank: true
+rerank_model: Xenova/ms-marco-MiniLM-L-6-v2
+fetch_k: 20
+min_score: null          # v6 only
+rerank_fusion: blend
+rerank_blend_weight: 0.5
+query_rewrite: true
+use_history: true
+region_filter: true
+access_control: true
+grounding: true          # v5: false
+corrective_flow: false   # v6
+injection_guard: false   # Session 9
+top_k: 4

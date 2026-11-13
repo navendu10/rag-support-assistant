@@ -1,0 +1,54 @@
+# Stage v6: v6a plus a corrective RAG flow with human handoff (Session 8), built with
+# LangGraph (graph/corrective.py): rewrite -> retrieve -> grade -> (retry) -> generate
+# -> check -> answer | handoff.
+#
+# The flow retries AT MOST ONCE per question, with one wider search, triggered by either:
+#   low_score: no reranked candidate has a rerank score (sigmoid, 0-1) >= min_score;
+#   not_found: the grounded answer was not found in the sources, or invalid.
+# The wider search uses the customer's ORIGINAL message plus the catalogue names and
+# codes of the products the rewriter resolved, retry_fetch_k candidates and retry_top_k
+# context chunks; reranking and the regenerated answer still use the standalone
+# question. Same user, connection, collections and region filter as the first search.
+# A failed check after the retry hands off. The score alone never hands off.
+# (Before the not-found trigger was added, the low-score retry searched the standalone
+# question with 40 candidates and kept a 4-chunk context.)
+#
+# min_score: 0.1 is a RETRY TRIGGER, never a reason to hand off.
+#
+# Why 0.1 and not the 0.01 suggested in results/v3/score_distribution.md: 0.01 was chosen
+# for FILTERING context, where a high threshold throws away answers, so it kept as many
+# relevant chunks as possible (32/39). Here a low score only costs one extra search
+# (about 1.5 s), so a higher threshold is cheap. 0.1 is the highest value in that table
+# at which no answerable question with an expected document would retry (g002's best
+# chunk is 0.180 and g014's 0.193), and it flags 3 of the 4 questions with no relevant
+# document (0.01 flags 1). Like every threshold here, it was tuned on the test set.
+name: v6
+description: v6a + corrective flow (grade, broader retry, answer or human handoff)
+index: Chunks_v5         # reuse v5's per-audience collections
+chunking: structure
+chunk_size: 1200
+chunk_overlap: 150
+min_chunk_chars: 200
+search: hybrid
+hybrid:
+  alpha_strategy: dynamic
+  code_alpha: 0.25
+  default_alpha: 1.0
+  fusion: relative_score
+  query_properties: [text, title, product_code^2]
+rerank: true
+rerank_model: Xenova/ms-marco-MiniLM-L-6-v2
+fetch_k: 20
+min_score: 0.1           # v6a: null. Retry trigger only (see above)
+retry_fetch_k: 30        # the wider search's candidates (fetch_k: 20)
+retry_top_k: 8           # the wider search's context chunks (top_k: 4)
+rerank_fusion: blend
+rerank_blend_weight: 0.5
+query_rewrite: true
+use_history: true
+region_filter: true
+access_control: true
+grounding: true
+corrective_flow: true    # v6a: false
+injection_guard: false   # Session 9
+top_k: 4

@@ -289,11 +289,12 @@ def test_v3_differs_from_v2_only_in_rerank_and_index() -> None:
     assert (v2.collection_name, v2.reuses_index) == ("Chunks_v2", False)
 
 
-def test_min_score_is_not_implemented_yet() -> None:
-    """Setting min_score on a reranked stage names Session 8."""
-    stage = StageConfig.model_validate({**_v2_dict(), **RERANK, "name": "x", "min_score": 0.1})
-    with pytest.raises(NotImplementedError, match="min_score=0.1.*Session 8"):
-        stage.ensure_supported()
+def test_min_score_needs_the_corrective_flow() -> None:
+    """min_score is the corrective flow's retry trigger (Session 8), so it needs that flow."""
+    with pytest.raises(
+        ValidationError, match="min_score, retry_fetch_k and retry_top_k need corrective_flow"
+    ):
+        StageConfig.model_validate({**_v2_dict(), **RERANK, "name": "x", "min_score": 0.1})
 
 
 def _write(tmp_path: Path, name: str, **overrides: object) -> None:

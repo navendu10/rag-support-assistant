@@ -38,23 +38,13 @@ def test_v0_loads_with_expected_switches() -> None:
     assert (stage.chunk_size, stage.chunk_overlap, stage.top_k) == (1000, 100, 4)
     for switch in ("rerank", "query_rewrite", "use_history", "region_filter"):
         assert getattr(stage, switch) is False
-    for switch in ("access_control", "grounding", "injection_guard"):
+    for switch in ("access_control", "grounding", "corrective_flow", "injection_guard"):
         assert getattr(stage, switch) is False
     assert stage.collection_name == "Chunks_v0"
 
 
 OTHER_VALUES = {
-    "min_score": 0.5,
-    "grounding": True,
     "injection_guard": True,
-}
-
-
-RERANK_ON = {
-    "rerank": True,
-    "rerank_model": "Xenova/ms-marco-MiniLM-L-6-v2",
-    "fetch_k": 20,
-    "rerank_fusion": "replace",
 }
 
 
@@ -63,8 +53,7 @@ def test_unimplemented_switch_raises_naming_session(
     tmp_path: Path, switch: str, value: object
 ) -> None:
     """Any non-v0 value raises NotImplementedError that names the session adding it."""
-    extra = RERANK_ON if switch == "min_score" else {}  # min_score needs reranking on
-    name = _write_stage(tmp_path, name="probe", **extra, **{switch: value})
+    name = _write_stage(tmp_path, name="probe", **{switch: value})
     session = UNIMPLEMENTED_SWITCHES[switch][1]
     with pytest.raises(NotImplementedError, match=rf"{switch}=.*Session {session}"):
         load_stage(name, stages_dir=tmp_path)
@@ -73,6 +62,47 @@ def test_unimplemented_switch_raises_naming_session(
 def test_every_switch_has_a_session() -> None:
     """The switch table covers exactly the toggles tested above."""
     assert set(UNIMPLEMENTED_SWITCHES) == set(OTHER_VALUES)
+
+
+V6 = load_stage("v6")
+
+
+def test_v6a_and_v6_are_v5_plus_one_switch_each() -> None:
+    """v6a adds grounding to v5; v6 adds the corrective flow (min_score, retry_fetch_k)."""
+    v5, v6a = load_stage("v5"), load_stage("v6a")
+    meta = {"name", "description", "index"}
+
+    def body(stage: StageConfig, *extra: str) -> dict:
+        return {k: v for k, v in stage.model_dump().items() if k not in meta | set(extra)}
+
+    assert body(v6a, "grounding") == body(v5, "grounding") and v6a.grounding
+    flow = ("corrective_flow", "min_score", "retry_fetch_k", "retry_top_k")
+    assert body(V6, *flow) == body(v6a, *flow)
+    assert (V6.corrective_flow, V6.min_score, V6.retry_fetch_k, V6.retry_top_k) == (
+        True,
+        0.1,
+        30,
+        8,
+    )
+    assert V6.index == v6a.index == "Chunks_v5"
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"grounding": False}, "needs grounding: true and rerank: true"),
+        ({"min_score": None}, "needs min_score, retry_fetch_k and retry_top_k"),
+        ({"retry_top_k": None}, "needs min_score, retry_fetch_k and retry_top_k"),
+        ({"retry_fetch_k": 20}, "must be larger than fetch_k"),
+        ({"retry_top_k": 4}, "retry_top_k must be larger than top_k"),
+        ({"corrective_flow": False}, "need corrective_flow: true"),
+    ],
+)
+def test_corrective_flow_settings_are_validated(overrides: dict, message: str) -> None:
+    """The flow needs grounding, reranking, a threshold and a broader retry; the threshold
+    and retry size mean nothing without the flow."""
+    with pytest.raises(ValidationError, match=message):
+        StageConfig.model_validate({**V6.model_dump(), **overrides})
 
 
 def test_v1_differs_from_v0_only_in_chunking() -> None:

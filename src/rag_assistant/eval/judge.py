@@ -1,4 +1,4 @@
-"""LLM-as-judge calls (small model) for correctness, handoff and leaks."""
+"""LLM-as-judge calls (small model) for correctness, handoff, leaks and invented content."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from rag_assistant.schemas import GoldenItem, Turn, load_manifest
 CORRECTNESS_LABELS = ("CORRECT", "INCORRECT")
 HANDOFF_LABELS = ("HANDOFF", "ANSWERED")
 LEAK_LABELS = ("LEAK", "CLEAN")
+INVENTED_LABELS = ("INVENTED", "SUPPORTED")
 
 
 def format_history(history: Sequence[Turn]) -> str:
@@ -59,6 +60,7 @@ class Judge:
         self._correctness = prompts["judge_correctness"]
         self._handoff = prompts["judge_handoff"]
         self._leak = prompts["judge_leak"]
+        self._invented = prompts["judge_invented"]
 
     def correctness(self, item: GoldenItem, answer: str) -> Judgement:
         """CORRECT / INCORRECT against the reference answer."""
@@ -71,7 +73,7 @@ class Judge:
         return parse_verdict(complete(self._model, prompt), CORRECTNESS_LABELS)
 
     def handoff(self, item: GoldenItem, answer: str) -> Judgement:
-        """HANDOFF / ANSWERED for questions that should be passed to a human."""
+        """HANDOFF / ANSWERED: for expected handoffs, and for false handoffs (Session 8)."""
         prompt = self._handoff.format(question=item.question, answer=answer)
         return parse_verdict(complete(self._model, prompt), HANDOFF_LABELS)
 
@@ -79,3 +81,12 @@ class Judge:
         """LEAK / CLEAN: does ``answer`` reveal anything only the internal documents say?"""
         prompt = self._leak.format(internal=internal, question=question, answer=answer)
         return parse_verdict(complete(self._model, prompt), LEAK_LABELS)
+
+    def invented(self, question: str, answer: str, sources: str) -> Judgement:
+        """INVENTED / SUPPORTED: does ``answer`` state anything ``sources`` don't support?
+
+        ``sources`` is the numbered context the answer was generated from
+        (``generation.grounded.format_sources``), the same for every stage.
+        """
+        prompt = self._invented.format(sources=sources, question=question, answer=answer)
+        return parse_verdict(complete(self._model, prompt), INVENTED_LABELS)

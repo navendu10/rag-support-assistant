@@ -14,7 +14,9 @@
     "history_turns": 6,
     "region_filter": "user profile region + ALL",
     "rescored": "2026-11-11",
-    "extended": "2026-11-11: added g048, g049, g050"
+    "extended": "2026-11-11: added g048, g049, g050",
+    "invented_judged": "2026-11-12",
+    "handoff_judged": "2026-11-13"
   },
   "overall": {
     "questions": 50,
@@ -86,6 +88,34 @@
     "rewrite_flagged": {
       "count": 15,
       "total": 50
+    },
+    "false_handoffs": {
+      "count": 3,
+      "total": 43
+    },
+    "invented_content": {
+      "count": 9,
+      "total": 50
+    },
+    "citations_valid": {
+      "count": 0,
+      "total": 0
+    },
+    "grounded_reattempts": {
+      "count": 0,
+      "total": 0
+    },
+    "flow_retries": {
+      "count": 0,
+      "total": 0
+    },
+    "flow_retries_answerable": {
+      "count": 0,
+      "total": 0
+    },
+    "flow_handoffs": {
+      "count": 0,
+      "total": 0
     },
     "latency_ms": {
       "p50": 1596.6,
@@ -192,6 +222,34 @@
         "count": 3,
         "total": 4
       },
+      "false_handoffs": {
+        "count": 0,
+        "total": 4
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 4
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 2566.4,
         "p95": 3277.0,
@@ -296,6 +354,34 @@
         "count": 1,
         "total": 8
       },
+      "false_handoffs": {
+        "count": 0,
+        "total": 8
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 8
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 687.2,
         "p95": 1733.7,
@@ -395,6 +481,34 @@
         "count": 2,
         "total": 3
       },
+      "false_handoffs": {
+        "count": 1,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 1,
+        "total": 3
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 1618.9,
         "p95": 2140.4,
@@ -493,6 +607,34 @@
       "rewrite_flagged": {
         "count": 2,
         "total": 7
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 7
+      },
+      "invented_content": {
+        "count": 1,
+        "total": 7
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
       },
       "latency_ms": {
         "p50": 2315.0,
@@ -598,6 +740,34 @@
         "count": 2,
         "total": 2
       },
+      "false_handoffs": {
+        "count": 0,
+        "total": 2
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 2
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 2571.4,
         "p95": 3189.0,
@@ -701,6 +871,34 @@
       "rewrite_flagged": {
         "count": 0,
         "total": 4
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 1
+      },
+      "invented_content": {
+        "count": 1,
+        "total": 4
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
       },
       "latency_ms": {
         "p50": 1965.0,
@@ -806,6 +1004,34 @@
         "count": 1,
         "total": 4
       },
+      "false_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "invented_content": {
+        "count": 3,
+        "total": 4
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 1477.2,
         "p95": 1801.2,
@@ -905,6 +1131,34 @@
         "count": 2,
         "total": 3
       },
+      "false_handoffs": {
+        "count": 1,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 1,
+        "total": 3
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 1487.0,
         "p95": 1565.6,
@@ -1003,6 +1257,34 @@
       "rewrite_flagged": {
         "count": 1,
         "total": 12
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 12
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 12
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
       },
       "latency_ms": {
         "p50": 1067.2,
@@ -1107,6 +1389,34 @@
       "rewrite_flagged": {
         "count": 1,
         "total": 3
+      },
+      "false_handoffs": {
+        "count": 1,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 2,
+        "total": 3
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
       },
       "latency_ms": {
         "p50": 2320.2,

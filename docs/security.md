@@ -56,6 +56,21 @@ The pipeline also runs a **detector**: any internal chunk reaching a customer is
 a `SECURITY` event, dropped and counted (`security_events` in `results.jsonl`). It is a
 tripwire for configuration mistakes, not the control, and in v5 it must stay at 0.
 
+## The corrective flow's retry (Session 8)
+
+v6 searches a second time, at most once per question, when retrieval scores low or the
+answer isn't found (`graph/corrective.py`). The retry is wider in **what** it looks for
+(the original message plus the resolved products' catalogue names, 30 candidates instead
+of 20, 8 context chunks instead of 4), never in **where** it looks. It calls the same
+`Pipeline.retrieve_ranked` with the same user and the same region filter, so it uses the
+same role's connection, key and collections. Unit tests check it for both triggers
+(`tests/unit/test_corrective_flow.py`): a customer's retry opens no new connection, reads
+only `Chunks_v5_public` and sends an identical filter, and an agent's retry stays on the
+agent connection.
+
+Customer handoffs write a ticket to `data/tickets/tickets.jsonl` (git-ignored). A ticket
+holds the user id, region, question and the closest doc_ids, never a key.
+
 ## The rule for later features
 
 Every feature that reads documents or stored answers must act **with the caller's role**,

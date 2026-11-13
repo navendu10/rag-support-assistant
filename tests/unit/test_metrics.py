@@ -487,9 +487,17 @@ def test_tag_comparison_table_columns_per_stage() -> None:
     tables = tag_comparison_table(summaries).split("\n\n")
     assert [t.splitlines()[0] for t in tables] == [
         f"| {label} by tag | n | v0 | v1 |"
-        for label in ("Correct", "Recall@5", "Hit@1", "MRR", "Forbidden phrase")
+        for label in (
+            "Correct",
+            "Recall@5",
+            "Hit@1",
+            "MRR",
+            "Forbidden phrase",
+            "Handoff",
+            "Invented content",
+        )
     ]
-    correct, recall, _, mrr, forbidden = (t.splitlines() for t in tables)
+    correct, recall, _, mrr, forbidden, _, _ = (t.splitlines() for t in tables)
     assert correct[2:] == [
         "| normal | 1 | 1/1 | 1/1 |",
         "| leak | 1 | 0/1 | 0/1 |",

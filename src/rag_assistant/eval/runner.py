@@ -9,18 +9,25 @@ from datetime import date
 from pathlib import Path
 
 from rag_assistant.config import Settings, StageConfig, load_prompts
+from rag_assistant.eval.contexts import chunk_lookup, stored_context
 from rag_assistant.eval.judge import Judge, internal_reference, needs_leak_judge
 from rag_assistant.eval.metrics import (
+    GroundedRecord,
+    Judgement,
+    PathRecord,
     ResultRow,
     RetrievedRef,
     check_item,
+    invented_input,
     summarise_by_tag,
     summarise_rows,
 )
 from rag_assistant.eval.report import render_report
 from rag_assistant.eval.rewrites import RewriteChecker
+from rag_assistant.generation.grounded import format_sources
+from rag_assistant.graph.handoff import MemoryTicketStore
 from rag_assistant.llm import make_chat_model
-from rag_assistant.pipeline import Pipeline
+from rag_assistant.pipeline import Answer, Pipeline
 from rag_assistant.schemas import GoldenItem, User, load_golden, load_manifest, load_users
 
 SUBSET_DIR = "subset"
@@ -55,6 +62,53 @@ def internal_doc_ids(settings: Settings) -> frozenset[str]:
     return frozenset(d.doc_id for d in load_manifest(manifest) if d.audience == "internal")
 
 
+# The verdict recorded, without an LLM call, for an answer that is only our fixed text.
+FIXED_MESSAGE_VERDICT = Judgement(
+    verdict="SUPPORTED", reason="fixed handoff message only; nothing model-written to judge"
+)
+
+
+def grounded_record(answer: Answer) -> GroundedRecord | None:
+    """The stored form of the grounded reply (None for naive stages)."""
+    g = answer.grounded
+    if g is None:
+        return None
+    return GroundedRecord(
+        found_in_sources=g.found_in_sources,
+        citations=list(g.citations),
+        valid=g.valid,
+        attempts=g.attempts,
+        error=g.error,
+        cited_doc_ids=[s.doc_id for s in answer.sources],
+    )
+
+
+def path_record(answer: Answer) -> PathRecord | None:
+    """The stored form of the corrective flow's route (None without the flow)."""
+    p = answer.path
+    if p is None:
+        return None
+    return PathRecord(
+        grade=p.grade,
+        best_score=None if p.best_score is None else round(p.best_score, 4),
+        retry_used=p.retry_used,
+        retry_best_score=None if p.retry_best_score is None else round(p.retry_best_score, 4),
+        retry_kept=p.retry_kept,
+        handoff_reason=p.handoff_reason,
+        ticket_created=p.ticket_id is not None,
+        retry_trigger=p.retry_trigger,
+        retry_changed_outcome=p.retry_changed_outcome,
+    )
+
+
+def judge_invented(judge: Judge, row: ResultRow, sources: str) -> Judgement:
+    """The invented-content verdict for ``row`` (no LLM call for a fixed message alone)."""
+    text = invented_input(row)
+    if text is None:
+        return FIXED_MESSAGE_VERDICT
+    return judge.invented(row.question, text, sources)
+
+
 def evaluate_item(
     item: GoldenItem,
     user: User,
@@ -68,7 +122,9 @@ def evaluate_item(
     """Answer one golden question and score it.
 
     ``internal`` is the text for the leak judge; ``checker`` records and flags the
-    query rewrite (needed when the stage rewrites).
+    query rewrite (needed when the stage rewrites). The handoff judge runs on every
+    question (Session 8: false handoffs), and grounding stages also get the
+    invented-content judge on every question.
     """
     answer = pipeline.answer(item.question, user, item.history, retrieve_k=recall_k)
     rewrite = None
@@ -79,7 +135,7 @@ def evaluate_item(
     retrieved_ids = [c.doc_id for c in answer.retrieved[:recall_k]]
     context_audiences = [c.audience for c in answer.context]
     candidate_ids = [c.doc_id for c in answer.candidates] if pipeline.stage.rerank else None
-    return ResultRow(
+    row = ResultRow(
         id=item.id,
         question=item.question,
         user_id=user.user_id,
@@ -102,7 +158,7 @@ def evaluate_item(
                 page=c.page,
                 rerank_score=None if c.rerank_score is None else round(c.rerank_score, 4),
             )
-            for c in answer.retrieved[:recall_k]
+            for c in answer.retrieved[: max(recall_k, len(answer.context))]
         ],
         context_doc_ids=[c.doc_id for c in answer.context],
         context_audiences=context_audiences,
@@ -118,7 +174,7 @@ def evaluate_item(
             internal_ids,
         ),
         correctness=judge.correctness(item, answer.text),
-        handoff=judge.handoff(item, answer.text) if item.expect_handoff else None,
+        handoff=judge.handoff(item, answer.text),
         leak_judgement=(
             judge.leak(item.question, answer.text, internal)
             if needs_leak_judge(item.failure_tag, user.role)
@@ -129,7 +185,16 @@ def evaluate_item(
         rewrite=rewrite,
         region_filter=None if answer.region_filter is None else list(answer.region_filter),
         security_events=answer.security_events if pipeline.stage.access_control else None,
+        grounded=grounded_record(answer),
+        path=path_record(answer),
+        model_text=answer.model_text if answer.model_text != answer.text else None,
+        fixed_message=answer.grounded is not None and answer.model_text is None,
     )
+    if pipeline.stage.grounding:
+        row = row.model_copy(
+            update={"invented": judge_invented(judge, row, format_sources(answer.context))}
+        )
+    return row
 
 
 def write_outputs(out_dir: Path, meta: dict[str, object], rows: list[ResultRow]) -> dict:
@@ -164,7 +229,8 @@ def answer_items(
     checker = RewriteChecker.from_settings(settings) if stage.query_rewrite else None
     internal_ids = internal_doc_ids(settings)
     rows: list[ResultRow] = []
-    with Pipeline.from_stage(stage, settings) as pipeline:
+    # Evaluation never writes tickets to data/tickets/: rows record that one was created.
+    with Pipeline.from_stage(stage, settings, tickets=MemoryTicketStore()) as pipeline:
         for n, item in enumerate(items, start=1):
             row = evaluate_item(
                 item,
@@ -225,6 +291,20 @@ def run_evaluation(
             if stage.access_control
             else {}
         ),
+        **(
+            {"grounding": "role-aware grounded prompt, cited structured output"}
+            if stage.grounding
+            else {}
+        ),
+        **(
+            {
+                "corrective_flow": "LangGraph: grade, broader retry, answer or handoff",
+                "min_score": stage.min_score,
+                "retry_fetch_k": stage.retry_fetch_k,
+            }
+            if stage.corrective_flow
+            else {}
+        ),
     }
     out_dir = output_dir(settings, stage, filtered=bool(filters))
     summary = write_outputs(out_dir, meta, rows)
@@ -260,8 +340,12 @@ def rescore_row(
     user: User,
     checker: RewriteChecker | None = None,
     internal_ids: frozenset[str] = frozenset(),
+    recall_k: int = 5,
 ) -> ResultRow:
     """Recompute the string and metadata checks for a stored row.
+
+    Ranking metrics read the first ``recall_k`` stored chunks (rows may store more: the
+    whole context of a wider retry).
 
     Answers, retrieval, judge verdicts and latency are kept as recorded; only the
     checks (and the item's current ``must_not_contain``) are refreshed, plus the
@@ -270,7 +354,7 @@ def rescore_row(
     checks = check_item(
         item,
         user,
-        [r.doc_id for r in row.retrieved],
+        [r.doc_id for r in row.retrieved[:recall_k]],
         row.context_audiences,
         row.answer,
         row.candidate_doc_ids,
@@ -294,7 +378,7 @@ def _rescored_full_run(
     checker = RewriteChecker.from_settings(settings) if stage.query_rewrite else None
     internal_ids = internal_doc_ids(settings)
     stored = [
-        rescore_row(r, by_id[r.id], users[r.user_id], checker, internal_ids)
+        rescore_row(r, by_id[r.id], users[r.user_id], checker, internal_ids, settings.eval.recall_k)
         for r in load_rows(out_dir)
         if r.id in by_id
     ]
@@ -355,3 +439,79 @@ def add_leak_judgements(
     meta["leak_judged"] = date.today().isoformat()
     summary = write_outputs(out_dir, meta, updated)
     return RunOutput(out_dir, summary, updated)
+
+
+def add_handoff_judgements(
+    stage: StageConfig, settings: Settings, progress: Callable[[str], None] = print
+) -> RunOutput:
+    """Run the handoff judge on stored answers that lack a verdict (false handoffs).
+
+    Before Session 8 the judge ran only on ``expect_handoff`` questions; this back-fills
+    the answerable ones from their stored answers (small model). Nothing is regenerated.
+    """
+    out_dir, items, rows, meta = _rescored_full_run(stage, settings)
+    by_id = {i.id: i for i in items}
+    judge = Judge(make_chat_model(settings, settings.llm.judge_model), load_prompts())
+    updated = []
+    for row in rows:
+        if row.handoff is None:
+            verdict = judge.handoff(by_id[row.id], row.answer)
+            progress(f"{row.id} handoff judge: {verdict.verdict or 'JUDGE-ERROR'}")
+            row = row.model_copy(update={"handoff": verdict})
+        updated.append(row)
+    meta["handoff_judged"] = date.today().isoformat()
+    summary = write_outputs(out_dir, meta, updated)
+    return RunOutput(out_dir, summary, updated)
+
+
+def add_invented_judgements(
+    stage: StageConfig, settings: Settings, progress: Callable[[str], None] = print
+) -> RunOutput:
+    """Run the invented-content judge on stored answers and their rebuilt contexts.
+
+    Context texts are rebuilt offline (``eval/contexts.py``) and checked against the
+    stored chunk references; no Weaviate key is used and no answer is regenerated.
+    Rows that already have a verdict are kept; if the daily quota runs out, re-running
+    replays the finished calls from the LLM cache.
+    """
+    out_dir, _, rows, meta = _rescored_full_run(stage, settings)
+    lookup = chunk_lookup(stage, settings.paths.resolve(settings.paths.generated_dir))
+    judge = Judge(make_chat_model(settings, settings.llm.judge_model), load_prompts())
+    updated = []
+    for row in rows:
+        if row.invented is None:
+            sources = format_sources(stored_context(row, lookup))
+            verdict = judge_invented(judge, row, sources)
+            progress(
+                f"{row.id} invented judge: {verdict.verdict or 'JUDGE-ERROR'} - {verdict.reason}"
+            )
+            row = row.model_copy(update={"invented": verdict})
+        updated.append(row)
+    meta["invented_judged"] = date.today().isoformat()
+    summary = write_outputs(out_dir, meta, updated)
+    return RunOutput(out_dir, summary, updated)
+
+
+def evaluate_ids(
+    stage: StageConfig,
+    settings: Settings,
+    ids: Sequence[str],
+    progress: Callable[[str], None] = print,
+) -> RunOutput:
+    """Re-answer only the golden items in ``ids`` and merge them into the stored full run.
+
+    For a change that can only affect known questions (Session 8: the not-found retry
+    only touches questions that handed off). Every other stored row keeps its answer,
+    verdicts and latency. ``meta.rerun`` records which ids were re-answered and when.
+    """
+    out_dir, items, stored, meta = _rescored_full_run(stage, settings)
+    unknown = sorted(set(ids) - {i.id for i in items})
+    if unknown:
+        raise KeyError(f"Unknown golden id(s): {', '.join(unknown)}")
+    todo = [i for i in items if i.id in set(ids)]
+    new = answer_items(stage, settings, todo, progress)
+    rows = merge_rows(items, stored, new)
+    note = f"{date.today().isoformat()}: re-answered {', '.join(i.id for i in todo)}"
+    meta["rerun"] = f"{meta['rerun']}; {note}" if meta.get("rerun") else note
+    summary = write_outputs(out_dir, meta, rows)
+    return RunOutput(out_dir, summary, rows)

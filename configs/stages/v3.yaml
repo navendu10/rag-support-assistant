@@ -20,13 +20,14 @@ hybrid:
 rerank: true             # v2: false
 rerank_model: Xenova/ms-marco-MiniLM-L-6-v2
 fetch_k: 20              # candidates searched per question, then reranked
-min_score: null          # rejecting weak context arrives in Session 8
+min_score: null          # Session 8: v6 only
 rerank_fusion: blend     # 0.5 x rerank score + 0.5 x search score; replace lost 3 answers
 rerank_blend_weight: 0.5 # not tuned (results/v3/rerank_sweep.md)
 query_rewrite: false     # Session 6 (v4a)
 use_history: false       # Session 6 (v4a)
 region_filter: false     # Session 6 (v4)
 access_control: false    # Session 7 (v5)
-grounding: false         # Session 8
+grounding: false         # Session 8 (v6a)
+corrective_flow: false   # Session 8 (v6)
 injection_guard: false   # Session 9
 top_k: 4

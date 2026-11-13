@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from rag_assistant.eval.metrics import ResultRow, format_metric, miss_type
+from rag_assistant.eval.metrics import ResultRow, false_handoff_rows, format_metric, miss_type
 
 OVERALL_ROWS = (
     ("recall_at_k", "Recall@{k} (any expected doc in top {k})", "higher"),
@@ -39,6 +39,32 @@ OPTIONAL_ROWS = (
         "security_events",
         "Security events (internal chunk dropped for a customer; must be 0)",
         "lower",
+    ),
+    (
+        "false_handoffs",
+        "False handoffs (answerable questions handed off; v6: the flow, else the judge)",
+        "lower",
+    ),
+    (
+        "invented_content",
+        "Invented content (judge: the answer states something its sources don't support)",
+        "lower",
+    ),
+    ("citations_valid", "Citations valid (grounded replies whose citations all exist)", "higher"),
+    (
+        "grounded_reattempts",
+        "Grounded replies retried (first structured reply invalid)",
+        "lower",
+    ),
+    ("flow_retries", "Corrective flow: broader retries (grade below min_score)", "lower"),
+    ("flow_retries_answerable", "Corrective flow: retries on answerable questions", "lower"),
+    ("flow_handoffs", "Corrective flow: handoffs (all questions)", "n/a"),
+    ("retries_low_score", "Corrective flow: retries triggered by a low score", "n/a"),
+    ("retries_not_found", "Corrective flow: retries triggered by a not-found answer", "n/a"),
+    (
+        "retries_rescued",
+        "Corrective flow: not-found retries that ended in a CORRECT answer",
+        "higher",
     ),
 )
 
@@ -80,6 +106,9 @@ def step_latency_rows(latency: dict) -> list[str]:
         "rewrite_wait": "Throttle and retry waits during rewriting, mean / p95 (ms)",
         "retrieve": "Retrieval latency mean / p95 (ms)",
         "rerank": "Rerank latency mean / p95 (ms)",
+        "retry_retrieve": "Retry search latency mean / p95 (ms), questions that retried",
+        "retry_rerank": "Retry rerank latency mean / p95 (ms), questions that retried",
+        "regenerate": "Regeneration after a not-found retry, mean / p95 (ms), uncached",
         "generate": (
             "Generation latency mean / p95 (ms), uncached calls, throttle waits excluded"
             if waits
@@ -182,6 +211,57 @@ def rewrite_table(rows: Sequence[ResultRow]) -> str:
     return "\n".join(lines)
 
 
+def false_handoff_table(rows: Sequence[ResultRow]) -> str:
+    """Every answerable question that was handed off, with why."""
+    lines = ["| id | tag | why | answer |", "|---|---|---|---|"]
+    for r in false_handoff_rows(rows):
+        if r.path is not None:
+            why = f"flow: {r.path.handoff_reason} (grade {r.path.grade})"
+        else:
+            why = f"judge: {r.handoff.reason if r.handoff else '-'}"
+        lines.append(f"| {r.id} | {r.failure_tag} | {_cell(why)} | {_cell(r.answer[:160])} |")
+    if len(lines) == 2:
+        return "No answerable question was handed off."
+    return "\n".join(lines)
+
+
+def _score(value: float | None) -> str:
+    """A 0-1 score with three decimals, or ``-``."""
+    return "-" if value is None else f"{value:.3f}"
+
+
+def flow_table(rows: Sequence[ResultRow]) -> str:
+    """The corrective flow's route for every question (v6)."""
+    lines = [
+        "| id | tag | best score | grade | retry trigger | retry (best, kept) "
+        "| changed outcome | handoff | ticket |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
+    for r in rows:
+        p = r.path
+        if p is None:
+            continue
+        retry = f"{_score(p.retry_best_score)}, {'kept' if p.retry_kept else 'not kept'}"
+        lines.append(
+            f"| {r.id} | {r.failure_tag} | {_score(p.best_score)} | {p.grade} | "
+            f"{p.retry_trigger} | {retry if p.retry_used else '-'} | "
+            f"{_flag(p.retry_changed_outcome)} | {p.handoff_reason or '-'} | "
+            f"{'yes' if p.ticket_created else '-'} |"
+        )
+    return "\n".join(lines)
+
+
+def invented_table(rows: Sequence[ResultRow]) -> str:
+    """Answers the invented-content judge flagged, with its reason."""
+    lines = ["| id | tag | judge reason |", "|---|---|---|"]
+    for r in rows:
+        if r.invented is not None and r.invented.verdict != "SUPPORTED":
+            lines.append(f"| {r.id} | {r.failure_tag} | {_cell(r.invented.reason)} |")
+    if len(lines) == 2:
+        return "No answer was judged to invent content."
+    return "\n".join(lines)
+
+
 def render_report(meta: dict[str, object], summary: dict, by_tag: dict, rows: list) -> str:
     """The full report.md text."""
     k = int(meta["recall_k"])
@@ -189,6 +269,21 @@ def render_report(meta: dict[str, object], summary: dict, by_tag: dict, rows: li
     rewrites = (
         ["## Query rewrites flagged or fallen back", rewrite_table(rows)]
         if any(r.rewrite is not None for r in rows)
+        else []
+    )
+    handoffs = (
+        ["## False handoffs (answerable questions handed off)", false_handoff_table(rows)]
+        if summary.get("false_handoffs", {}).get("total")
+        else []
+    )
+    invented = (
+        ["## Invented content (judge)", invented_table(rows)]
+        if any(r.invented is not None for r in rows)
+        else []
+    )
+    flow = (
+        ["## Corrective flow: route per question", flow_table(rows)]
+        if any(r.path is not None for r in rows)
         else []
     )
     return (
@@ -210,6 +305,9 @@ def render_report(meta: dict[str, object], summary: dict, by_tag: dict, rows: li
                 "## By failure tag",
                 tag_table(by_tag, k),
                 *rewrites,
+                *handoffs,
+                *invented,
+                *flow,
                 "## Per question",
                 item_table(rows),
             ]

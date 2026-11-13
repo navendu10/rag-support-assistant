@@ -11,7 +11,8 @@
     "rerank_model": "Xenova/ms-marco-MiniLM-L-6-v2",
     "fetch_k": 20,
     "extended": "2026-11-01: added g045, g046, g047; 2026-11-11: added g048, g049, g050",
-    "rescored": "2026-11-11"
+    "rescored": "2026-11-11",
+    "handoff_judged": "2026-11-13"
   },
   "overall": {
     "questions": 50,
@@ -81,6 +82,34 @@
       "total": 0
     },
     "rewrite_flagged": {
+      "count": 0,
+      "total": 0
+    },
+    "false_handoffs": {
+      "count": 3,
+      "total": 43
+    },
+    "invented_content": {
+      "count": 0,
+      "total": 0
+    },
+    "citations_valid": {
+      "count": 0,
+      "total": 0
+    },
+    "grounded_reattempts": {
+      "count": 0,
+      "total": 0
+    },
+    "flow_retries": {
+      "count": 0,
+      "total": 0
+    },
+    "flow_retries_answerable": {
+      "count": 0,
+      "total": 0
+    },
+    "flow_handoffs": {
       "count": 0,
       "total": 0
     },
@@ -184,6 +213,34 @@
         "count": 0,
         "total": 0
       },
+      "false_handoffs": {
+        "count": 0,
+        "total": 4
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 0
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 1972.0,
         "p95": 2078.8,
@@ -275,6 +332,34 @@
         "total": 0
       },
       "rewrite_flagged": {
+        "count": 0,
+        "total": 0
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 8
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 0
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
         "count": 0,
         "total": 0
       },
@@ -377,6 +462,34 @@
         "count": 0,
         "total": 0
       },
+      "false_handoffs": {
+        "count": 1,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 0
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 1774.8,
         "p95": 2389.9,
@@ -473,6 +586,34 @@
         "total": 0
       },
       "rewrite_flagged": {
+        "count": 0,
+        "total": 0
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 7
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 0
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
         "count": 0,
         "total": 0
       },
@@ -575,6 +716,34 @@
         "count": 0,
         "total": 0
       },
+      "false_handoffs": {
+        "count": 0,
+        "total": 2
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 0
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 2278.4,
         "p95": 2628.4,
@@ -674,6 +843,34 @@
         "count": 0,
         "total": 0
       },
+      "false_handoffs": {
+        "count": 0,
+        "total": 1
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 0
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 387.9,
         "p95": 1651.6,
@@ -765,6 +962,34 @@
         "total": 0
       },
       "rewrite_flagged": {
+        "count": 0,
+        "total": 0
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 0
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
         "count": 0,
         "total": 0
       },
@@ -867,6 +1092,34 @@
         "count": 0,
         "total": 0
       },
+      "false_handoffs": {
+        "count": 1,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 0
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 384.8,
         "p95": 1585.0,
@@ -958,6 +1211,34 @@
         "total": 0
       },
       "rewrite_flagged": {
+        "count": 0,
+        "total": 0
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 12
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 0
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
         "count": 0,
         "total": 0
       },
@@ -1057,6 +1338,34 @@
         "total": 0
       },
       "rewrite_flagged": {
+        "count": 0,
+        "total": 0
+      },
+      "false_handoffs": {
+        "count": 1,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 0
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
         "count": 0,
         "total": 0
       },

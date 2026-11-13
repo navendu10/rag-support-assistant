@@ -1,0 +1,1473 @@
+{
+  "meta": {
+    "stage": "v6a",
+    "date": "2026-11-12",
+    "filters": "",
+    "generation_model": "openai/gpt-oss-120b",
+    "judge_model": "openai/gpt-oss-20b",
+    "reasoning_effort": "low",
+    "top_k": 4,
+    "recall_k": 5,
+    "rerank_model": "Xenova/ms-marco-MiniLM-L-6-v2",
+    "fetch_k": 20,
+    "rewrite_model": "openai/gpt-oss-20b",
+    "history_turns": 6,
+    "region_filter": "user profile region + ALL",
+    "access_control": "per-audience collections; Weaviate key chosen by user role",
+    "grounding": "role-aware grounded prompt, cited structured output"
+  },
+  "overall": {
+    "questions": 50,
+    "recall_at_k": {
+      "count": 42,
+      "total": 45
+    },
+    "hit_at_1": {
+      "count": 33,
+      "total": 45
+    },
+    "mrr": {
+      "value": 0.828,
+      "total": 45
+    },
+    "correctness": {
+      "count": 33,
+      "total": 50
+    },
+    "retrieval_leaks": {
+      "count": 0,
+      "total": 46
+    },
+    "answer_leaks": {
+      "count": 0,
+      "total": 3
+    },
+    "answer_leaks_judged": {
+      "count": 0,
+      "total": 3
+    },
+    "injections": {
+      "count": 0,
+      "total": 3
+    },
+    "handoffs": {
+      "count": 6,
+      "total": 7
+    },
+    "forbidden_phrases": {
+      "count": 3,
+      "total": 35
+    },
+    "judge_errors": 0,
+    "candidate_recall": {
+      "count": 45,
+      "total": 45
+    },
+    "rewrite_fallbacks": {
+      "count": 0,
+      "total": 50
+    },
+    "agent_internal_access": {
+      "count": 1,
+      "total": 4
+    },
+    "agent_internal_retrieval": {
+      "count": 3,
+      "total": 4
+    },
+    "agent_internal_context": {
+      "count": 3,
+      "total": 4
+    },
+    "security_events": {
+      "count": 0,
+      "total": 50
+    },
+    "rewrite_flagged": {
+      "count": 15,
+      "total": 50
+    },
+    "false_handoffs": {
+      "count": 5,
+      "total": 43
+    },
+    "invented_content": {
+      "count": 1,
+      "total": 50
+    },
+    "citations_valid": {
+      "count": 50,
+      "total": 50
+    },
+    "grounded_reattempts": {
+      "count": 0,
+      "total": 50
+    },
+    "flow_retries": {
+      "count": 0,
+      "total": 0
+    },
+    "flow_retries_answerable": {
+      "count": 0,
+      "total": 0
+    },
+    "flow_handoffs": {
+      "count": 0,
+      "total": 0
+    },
+    "latency_ms": {
+      "p50": 2527.2,
+      "p95": 4455.8,
+      "generate_excludes_waits": true,
+      "rewrite_wait": {
+        "mean": 0.0,
+        "p95": 0.0,
+        "n": 50
+      },
+      "retrieve": {
+        "mean": 62.8,
+        "p95": 33.4,
+        "n": 50
+      },
+      "rerank": {
+        "mean": 1435.3,
+        "p95": 2087.9,
+        "n": 50
+      },
+      "generate": {
+        "mean": 1219.3,
+        "p95": 2804.0,
+        "n": 48
+      },
+      "generate_wait": {
+        "mean": 0.0,
+        "p95": 0.0,
+        "n": 50
+      },
+      "rerank_mean": 1435.3,
+      "rerank_p95": 2087.9
+    }
+  },
+  "by_tag": {
+    "chunking": {
+      "questions": 4,
+      "recall_at_k": {
+        "count": 4,
+        "total": 4
+      },
+      "hit_at_1": {
+        "count": 2,
+        "total": 4
+      },
+      "mrr": {
+        "value": 0.75,
+        "total": 4
+      },
+      "correctness": {
+        "count": 2,
+        "total": 4
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 4
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 1,
+        "total": 4
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 4,
+        "total": 4
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 4
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 4
+      },
+      "rewrite_flagged": {
+        "count": 3,
+        "total": 4
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 4
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 4
+      },
+      "citations_valid": {
+        "count": 4,
+        "total": 4
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 4
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 3336.7,
+        "p95": 3752.9,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 4
+        },
+        "retrieve": {
+          "mean": 293.2,
+          "p95": 962.2,
+          "n": 4
+        },
+        "rerank": {
+          "mean": 1793.5,
+          "p95": 1991.0,
+          "n": 4
+        },
+        "generate": {
+          "mean": 1118.0,
+          "p95": 1847.6,
+          "n": 4
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 4
+        },
+        "rerank_mean": 1793.5,
+        "rerank_p95": 1991.0
+      }
+    },
+    "product_code": {
+      "questions": 8,
+      "recall_at_k": {
+        "count": 8,
+        "total": 8
+      },
+      "hit_at_1": {
+        "count": 8,
+        "total": 8
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 8
+      },
+      "correctness": {
+        "count": 8,
+        "total": 8
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 8
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 7
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 8,
+        "total": 8
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 8
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 8
+      },
+      "rewrite_flagged": {
+        "count": 1,
+        "total": 8
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 8
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 8
+      },
+      "citations_valid": {
+        "count": 8,
+        "total": 8
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 8
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 1449.2,
+        "p95": 2648.8,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 8
+        },
+        "retrieve": {
+          "mean": 15.5,
+          "p95": 19.1,
+          "n": 8
+        },
+        "rerank": {
+          "mean": 893.4,
+          "p95": 1662.1,
+          "n": 8
+        },
+        "generate": {
+          "mean": 819.8,
+          "p95": 1218.4,
+          "n": 7
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 8
+        },
+        "rerank_mean": 893.4,
+        "rerank_p95": 1662.1
+      }
+    },
+    "ranking": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 2,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 0,
+        "total": 3
+      },
+      "mrr": {
+        "value": 0.25,
+        "total": 3
+      },
+      "correctness": {
+        "count": 1,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 3
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 3,
+        "total": 3
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 3
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 3
+      },
+      "rewrite_flagged": {
+        "count": 2,
+        "total": 3
+      },
+      "false_handoffs": {
+        "count": 2,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 3
+      },
+      "citations_valid": {
+        "count": 3,
+        "total": 3
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 3
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 2370.2,
+        "p95": 2899.6,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "retrieve": {
+          "mean": 12.9,
+          "p95": 13.6,
+          "n": 3
+        },
+        "rerank": {
+          "mean": 1483.5,
+          "p95": 1984.5,
+          "n": 3
+        },
+        "generate": {
+          "mean": 853.8,
+          "p95": 933.5,
+          "n": 3
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "rerank_mean": 1483.5,
+        "rerank_p95": 1984.5
+      }
+    },
+    "query_region": {
+      "questions": 7,
+      "recall_at_k": {
+        "count": 6,
+        "total": 7
+      },
+      "hit_at_1": {
+        "count": 3,
+        "total": 7
+      },
+      "mrr": {
+        "value": 0.643,
+        "total": 7
+      },
+      "correctness": {
+        "count": 4,
+        "total": 7
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 7
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 1,
+        "total": 7
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 7,
+        "total": 7
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 7
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 7
+      },
+      "rewrite_flagged": {
+        "count": 2,
+        "total": 7
+      },
+      "false_handoffs": {
+        "count": 1,
+        "total": 7
+      },
+      "invented_content": {
+        "count": 1,
+        "total": 7
+      },
+      "citations_valid": {
+        "count": 7,
+        "total": 7
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 7
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 3107.3,
+        "p95": 5567.1,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 7
+        },
+        "retrieve": {
+          "mean": 14.4,
+          "p95": 22.4,
+          "n": 7
+        },
+        "rerank": {
+          "mean": 1858.8,
+          "p95": 2148.1,
+          "n": 7
+        },
+        "generate": {
+          "mean": 1771.9,
+          "p95": 3678.2,
+          "n": 7
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 7
+        },
+        "rerank_mean": 1858.8,
+        "rerank_p95": 2148.1
+      }
+    },
+    "stale": {
+      "questions": 2,
+      "recall_at_k": {
+        "count": 2,
+        "total": 2
+      },
+      "hit_at_1": {
+        "count": 0,
+        "total": 2
+      },
+      "mrr": {
+        "value": 0.5,
+        "total": 2
+      },
+      "correctness": {
+        "count": 2,
+        "total": 2
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 2
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 2,
+        "total": 2
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 2
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 2
+      },
+      "rewrite_flagged": {
+        "count": 2,
+        "total": 2
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 2
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 2
+      },
+      "citations_valid": {
+        "count": 2,
+        "total": 2
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 2
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 3039.0,
+        "p95": 3353.2,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 2
+        },
+        "retrieve": {
+          "mean": 26.8,
+          "p95": 36.6,
+          "n": 2
+        },
+        "rerank": {
+          "mean": 1735.3,
+          "p95": 1744.4,
+          "n": 2
+        },
+        "generate": {
+          "mean": 1273.3,
+          "p95": 1568.8,
+          "n": 2
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 2
+        },
+        "rerank_mean": 1735.3,
+        "rerank_p95": 1744.4
+      }
+    },
+    "leak": {
+      "questions": 4,
+      "recall_at_k": {
+        "count": 3,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 3,
+        "total": 3
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 3
+      },
+      "correctness": {
+        "count": 1,
+        "total": 4
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 3
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 2,
+        "total": 3
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 3
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 3,
+        "total": 3
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 4
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 1
+      },
+      "agent_internal_retrieval": {
+        "count": 1,
+        "total": 1
+      },
+      "agent_internal_context": {
+        "count": 1,
+        "total": 1
+      },
+      "security_events": {
+        "count": 0,
+        "total": 4
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 4
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 1
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 4
+      },
+      "citations_valid": {
+        "count": 4,
+        "total": 4
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 4
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 3523.5,
+        "p95": 6572.7,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 4
+        },
+        "retrieve": {
+          "mean": 325.1,
+          "p95": 1073.3,
+          "n": 4
+        },
+        "rerank": {
+          "mean": 1521.3,
+          "p95": 2015.7,
+          "n": 4
+        },
+        "generate": {
+          "mean": 2293.3,
+          "p95": 4796.6,
+          "n": 4
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 4
+        },
+        "rerank_mean": 1521.3,
+        "rerank_p95": 2015.7
+      }
+    },
+    "hallucination": {
+      "questions": 4,
+      "recall_at_k": {
+        "count": 1,
+        "total": 1
+      },
+      "hit_at_1": {
+        "count": 1,
+        "total": 1
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 1
+      },
+      "correctness": {
+        "count": 1,
+        "total": 4
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 4
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 4,
+        "total": 4
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 4
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 1,
+        "total": 1
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 4
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 4
+      },
+      "rewrite_flagged": {
+        "count": 1,
+        "total": 4
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 4
+      },
+      "citations_valid": {
+        "count": 4,
+        "total": 4
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 4
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 2238.4,
+        "p95": 2884.8,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 4
+        },
+        "retrieve": {
+          "mean": 13.2,
+          "p95": 13.7,
+          "n": 4
+        },
+        "rerank": {
+          "mean": 1741.3,
+          "p95": 1949.5,
+          "n": 4
+        },
+        "generate": {
+          "mean": 697.7,
+          "p95": 937.4,
+          "n": 3
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 4
+        },
+        "rerank_mean": 1741.3,
+        "rerank_p95": 1949.5
+      }
+    },
+    "injection": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 2,
+        "total": 2
+      },
+      "hit_at_1": {
+        "count": 2,
+        "total": 2
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 2
+      },
+      "correctness": {
+        "count": 2,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 3
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 3
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 2,
+        "total": 2
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 3
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 3
+      },
+      "rewrite_flagged": {
+        "count": 2,
+        "total": 3
+      },
+      "false_handoffs": {
+        "count": 1,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 3
+      },
+      "citations_valid": {
+        "count": 3,
+        "total": 3
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 3
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 2387.1,
+        "p95": 2934.8,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "retrieve": {
+          "mean": 18.1,
+          "p95": 25.7,
+          "n": 3
+        },
+        "rerank": {
+          "mean": 1640.3,
+          "p95": 1645.7,
+          "n": 3
+        },
+        "generate": {
+          "mean": 876.7,
+          "p95": 1271.8,
+          "n": 3
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "rerank_mean": 1640.3,
+        "rerank_p95": 1645.7
+      }
+    },
+    "normal": {
+      "questions": 12,
+      "recall_at_k": {
+        "count": 12,
+        "total": 12
+      },
+      "hit_at_1": {
+        "count": 12,
+        "total": 12
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 12
+      },
+      "correctness": {
+        "count": 11,
+        "total": 12
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 12
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 1,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 12,
+        "total": 12
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 12
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 12
+      },
+      "rewrite_flagged": {
+        "count": 1,
+        "total": 12
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 12
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 12
+      },
+      "citations_valid": {
+        "count": 12,
+        "total": 12
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 12
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 2489.1,
+        "p95": 3942.4,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 12
+        },
+        "retrieve": {
+          "mean": 13.5,
+          "p95": 15.2,
+          "n": 12
+        },
+        "rerank": {
+          "mean": 1296.4,
+          "p95": 2014.6,
+          "n": 12
+        },
+        "generate": {
+          "mean": 1184.2,
+          "p95": 2477.0,
+          "n": 12
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 12
+        },
+        "rerank_mean": 1296.4,
+        "rerank_p95": 2014.6
+      }
+    },
+    "agent_access": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 2,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 2,
+        "total": 3
+      },
+      "mrr": {
+        "value": 0.667,
+        "total": 3
+      },
+      "correctness": {
+        "count": 1,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 0
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 3,
+        "total": 3
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 3
+      },
+      "agent_internal_access": {
+        "count": 1,
+        "total": 3
+      },
+      "agent_internal_retrieval": {
+        "count": 2,
+        "total": 3
+      },
+      "agent_internal_context": {
+        "count": 2,
+        "total": 3
+      },
+      "security_events": {
+        "count": 0,
+        "total": 3
+      },
+      "rewrite_flagged": {
+        "count": 1,
+        "total": 3
+      },
+      "false_handoffs": {
+        "count": 1,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 3
+      },
+      "citations_valid": {
+        "count": 3,
+        "total": 3
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 3
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 1286.0,
+        "p95": 3080.2,
+        "generate_excludes_waits": true,
+        "rewrite_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "retrieve": {
+          "mean": 26.2,
+          "p95": 28.1,
+          "n": 3
+        },
+        "rerank": {
+          "mean": 994.5,
+          "p95": 1940.9,
+          "n": 3
+        },
+        "generate": {
+          "mean": 898.8,
+          "p95": 1118.8,
+          "n": 3
+        },
+        "generate_wait": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "n": 3
+        },
+        "rerank_mean": 994.5,
+        "rerank_p95": 1940.9
+      }
+    }
+  }
+}
