@@ -50,3 +50,11 @@ eval:
 query:
   history_turns: 6   # latest chat turns shown to the rewriter
   max_attempts: 2    # one call plus one retry on invalid output, then fall back to the raw message
+
+# Grounded generation (Session 8). Uses llm.large_model with structured output.
+grounding:
+  max_attempts: 2    # one call plus one retry on invalid output, then "not found"
+
+# Human handoff (Session 8, v6). Customer tickets are appended here (git-ignored).
+handoff:
+  tickets_path: data/tickets/tickets.jsonl

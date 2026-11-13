@@ -11,7 +11,8 @@ failure, and an honest account of what did and did not reproduce.
 [02-hybrid-search.md](02-hybrid-search.md) (stage v2),
 [03-reranking.md](03-reranking.md) (stage v3),
 [04-query-and-region.md](04-query-and-region.md) (stages v4a and v4) and
-[05-access-control.md](05-access-control.md) (stage v5).
+[05-access-control.md](05-access-control.md) (stage v5) and
+[06-grounding-and-handoff.md](06-grounding-and-handoff.md) (stages v6a and v6).
 
 | # | Failure | Example symptom | Planned fix | Page |
 |---|---------|-----------------|-------------|------|
@@ -20,7 +21,7 @@ failure, and an honest account of what did and did not reproduce.
 | 3 | Poor ranking | Right chunk retrieved but ranked 8th | Cross-encoder reranking of the top 20 search candidates | [03-reranking](03-reranking.md) |
 | 4 | Vague queries and wrong region | "How long is the warranty?" answered with the US policy for a UK customer | Query rewriting with chat history (small model, catalogue), region filter from the user profile | [04-query-and-region](04-query-and-region.md) |
 | 5 | Internal-document leaks | Staff-only margin notes quoted to a customer | Per-audience collections and Weaviate RBAC: the customer key can't read internal documents | [05-access-control](05-access-control.md) |
-| 6 | Hallucination | Confident answer with no supporting source | Grounded prompts, citations, abstain when unsure | _pending_ |
+| 6 | Hallucination | "We don't price-match" when no document mentions price matching | Role-aware grounded prompts with numbered sources and checked citations; a LangGraph corrective flow that retries weak retrieval and hands unanswered questions to a person | [06-grounding-and-handoff](06-grounding-and-handoff.md) |
 | 7 | Prompt injection | A document or message says "ignore previous instructions" | Context sanitising, instruction hierarchy, output checks | _pending_ |
 
 **Stale documents** (an outdated UK returns policy beside the current one) are tracked

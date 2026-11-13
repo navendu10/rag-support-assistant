@@ -460,3 +460,59 @@ not just filtered away from them, and agents must keep full access.
 
 **Next:** Session 8, grounding: citations, abstaining and handing off when the context
 doesn't contain the answer (g020, g023, g018-style inventions).
+
+## Session 8: Grounding, citations and human handoff (2026-11-12)
+
+**Goal:** fix failure #6, invented answers, as two separately measured stages: v6a = v5 +
+grounding, v6 = v6a + a LangGraph corrective flow with human handoff. Both reuse v5's
+collections and roles.
+
+**Built:**
+
+- `generation/grounded.py`: role-aware grounded prompts, numbered sources, structured
+  output with citation checks, one retry, the "Sources:" list.
+- `graph/corrective.py` and `graph/handoff.py`: grade (best rerank score vs
+  `min_score: 0.1`), one broader retry on the same connection and filter, generate, check,
+  answer or hand off (a ticket for customers, the closest sources for agents).
+- Evaluation: false handoffs, invented content (new judge, calibrated 9/10 on hand
+  labels; the large model also scored 9/10), citation validity, flow retries; offline
+  context rebuild for back-fills.
+- Tests: `test_grounding.py`, `test_corrective_flow.py`, `test_grounding_metrics.py`
+  (unit) and `tests/integration/test_grounding_v6.py`.
+
+**Results (v5 -> v6a -> v6):** invented content 9/50 -> 1/50 -> 1/50; expected handoffs
+1/7 -> 6/7 -> 7/7; correctness 39 -> 33 -> 38; citations valid 50/50; false handoffs
+2/43 -> 5/43 -> 5/43 (g011, g046, g048 and g049 are retrieval misses; g028 is an injection prompt that
+gets a ticket). Grounding removed the inventions; the flow turned honest "can't find it"
+answers into handoffs.
+
+**Decisions:**
+
+- The retrieval score only triggers a retry; handoff comes only from the generation check.
+- `min_score` 0.1 rather than the 0.01 suggested for filtering (explained in v6.yaml).
+- The model's not-found answer is shown only when valid and cited; otherwise the fixed
+  message alone.
+- The small-model invented-content judge kept (9/10 on hand labels).
+- The grounded prompt was not tuned after seeing the results (brevity drops conditions in
+  g021 and g031); revisit with the held-out set in Session 13.
+
+**Back-fill:** the false-handoff judge for v0-v5 (`--add-handoff-judge`) stopped on
+Groq's daily small-model quota on 2026-11-12 and finished on 2026-11-13 from the cache:
+v5 2/43 (g011, g028), so v6's new false handoffs are g046, g048 and g049.
+
+**Pre-merge diagnosis:** all five v6 false handoffs and the one invented answer were
+checked against their contexts. None is a too-strict prompt: g011, g046, g048 and g049
+are search (ranking) misses with the answer among the candidates but outside the
+context, g028 is a golden-set error (no document answers it), and g012's "invented" 14
+days is a judge error (it is in the stale 2025 policy in its context). So the prompt was
+not changed, nothing was re-run, and false handoffs stay at 5/43; the fixes belong to
+Sessions 9, 13 and 14 (see docs/failures/06-grounding-and-handoff.md).
+
+**Retry on not-found:** v6 now retries once before handing off, on a low score or a
+not-found answer (one shared budget). The wider search is the original message plus the
+resolved products' catalogue names and codes, 30 candidates and 8 chunks. Only the 12
+handed-off questions were re-run (`--only-ids`). False handoffs went 5 -> 4 (g048
+rescued; target of at most 2 not met), expected handoffs stayed 7/7, and correctness
+went 38 -> 39. Invented content by the judge went 1 -> 2, but both are judge mistakes
+(g012 stale policy, g018). Lesson: appending product names hurt the policy questions g011
+and g046. Issue #10 opened for g049's rewrite drift.

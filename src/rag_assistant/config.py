@@ -139,6 +139,18 @@ class QuerySettings(BaseModel):
     max_attempts: int = Field(default=2, ge=1, description="1 call plus retries on invalid output")
 
 
+class GroundingSettings(BaseModel):
+    """Grounded generation (Session 8): retries on invalid structured output."""
+
+    max_attempts: int = Field(default=2, ge=1, description="1 call plus retries on invalid output")
+
+
+class HandoffSettings(BaseModel):
+    """Human handoff (Session 8): where customer tickets are appended (git-ignored)."""
+
+    tickets_path: Path = Path("data/tickets/tickets.jsonl")
+
+
 class Settings(BaseSettings):
     """Top-level settings object for the whole application."""
 
@@ -165,6 +177,8 @@ class Settings(BaseSettings):
     paths: PathSettings = Field(default_factory=PathSettings)
     eval: EvalSettings = Field(default_factory=EvalSettings)
     query: QuerySettings = Field(default_factory=QuerySettings)
+    grounding: GroundingSettings = Field(default_factory=GroundingSettings)
+    handoff: HandoffSettings = Field(default_factory=HandoffSettings)
 
     @field_validator("groq_api_key")
     @classmethod
@@ -312,7 +326,9 @@ class StageConfig(BaseModel):
     rerank: bool
     rerank_model: str | None = Field(default=None, min_length=1, description="rerank only")
     fetch_k: int | None = Field(default=None, gt=0, le=100, description="rerank only")
-    min_score: float | None = Field(default=None, ge=0.0, le=1.0, description="rerank only")
+    min_score: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="corrective_flow only: retry trigger"
+    )
     rerank_fusion: RerankFusion | None = Field(default=None, description="rerank only")
     rerank_blend_weight: float | None = Field(
         default=None, ge=0.0, le=1.0, description="blend only: weight of the rerank score"
@@ -327,6 +343,13 @@ class StageConfig(BaseModel):
     region_filter: bool
     access_control: bool
     grounding: bool
+    corrective_flow: bool
+    retry_fetch_k: int | None = Field(
+        default=None, gt=0, le=100, description="corrective_flow only: the wider search"
+    )
+    retry_top_k: int | None = Field(
+        default=None, gt=0, le=50, description="corrective_flow only: the wider context"
+    )
     injection_guard: bool
     top_k: int = Field(gt=0, le=50)
 
@@ -379,27 +402,46 @@ class StageConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _access_control_owns_its_collections(self) -> StageConfig:
-        """``access_control`` splits chunks into two collections, so it can't reuse one."""
-        if self.access_control and self.index is not None:
-            raise ValueError("access_control: true builds its own collections; remove index")
+    def _corrective_flow_settings(self) -> StageConfig:
+        """``corrective_flow`` needs grounding, reranking, ``min_score`` and a wider retry
+        (``retry_fetch_k`` > ``fetch_k``, ``retry_top_k`` > ``top_k``); those three settings
+        need ``corrective_flow``."""
+        retry = (self.min_score, self.retry_fetch_k, self.retry_top_k)
+        if not self.corrective_flow:
+            if any(value is not None for value in retry):
+                raise ValueError(
+                    "min_score, retry_fetch_k and retry_top_k need corrective_flow: true"
+                )
+            return self
+        if not (self.grounding and self.rerank):
+            raise ValueError("corrective_flow: true needs grounding: true and rerank: true")
+        if self.min_score is None or self.retry_fetch_k is None or self.retry_top_k is None:
+            raise ValueError("corrective_flow: true needs min_score, retry_fetch_k and retry_top_k")
+        if self.retry_fetch_k <= int(self.fetch_k or 0):
+            raise ValueError("retry_fetch_k must be larger than fetch_k (a wider search)")
+        if not self.top_k < self.retry_top_k <= self.retry_fetch_k:
+            raise ValueError("retry_top_k must be larger than top_k and at most retry_fetch_k")
         return self
 
     @property
     def collection_name(self) -> str:
         """Weaviate collection for this stage: ``index`` if set, else e.g. ``Chunks_v0``.
 
-        Stages with ``access_control`` have two collections instead; see
-        ``audience_collections``.
+        Stages with ``access_control`` have two collections instead, named after this
+        one; see ``audience_collections``.
         """
         return self.index or f"Chunks_{self.name}"
 
     @property
     def audience_collections(self) -> dict[str, str]:
-        """``access_control`` only: audience -> collection, e.g. public -> Chunks_v5_public."""
+        """``access_control`` only: audience -> collection, e.g. public -> Chunks_v5_public.
+
+        A stage reusing an index (v6a and v6 set ``index: Chunks_v5``) reads its owner's
+        collections.
+        """
         if not self.access_control:
             raise ValueError(f"stage {self.name} has access_control: false")
-        return {audience: f"Chunks_{self.name}_{audience}" for audience in AUDIENCES}
+        return {audience: f"{self.collection_name}_{audience}" for audience in AUDIENCES}
 
     @property
     def index_owner(self) -> str:
@@ -427,11 +469,9 @@ class StageConfig(BaseModel):
 
 # switch -> (only supported value so far, session that adds the rest, feature)
 # (chunking since Session 3, search since Session 4, rerank since Session 5,
-# query_rewrite, use_history and region_filter since Session 6, and access_control
-# since Session 7.)
+# query_rewrite, use_history and region_filter since Session 6, access_control since
+# Session 7, and grounding, corrective_flow and min_score since Session 8.)
 UNIMPLEMENTED_SWITCHES: dict[str, tuple[object, int, str]] = {
-    "min_score": (None, 8, "rejecting low-scoring context"),
-    "grounding": (False, 8, "grounded answers and handoff"),
     "injection_guard": (False, 9, "prompt-injection defences"),
 }
 
@@ -458,6 +498,10 @@ def check_index_owner(stage: StageConfig, stages_dir: Path = STAGES_DIR) -> None
     owner = StageConfig.model_validate(yaml.safe_load(owner_path.read_text(encoding="utf-8")))
     if owner.reuses_index:
         raise ValueError(f"{stage.name}: {owner.name} itself reuses an index; point at the owner")
+    if owner.access_control != stage.access_control:
+        raise ValueError(
+            f"{stage.name} reuses {stage.index}, but only one of them has access_control"
+        )
     differ = [f for f in INGESTION_FIELDS if getattr(owner, f) != getattr(stage, f)]
     if differ:
         raise ValueError(

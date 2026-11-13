@@ -18,7 +18,12 @@ from pathlib import Path
 
 from rag_assistant.config import get_settings
 from rag_assistant.pipeline import Pipeline
-from rag_assistant.query.describe import describe_retrieval, describe_rewrite, describe_timings
+from rag_assistant.query.describe import (
+    describe_path,
+    describe_retrieval,
+    describe_rewrite,
+    describe_timings,
+)
 from rag_assistant.schemas import load_history, load_users
 
 
@@ -35,7 +40,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Print the answer, the rewrite and filter (if any), the retrieved chunks and timings."""
+    """Print the answer (with its sources), the rewrite, filter and flow route (if any), the
+    retrieved chunks and timings."""
     args = parse_args()
     settings = get_settings()
     users = {u.user_id: u for u in load_users(settings.paths.resolve(settings.paths.users_file))}
@@ -45,9 +51,9 @@ def main() -> int:
     history = load_history(args.history_file) if args.history_file else []
     with Pipeline.from_stage(args.stage, settings) as pipeline:
         result = pipeline.answer(args.question, users[args.user], history)
-    print(result.text)
+    print(result.rendered)
     print()
-    print("\n".join(describe_rewrite(result)))
+    print("\n".join(describe_rewrite(result) + describe_path(result)))
     print("\nRetrieved:")
     print("\n".join(describe_retrieval(result)))
     print(f"\n{describe_timings(result)}")

@@ -4,7 +4,9 @@ Usage:
     python scripts/chat.py --stage v4 --user cust_uk_01
 
 Each turn prints the rewritten query (standalone question, search query, codes,
-category), the applied region filter, the retrieved doc_ids and then the answer.
+category), the applied region filter, the retrieved doc_ids, the grounding and corrective
+flow route (v6a/v6), and then the answer with its "Sources:" list. In v6 a customer handoff
+appends a ticket to data/tickets/tickets.jsonl.
 Commands: /reset clears the history, /quit (or Ctrl+C / Ctrl+Z) exits.
 """
 
@@ -15,7 +17,12 @@ import sys
 
 from rag_assistant.config import get_settings
 from rag_assistant.pipeline import Pipeline
-from rag_assistant.query.describe import describe_retrieval, describe_rewrite, describe_timings
+from rag_assistant.query.describe import (
+    describe_path,
+    describe_retrieval,
+    describe_rewrite,
+    describe_timings,
+)
 from rag_assistant.schemas import Turn, load_users
 
 
@@ -63,7 +70,8 @@ def main() -> int:
             print("\n".join(describe_rewrite(result)))
             print("retrieved  :")
             print("\n".join(describe_retrieval(result)))
-            print(f"\nassistant> {result.text}\n")
+            print("\n".join(describe_path(result)))
+            print(f"\nassistant> {result.rendered}\n")
             print(f"({describe_timings(result)})\n")
             history = add_turns(history, question, result.text)
 

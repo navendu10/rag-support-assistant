@@ -51,6 +51,13 @@ src/rag_assistant/
                            validated JSON, retry then raw-message fallback), describe (CLI text)
   security/                access_setup (roles, database users, .env keys), probes (what a key
                            may read)
+  generation/              naive (v0-v5 prompt), grounded (v6a on: role-aware prompt, numbered
+                           sources, structured output, citation checks, "Sources:" list)
+  graph/                   corrective (v6: LangGraph rewrite -> retrieve -> grade -> generate ->
+                           check -> answer | handoff, with one wider retry on a low score or a
+                           not-found answer), handoff (reasons, messages, tickets to
+                           data/tickets/tickets.jsonl, git-ignored)
+  eval/contexts.py         rebuild a stored run's context texts offline for back-filled judges
 configs/stages/<stage>.yaml  StageConfig switches; unimplemented values raise NotImplementedError;
                            `index: Chunks_vN` reuses another stage's collection (ingest skips it)
 configs/prompts.yaml       all prompt templates (answer + judges)
@@ -90,12 +97,17 @@ python scripts/show_rewrites.py --stage v4 --live  # rewrite now (small model on
 python scripts/check_rewrite_retrieval.py          # rewrite + retrieve vs stored runs, no answers
 python scripts/evaluate.py --stage v0 [--tag leak] [--limit 5]   # results/<stage>/
 python scripts/evaluate.py --stage v0 --only-missing   # answer new golden items only, merge
+python scripts/evaluate.py --stage v6 --only-ids g011,g046   # re-answer chosen items, merge
 python scripts/compare_stages.py [--by-tag]   # before/after table for README
 python scripts/sweep_alpha.py --stage v2 [--alphas 0,0.5,1] [--fusion ranked]  # no LLM calls
 python scripts/compare_rerankers.py [--models a,b]      # rerankers on v2 candidates, no LLM calls
 python scripts/rerank_score_distribution.py --stage v3   # 0-1 rerank scores, min_score table
 python scripts/sweep_rerank.py                     # reranker input x fusion x fetch_k x model
 python scripts/evaluate.py --stage v0 --add-leak-judge  # LLM leak judge on stored answers
+python scripts/evaluate.py --stage v4 --add-handoff-judge   # handoff judge on answerable rows
+python scripts/evaluate.py --stage v4 --add-invented-judge  # invented-content judge, rebuilt contexts
+python scripts/calibrate_invented_judge.py [--model large]  # invented judge vs hand labels
+python scripts/ask.py --stage v6 --user cust_uk_01 "Is there a student discount?"  # handoff + ticket
 python scripts/show_chunks.py --stage v1 --doc returns-uk-2026-print [--grep text]
 pytest -m integration                         # needs Weaviate + Groq (skipped by default)
 pytest -m security                            # access-control tests against Weaviate RBAC (local)

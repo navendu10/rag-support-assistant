@@ -22,6 +22,9 @@ COLUMNS = (
     ("rewrite_fallbacks", "Rewrite fallbacks"),
     ("agent_internal_retrieval", "Agent internal retrieval"),
     ("agent_internal_access", "Agent internal access"),
+    ("false_handoffs", "False handoffs"),
+    ("invented_content", "Invented content"),
+    ("citations_valid", "Citations valid"),
 )
 
 _STAGE_NAME = re.compile(r"^v(\d+)([a-z]*)$")
@@ -51,6 +54,8 @@ TAG_METRICS = (
     ("hit_at_1", "Hit@1"),
     ("mrr", "MRR"),
     ("forbidden_phrases", "Forbidden phrase"),
+    ("handoffs", "Handoff"),
+    ("invented_content", "Invented content"),
 )
 
 

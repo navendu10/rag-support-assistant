@@ -90,8 +90,50 @@ class RewriteRecord(BaseModel):
     flags: list[str] = []
 
 
+class GroundedRecord(BaseModel):
+    """The structured grounded reply for one question (grounding stages, v6a on)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    found_in_sources: bool
+    citations: list[int]
+    valid: bool  # False: invalid output on every attempt, treated as not found
+    attempts: int
+    error: str | None = None
+    cited_doc_ids: list[str] = []
+
+
+class PathRecord(BaseModel):
+    """The corrective flow's route for one question (v6).
+
+    ``grade`` is the last grade (after the retry, if there was one); ``best_score`` the
+    first search's best rerank score. ``ticket_created`` instead of the ticket id, so
+    results stay identical across runs. ``retry_trigger`` says what caused the one retry
+    (``low_score``, ``not_found`` or ``none``); ``retry_changed_outcome`` is True when a
+    not-found retry ended in an answer, False when it still handed off, None otherwise.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    grade: str
+    best_score: float | None
+    retry_used: bool
+    retry_best_score: float | None = None
+    retry_kept: bool = False
+    handoff_reason: str | None = None
+    ticket_created: bool = False
+    retry_trigger: str = "none"
+    retry_changed_outcome: bool | None = None
+
+
 class ResultRow(BaseModel):
-    """One line of results.jsonl."""
+    """One line of results.jsonl.
+
+    From Session 8: ``grounded`` and ``path`` (grounding and corrective-flow stages);
+    ``model_text`` is the model-written part of ``answer`` when they differ (a handoff that
+    shows the model's not-found answer); ``fixed_message`` is True when ``answer`` is only
+    our fixed text. ``invented`` is the invented-content judge's verdict.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -119,6 +161,21 @@ class ResultRow(BaseModel):
     rewrite: RewriteRecord | None = None
     region_filter: list[str] | None = None
     security_events: int | None = None  # access-control stages: internal chunks dropped
+    grounded: GroundedRecord | None = None
+    path: PathRecord | None = None
+    model_text: str | None = None
+    fixed_message: bool = False
+    invented: Judgement | None = None
+
+
+def invented_input(row: ResultRow) -> str | None:
+    """The text the invented-content judge reads: what the model wrote and the user saw.
+
+    None for a fixed handoff message alone: there is no model-written text to judge.
+    """
+    if row.fixed_message:
+        return None
+    return row.model_text if row.model_text is not None else row.answer
 
 
 # ---------------------------------------------------------------- per item
@@ -332,6 +389,70 @@ def _judged_leak(row: ResultRow) -> bool | None:
     return row.leak_judgement.verdict != "CLEAN"
 
 
+def _false_handoff(row: ResultRow) -> bool | None:
+    """Answerable question (no expected handoff, a reference exists) that was handed off.
+
+    With the corrective flow (v6) the route is exact: the flow handed off. Elsewhere the
+    handoff judge decides (back-filled for older stages). None if neither is recorded.
+    """
+    if row.expect_handoff:
+        return None
+    if row.path is not None:
+        return row.path.handoff_reason is not None
+    if row.handoff is None:
+        return None
+    return row.handoff.verdict == "HANDOFF"
+
+
+def _invented(row: ResultRow) -> bool | None:
+    """True if the invented-content judge found an unsupported claim; None if not judged.
+
+    An unparseable verdict counts as invented, the cautious reading.
+    """
+    if row.invented is None:
+        return None
+    return row.invented.verdict != "SUPPORTED"
+
+
+def _citations_valid(row: ResultRow) -> bool | None:
+    """Grounding stages: every citation exists (the reply was valid); None otherwise."""
+    return None if row.grounded is None else row.grounded.valid
+
+
+def _reattempted(row: ResultRow) -> bool | None:
+    """Grounding stages: the first structured reply was invalid and was retried."""
+    return None if row.grounded is None else row.grounded.attempts > 1
+
+
+def _flow_retry(row: ResultRow, answerable_only: bool = False) -> bool | None:
+    """v6: the grade was low, so the broader search ran; None without the flow."""
+    if row.path is None or (answerable_only and row.expect_handoff):
+        return None
+    return row.path.retry_used
+
+
+def _retry_trigger(row: ResultRow, trigger: str) -> bool | None:
+    """v6: the one retry was caused by ``trigger``; None without the flow."""
+    return None if row.path is None else row.path.retry_trigger == trigger
+
+
+def _retry_rescued(row: ResultRow) -> bool | None:
+    """Not-found retries only: the regenerated answer passed the check AND is CORRECT."""
+    if row.path is None or row.path.retry_trigger != "not_found":
+        return None
+    return bool(row.path.retry_changed_outcome) and _correct(row)
+
+
+def _flow_handoff(row: ResultRow) -> bool | None:
+    """v6: the flow handed the question off; None without the flow."""
+    return None if row.path is None else row.path.handoff_reason is not None
+
+
+def false_handoff_rows(rows: Sequence[ResultRow]) -> list[ResultRow]:
+    """The answerable questions that were handed off (listed in report.md)."""
+    return [row for row in rows if _false_handoff(row)]
+
+
 def _rewrite_fallback(row: ResultRow) -> bool | None:
     """True if the rewriter fell back to the raw message; None without rewriting."""
     return None if row.rewrite is None else row.rewrite.fallback
@@ -397,6 +518,16 @@ def latency_summary(rows: Sequence[ResultRow]) -> dict[str, object]:
         ],
         "retrieve": [r.latency_ms["retrieve"] for r in rows if "retrieve" in r.latency_ms],
         "rerank": [r.latency_ms["rerank"] for r in rows if "rerank" in r.latency_ms],
+        # The corrective flow's broader search (v6), only for questions that retried.
+        "regenerate": [
+            r.latency_ms["regenerate"] for r in rows if r.latency_ms.get("regenerate_requests")
+        ],
+        "retry_retrieve": [
+            r.latency_ms["retry_retrieve"] for r in rows if "retry_retrieve" in r.latency_ms
+        ],
+        "retry_rerank": [
+            r.latency_ms["retry_rerank"] for r in rows if "retry_rerank" in r.latency_ms
+        ],
     }
     measured = [r for r in rows if "generate_wait" in r.latency_ms]
     if measured:
@@ -433,7 +564,7 @@ def summarise_rows(rows: Sequence[ResultRow]) -> dict[str, object]:
         "judge_errors": sum(
             1
             for row in rows
-            for j in (row.correctness, row.handoff, row.leak_judgement)
+            for j in (row.correctness, row.handoff, row.leak_judgement, row.invented)
             if j is not None and j.verdict is None
         ),
         "candidate_recall": rate(row.checks.candidate_recall for row in rows),
@@ -443,6 +574,16 @@ def summarise_rows(rows: Sequence[ResultRow]) -> dict[str, object]:
         "agent_internal_context": rate(row.checks.internal_context_hit for row in rows),
         "security_events": rate(_security_event(row) for row in rows),
         "rewrite_flagged": rate(_rewrite_flagged(row) for row in rows),
+        "false_handoffs": rate(_false_handoff(row) for row in rows),
+        "invented_content": rate(_invented(row) for row in rows),
+        "citations_valid": rate(_citations_valid(row) for row in rows),
+        "grounded_reattempts": rate(_reattempted(row) for row in rows),
+        "flow_retries": rate(_flow_retry(row) for row in rows),
+        "flow_retries_answerable": rate(_flow_retry(row, answerable_only=True) for row in rows),
+        "flow_handoffs": rate(_flow_handoff(row) for row in rows),
+        "retries_low_score": rate(_retry_trigger(row, "low_score") for row in rows),
+        "retries_not_found": rate(_retry_trigger(row, "not_found") for row in rows),
+        "retries_rescued": rate(_retry_rescued(row) for row in rows),
         "latency_ms": latency_summary(rows),
     }
 
