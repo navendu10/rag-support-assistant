@@ -493,11 +493,12 @@ def test_tag_comparison_table_columns_per_stage() -> None:
             "Hit@1",
             "MRR",
             "Forbidden phrase",
-            "Handoff",
+            "Handoff (route)",
+            "Handoff (judge)",
             "Invented content",
         )
     ]
-    correct, recall, _, mrr, forbidden, _, _ = (t.splitlines() for t in tables)
+    correct, recall, _, mrr, forbidden, _, _, _ = (t.splitlines() for t in tables)
     assert correct[2:] == [
         "| normal | 1 | 1/1 | 1/1 |",
         "| leak | 1 | 0/1 | 0/1 |",

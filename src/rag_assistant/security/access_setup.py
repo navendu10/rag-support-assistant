@@ -53,10 +53,14 @@ def mask(key: str) -> str:
     return f"{key[:4]}... ({len(key)} chars)" if key else "(empty)"
 
 
-def role_collections(audience_collections: Mapping[str, str]) -> dict[str, list[str]]:
-    """Role name -> the collections it may read, from ``ROLE_AUDIENCES``."""
+def role_collections(stages: Sequence[Mapping[str, str]]) -> dict[str, list[str]]:
+    """Role name -> the collections it may read, from ``ROLE_AUDIENCES``.
+
+    ``stages`` holds each access-control stage's audience -> collection map (v5, v7 and
+    v7raw from Session 9); a role reads its audiences in every one of them.
+    """
     return {
-        ROLE_NAMES[role]: [audience_collections[a] for a in audiences]
+        ROLE_NAMES[role]: [collections[a] for collections in stages for a in audiences]
         for role, audiences in ROLE_AUDIENCES.items()
     }
 
@@ -101,9 +105,9 @@ def init_admin_key(env_path: Path) -> tuple[str, bool]:
     return key, True
 
 
-def ensure_roles(client: weaviate.WeaviateClient, audience_collections: Mapping[str, str]) -> None:
+def ensure_roles(client: weaviate.WeaviateClient, stages: Sequence[Mapping[str, str]]) -> None:
     """Delete and recreate each role, so its permissions always match the code."""
-    for role_name, collections in role_collections(audience_collections).items():
+    for role_name, collections in role_collections(stages).items():
         if client.roles.exists(role_name=role_name):
             client.roles.delete(role_name=role_name)
         client.roles.create(role_name=role_name, permissions=read_permissions(collections))

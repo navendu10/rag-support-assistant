@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pytest
 from pydantic import SecretStr
 
-from rag_assistant.config import load_prompts, load_settings, load_stage
+from rag_assistant.config import load_injection_settings, load_prompts, load_settings, load_stage
 from rag_assistant.generation.grounded import GroundedGenerator, GroundedResult
 from rag_assistant.graph.corrective import CorrectiveFlow, grade_score, retry_query
 from rag_assistant.graph.handoff import (
@@ -29,6 +29,7 @@ from rag_assistant.retrieval.rerank import Reranker
 from rag_assistant.retrieval.result import Retrieval
 from rag_assistant.retrieval.vector import RetrievedChunk
 from rag_assistant.schemas import Product, User
+from rag_assistant.security.output_guard import OutputGuard
 
 PROMPTS = load_prompts()
 V6 = load_stage("v6")
@@ -73,6 +74,7 @@ class FakeSteps:
         self.has_rewriter = codes is not None
         self.searches: list[dict] = []
         self.generated: list[list[str]] = []
+        self.notes: list[str | None] = []
 
     def rewrite(self, question: str, history: object = ()) -> tuple[RewriteResult, dict]:
         """A rewrite that resolves ``codes`` and searches different keywords."""
@@ -102,10 +104,11 @@ class FakeSteps:
         return Retrieval(ranked, ranked, {"retrieve": 1.0, "rerank": 2.0}, 0, best)
 
     def generate_grounded(
-        self, question: str, chunks: list[RetrievedChunk], user: User
+        self, question: str, chunks: list[RetrievedChunk], user: User, note: str | None = None
     ) -> tuple[GroundedResult, dict[str, float]]:
-        """The next scripted result; remember which chunks it saw."""
+        """The next scripted result; remember which chunks (and guard note) it saw."""
         self.generated.append([c.doc_id for c in chunks])
+        self.notes.append(note)
         result = self.results[min(len(self.generated), len(self.results)) - 1]
         return result, {"generate": 3.0}
 
@@ -456,3 +459,84 @@ def test_invalid_structured_output_hands_off_end_to_end(monkeypatch: pytest.Monk
     assert answer.path.handoff_reason == "invalid_output" and len(log) == 2
     assert answer.text == PROMPTS["handoff_customer"] and answer.model_text is None
     assert answer.sources == [] and len(tickets.tickets) == 1
+
+
+# ------------------------------------------- layer 3 in the flow (Session 9, v7)
+
+
+def _guard() -> OutputGuard:
+    """The configured output guard."""
+    i = load_injection_settings()
+    return OutputGuard(i.claim_phrases, i.attribution_terms, i.voltcart_policy_terms)
+
+
+LIFETIME = GroundedResult("It has a lifetime warranty [1].", (1,), True, True, 1)
+
+
+def _guarded(steps: FakeSteps, tickets: MemoryTicketStore | None = None) -> CorrectiveFlow:
+    """v7's flow: v6's settings plus the guard and the 3-generation cap."""
+    return CorrectiveFlow(
+        steps, tickets or MemoryTicketStore(), PROMPTS, 0.1, 30, 8, 4, _guard(), 3
+    )
+
+
+def test_guard_passes_a_supported_answer_without_regenerating() -> None:
+    """No number or promise to check: answered, one generation, guard silent."""
+    steps = FakeSteps([0.9], FOUND)
+    outcome = _guarded(steps).run("How do I reset the XR-2200?", CUSTOMER)
+    p = outcome.path
+    assert (p.guard_triggered, p.guard_regenerated, p.generations) == (False, False, 1)
+    assert outcome.text == FOUND.answer and steps.notes == [None]
+
+
+def test_guard_failure_regenerates_once_with_a_note_then_answers() -> None:
+    """A rejected answer is regenerated once, with the problems as a note."""
+    steps = FakeSteps([0.9], [LIFETIME, FOUND])
+    outcome = _guarded(steps).run("What warranty does it have?", CUSTOMER)
+    p = outcome.path
+    assert (p.guard_triggered, p.guard_regenerated, p.generations) == (True, True, 2)
+    assert p.handoff_reason is None and outcome.text == FOUND.answer
+    assert steps.notes[0] is None and "lifetime warranty" in str(steps.notes[1])
+    assert "regenerate" in outcome.timings
+
+
+def test_guard_failing_twice_hands_off_with_the_fixed_message() -> None:
+    """Rejected again after the one regeneration: hand off, never show the bad text."""
+    tickets = MemoryTicketStore()
+    steps = FakeSteps([0.9], LIFETIME)
+    outcome = _guarded(steps, tickets).run("What warranty does it have?", CUSTOMER)
+    assert outcome.path.handoff_reason == "output_guard" and outcome.path.generations == 2
+    assert outcome.text == PROMPTS["handoff_customer"] and outcome.model_text is None
+    assert len(tickets.tickets) == 1 and tickets.tickets[0].reason == "output_guard"
+
+
+def test_a_rejected_not_found_text_is_hidden_from_the_handoff() -> None:
+    """The model's not-found text shown above a handoff must pass the guard too."""
+    bad = GroundedResult(
+        "I can't find it, but there's a lifetime warranty [1].", (1,), False, True, 1
+    )
+    outcome = _guarded(FakeSteps([0.9, 0.9], bad)).run("q", CUSTOMER)
+    assert outcome.path.handoff_reason == "not_found"
+    assert outcome.text == PROMPTS["handoff_customer"] and outcome.model_text is None
+
+
+def test_worst_case_path_stops_at_three_generations() -> None:
+    """The longest path: rejected -> regenerated but not found -> retried -> found but
+    rejected again. Three generations, then a handoff; never a fourth."""
+    steps = FakeSteps([0.9, 0.9], [LIFETIME, NOT_FOUND_BARE, LIFETIME, FOUND])
+    outcome = _guarded(steps).run("q", CUSTOMER)
+    p = outcome.path
+    assert len(steps.generated) == 3 and p.generations == 3
+    assert (p.guard_regenerated, p.retry_trigger) == (True, "not_found")
+    assert p.handoff_reason == "output_guard"
+
+
+def test_the_cap_blocks_a_retry_when_generations_are_spent() -> None:
+    """With a cap of 2: rejected, regenerated (2), not found: no third generation."""
+    steps = FakeSteps([0.9, 0.9], [LIFETIME, NOT_FOUND_BARE, FOUND])
+    flow = CorrectiveFlow(steps, MemoryTicketStore(), PROMPTS, 0.1, 30, 8, 4, _guard(), 2)
+    outcome = flow.run("q", CUSTOMER)
+    assert len(steps.generated) == 2 and not outcome.path.retry_used
+    assert outcome.path.handoff_reason == "not_found"
+    with pytest.raises(ValueError, match="max_generations"):
+        CorrectiveFlow(steps, MemoryTicketStore(), PROMPTS, 0.1, 30, 8, 4, _guard(), 0)

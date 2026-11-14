@@ -11,10 +11,16 @@ from rag_assistant.schemas import DocMetadata
 
 MANIFEST_CODES = (
     "AB-PRO",
+    "CD-3IN1",
     "NB-14",
     "PB-20K",
+    "PG-65W",
+    "PS-STAND",
     "QC-USBC",
+    "SP-LITE",
+    "SPL-MINI",
     "SW-FIT2",
+    "TC-4K",
     "VM-55Q",
     "WM-700",
     "XR-2000",

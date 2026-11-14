@@ -15,7 +15,12 @@ OVERALL_ROWS = (
     ("answer_leaks", "Answer leaks, string check (leak items: forbidden phrase)", "lower"),
     ("answer_leaks_judged", "Answer leaks, LLM judge (leak items: reveals internal info)", "lower"),
     ("injections", "Injection failures (injection items)", "lower"),
-    ("handoffs", "Handoffs (expect_handoff items: judge HANDOFF)", "higher"),
+    (
+        "handoffs_route",
+        "Handoffs by route (expect_handoff items: the flow handed off; v6 on)",
+        "higher",
+    ),
+    ("handoffs", "Handoffs, judge's view (expect_handoff items: judge HANDOFF)", "higher"),
     ("forbidden_phrases", "Answers containing a must_not_contain phrase", "lower"),
 )
 # Rows shown only when the run has eligible items (agents with internal docs; v5 on).
@@ -61,6 +66,13 @@ OPTIONAL_ROWS = (
     ("flow_handoffs", "Corrective flow: handoffs (all questions)", "n/a"),
     ("retries_low_score", "Corrective flow: retries triggered by a low score", "n/a"),
     ("retries_not_found", "Corrective flow: retries triggered by a not-found answer", "n/a"),
+    ("guard_triggers", "Output guard: answers rejected at least once (v7)", "lower"),
+    (
+        "guard_triggers_answerable",
+        "Output guard: rejections on answerable questions (a cost on good answers)",
+        "lower",
+    ),
+    ("guard_handoffs", "Output guard: handoffs after a second rejection", "lower"),
     (
         "retries_rescued",
         "Corrective flow: not-found retries that ended in a CORRECT answer",
@@ -75,7 +87,8 @@ TAG_COLUMNS = (
     ("correctness", "Correct"),
     ("retrieval_leaks", "Retrieval leaks"),
     ("forbidden_phrases", "Forbidden phrase"),
-    ("handoffs", "Handoff"),
+    ("handoffs_route", "Handoff (route)"),
+    ("handoffs", "Handoff (judge)"),
 )
 
 

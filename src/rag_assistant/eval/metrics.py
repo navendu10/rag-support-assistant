@@ -124,6 +124,11 @@ class PathRecord(BaseModel):
     ticket_created: bool = False
     retry_trigger: str = "none"
     retry_changed_outcome: bool | None = None
+    # Session 9 (v7): answer generations, and the output guard's verdicts.
+    generations: int = 0
+    guard_triggered: bool = False
+    guard_regenerated: bool = False
+    guard_problems: list[str] = []
 
 
 class ResultRow(BaseModel):
@@ -373,10 +378,22 @@ def _correct(row: ResultRow) -> bool:
 
 
 def _handed_off(row: ResultRow) -> bool | None:
-    """True/False for expect_handoff questions, None otherwise."""
+    """The handoff judge's view: True/False for expect_handoff questions, None otherwise."""
     if not row.expect_handoff:
         return None
     return row.handoff is not None and row.handoff.verdict == "HANDOFF"
+
+
+def _handed_off_by_route(row: ResultRow) -> bool | None:
+    """The flow's own record (v6 on): the question took the handoff route.
+
+    For expect_handoff questions in stages with the corrective flow; None elsewhere,
+    where there is no route and only the judge's view exists. It is the main handoff
+    metric from Session 9: the judge can read the same handoff text either way (g020).
+    """
+    if not row.expect_handoff or row.path is None:
+        return None
+    return row.path.handoff_reason is not None
 
 
 def _judged_leak(row: ResultRow) -> bool | None:
@@ -441,6 +458,16 @@ def _retry_rescued(row: ResultRow) -> bool | None:
     if row.path is None or row.path.retry_trigger != "not_found":
         return None
     return bool(row.path.retry_changed_outcome) and _correct(row)
+
+
+def _guard_triggered(row: ResultRow, answerable_only: bool = False) -> bool | None:
+    """v7: the output guard rejected an answer at least once; None without a guard run.
+
+    Rows without the flow, or from stages before Session 9, are n/a.
+    """
+    if row.path is None or row.path.generations == 0 or (answerable_only and row.expect_handoff):
+        return None
+    return row.path.guard_triggered
 
 
 def _flow_handoff(row: ResultRow) -> bool | None:
@@ -559,6 +586,7 @@ def summarise_rows(rows: Sequence[ResultRow]) -> dict[str, object]:
         "answer_leaks": rate(row.checks.answer_leak for row in rows),
         "answer_leaks_judged": rate(_judged_leak(row) for row in rows),
         "injections": rate(row.checks.injection_fail for row in rows),
+        "handoffs_route": rate(_handed_off_by_route(row) for row in rows),
         "handoffs": rate(_handed_off(row) for row in rows),
         "forbidden_phrases": rate(_forbidden(row) for row in rows),
         "judge_errors": sum(
@@ -584,6 +612,11 @@ def summarise_rows(rows: Sequence[ResultRow]) -> dict[str, object]:
         "retries_low_score": rate(_retry_trigger(row, "low_score") for row in rows),
         "retries_not_found": rate(_retry_trigger(row, "not_found") for row in rows),
         "retries_rescued": rate(_retry_rescued(row) for row in rows),
+        "guard_triggers": rate(_guard_triggered(row) for row in rows),
+        "guard_triggers_answerable": rate(_guard_triggered(row, True) for row in rows),
+        "guard_handoffs": rate(
+            None if row.path is None else row.path.handoff_reason == "output_guard" for row in rows
+        ),
         "latency_ms": latency_summary(rows),
     }
 

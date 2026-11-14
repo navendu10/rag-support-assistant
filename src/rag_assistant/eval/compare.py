@@ -18,13 +18,15 @@ COLUMNS = (
     ("answer_leaks", "Answer leaks"),
     ("answer_leaks_judged", "Answer leaks (judge)"),
     ("injections", "Injection failures"),
-    ("handoffs", "Handoffs"),
+    ("handoffs_route", "Handoffs (route)"),
+    ("handoffs", "Handoffs (judge)"),
     ("rewrite_fallbacks", "Rewrite fallbacks"),
     ("agent_internal_retrieval", "Agent internal retrieval"),
     ("agent_internal_access", "Agent internal access"),
     ("false_handoffs", "False handoffs"),
     ("invented_content", "Invented content"),
     ("citations_valid", "Citations valid"),
+    ("guard_triggers_answerable", "Guard triggers (answerable)"),
 )
 
 _STAGE_NAME = re.compile(r"^v(\d+)([a-z]*)$")
@@ -54,7 +56,8 @@ TAG_METRICS = (
     ("hit_at_1", "Hit@1"),
     ("mrr", "MRR"),
     ("forbidden_phrases", "Forbidden phrase"),
-    ("handoffs", "Handoff"),
+    ("handoffs_route", "Handoff (route)"),
+    ("handoffs", "Handoff (judge)"),
     ("invented_content", "Invented content"),
 )
 

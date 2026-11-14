@@ -105,18 +105,34 @@ Each stage has its own write-up:
     answerable questions are handed off (v5: two). One can't be answered by design, and
     three are retrieval misses that v5 had covered with invented answers. The retry
     rescued one (g048).
+- v7, layered prompt-injection defences:
+  [07-prompt-injection](docs/failures/07-prompt-injection.md).
+  - Four layers: clean third-party documents at ingestion, tag sources as data, check
+    every figure and promise against VoltCart's own documents, and keep secrets out of
+    the data. Each of the first three can be switched off.
+  - All 18 attacks in our red-team suite are blocked with every layer on (10/18 with
+    none, v6). No layer blocks them all alone (13-17/18). It's a result on this suite,
+    not a claim of security, and the suite should grow over time.
+  - On the golden set: correctness 41/50, false handoffs 3/43, expected handoffs 7/7 by
+    route, injection failures 0/3, and one output-guard trigger on an answerable question
+    (a real mis-citation).
 
-| Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs | Rewrite fallbacks | Agent internal retrieval | Agent internal access | False handoffs | Invented content | Citations valid |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| v0 | 40/45 (89%) | 26/45 (58%) | 0.69 | n/a | 29/50 (58%) | 5/46 (11%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | 1/7 (14%) | n/a | 3/4 (75%) | 2/4 (50%) | 3/43 (7%) | n/a | n/a |
-| v1 | 38/45 (84%) | 24/45 (53%) | 0.65 | n/a | 29/50 (58%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 1/7 (14%) | n/a | 3/4 (75%) | 1/4 (25%) | 4/43 (9%) | n/a | n/a |
-| v2 | 38/45 (84%) | 24/45 (53%) | 0.65 | n/a | 29/50 (58%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) | n/a | 3/4 (75%) | 1/4 (25%) | 4/43 (9%) | n/a | n/a |
-| v3 | 40/45 (89%) | 27/45 (60%) | 0.71 | 44/45 (98%) | 31/50 (62%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | 2/7 (29%) | n/a | 3/4 (75%) | 1/4 (25%) | 3/43 (7%) | n/a | n/a |
-| v4a | 41/45 (91%) | 30/45 (67%) | 0.75 | 44/45 (98%) | 31/50 (62%) | 4/46 (9%) | 0/3 (0%) | 1/3 (33%) | 1/3 (33%) | 0/7 (0%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) | 4/43 (9%) | n/a | n/a |
-| v4 | 42/45 (93%) | 31/45 (69%) | 0.80 | 44/45 (98%) | 35/50 (70%) | 5/46 (11%) | 0/3 (0%) | 2/3 (67%) | 1/3 (33%) | 1/7 (14%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) | 3/43 (7%) | 9/50 (18%) | n/a |
-| v5 | 42/45 (93%) | 33/45 (73%) | 0.83 | 45/45 (100%) | 39/50 (78%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 1/3 (33%) | 1/7 (14%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) | 2/43 (5%) | 9/50 (18%) | n/a |
-| v6a | 42/45 (93%) | 33/45 (73%) | 0.83 | 45/45 (100%) | 33/50 (66%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | 6/7 (86%) | 0/50 (0%) | 3/4 (75%) | 1/4 (25%) | 5/43 (12%) | 1/50 (2%) | 50/50 (100%) |
-| v6 | 42/45 (93%) | 33/45 (73%) | 0.82 | 45/45 (100%) | 39/50 (78%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | 7/7 (100%) | 0/50 (0%) | 4/4 (100%) | 2/4 (50%) | 4/43 (9%) | 2/50 (4%) | 50/50 (100%) |
+**All seven failures in the project's plan are now reproduced, measured and fixed**
+(Sessions 3-9: chunking, product codes, ranking, vague queries and region, leaks,
+hallucination, prompt injection).
+
+| Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs (route) | Handoffs (judge) | Rewrite fallbacks | Agent internal retrieval | Agent internal access | False handoffs | Invented content | Citations valid | Guard triggers (answerable) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| v0 | 40/45 (89%) | 26/45 (58%) | 0.69 | n/a | 29/50 (58%) | 5/46 (11%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | n/a | 1/7 (14%) | n/a | 3/4 (75%) | 2/4 (50%) | 3/43 (7%) | n/a | n/a | n/a |
+| v1 | 38/45 (84%) | 24/45 (53%) | 0.65 | n/a | 29/50 (58%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | n/a | 1/7 (14%) | n/a | 3/4 (75%) | 1/4 (25%) | 4/43 (9%) | n/a | n/a | n/a |
+| v2 | 38/45 (84%) | 24/45 (53%) | 0.65 | n/a | 29/50 (58%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | n/a | 2/7 (29%) | n/a | 3/4 (75%) | 1/4 (25%) | 4/43 (9%) | n/a | n/a | n/a |
+| v3 | 40/45 (89%) | 27/45 (60%) | 0.71 | 44/45 (98%) | 31/50 (62%) | 4/46 (9%) | 0/3 (0%) | 3/3 (100%) | 0/3 (0%) | n/a | 2/7 (29%) | n/a | 3/4 (75%) | 1/4 (25%) | 3/43 (7%) | n/a | n/a | n/a |
+| v4a | 41/45 (91%) | 30/45 (67%) | 0.75 | 44/45 (98%) | 31/50 (62%) | 4/46 (9%) | 0/3 (0%) | 1/3 (33%) | 1/3 (33%) | n/a | 0/7 (0%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) | 4/43 (9%) | n/a | n/a | n/a |
+| v4 | 42/45 (93%) | 31/45 (69%) | 0.80 | 44/45 (98%) | 35/50 (70%) | 5/46 (11%) | 0/3 (0%) | 2/3 (67%) | 1/3 (33%) | n/a | 1/7 (14%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) | 3/43 (7%) | 9/50 (18%) | n/a | n/a |
+| v5 | 42/45 (93%) | 33/45 (73%) | 0.83 | 45/45 (100%) | 39/50 (78%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 1/3 (33%) | n/a | 1/7 (14%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) | 2/43 (5%) | 9/50 (18%) | n/a | n/a |
+| v6a | 42/45 (93%) | 33/45 (73%) | 0.83 | 45/45 (100%) | 33/50 (66%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | n/a | 6/7 (86%) | 0/50 (0%) | 3/4 (75%) | 1/4 (25%) | 5/43 (12%) | 1/50 (2%) | 50/50 (100%) | n/a |
+| v6 | 42/45 (93%) | 33/45 (73%) | 0.82 | 45/45 (100%) | 39/50 (78%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | 7/7 (100%) | 7/7 (100%) | 0/50 (0%) | 4/4 (100%) | 2/4 (50%) | 4/43 (9%) | 2/50 (4%) | 50/50 (100%) | n/a |
+| v7 | 42/45 (93%) | 34/45 (76%) | 0.83 | 45/45 (100%) | 41/50 (82%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | 7/7 (100%) | 6/7 (86%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) | 3/43 (7%) | 2/50 (4%) | 50/50 (100%) | 1/43 (2%) |
 
 Higher is better for recall, hit@1, MRR, candidate recall, correctness, handoffs and agent
 internal access; lower is better for leaks, injection failures and rewrite fallbacks.
@@ -136,7 +152,7 @@ because they are the insecure "before" state (see [docs/security.md](docs/securi
 | 6 | Fix 4: vague queries and wrong region (query rewriting, region filter, stages v4a/v4) | ✅ Done |
 | 7 | Fix 5: internal-document leaks (per-audience collections, Weaviate RBAC keys, stage v5) | ✅ Done |
 | 8 | Fix 6: hallucination (grounded citations, LangGraph corrective flow with handoff, stages v6a/v6) | ✅ Done |
-| 9 | Fix 7: prompt injection | ⏳ Planned |
+| 9 | Fix 7: prompt injection (sanitised ingestion, sources as data, output guard, red team; stage v7) | ✅ Done |
 | 10 | Agent tools: LangGraph agent with order lookup, warranty check and ticket creation | ⏳ Planned |
 | 11 | Guardrails: human approval for write actions | ⏳ Planned |
 | 12 | MCP server for the agent's tools | ⏳ Planned |

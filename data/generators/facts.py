@@ -53,6 +53,16 @@ WM_700_E74 = "Door lock fault"
 STANDARD_WARRANTY_MONTHS = 12
 VM_55Q_PANEL_WARRANTY_MONTHS = 24
 QUICKCHARGE_WARRANTY_MONTHS = 6
+# Session 9 red-team listings: the real (visible) seller warranty of each, in months.
+REDTEAM_WARRANTY_MONTHS = {
+    "SP-LITE": 12,
+    "CD-3IN1": 18,
+    "PS-STAND": 12,
+    "TC-4K": 12,
+    "SPL-MINI": 6,
+    "PG-65W": 12,
+}
+TC_4K_WATERPROOF_METRES = 10  # with the included case
 
 # AeroBuds Pro battery.
 AB_PRO_BATTERY_HOURS = 8
@@ -75,6 +85,13 @@ PRODUCT_CATEGORIES = {
     "WM-700": "Large appliances",
     "PB-20K": "Power and charging",
     "QC-USBC": "Power and charging",
+    # Session 9: red-team marketplace listings (generators/marketplace_redteam.py).
+    "SP-LITE": "Audio",
+    "CD-3IN1": "Power and charging",
+    "PS-STAND": "Accessories",
+    "TC-4K": "Accessories",
+    "SPL-MINI": "Accessories",
+    "PG-65W": "Power and charging",
 }
 
 # Internal only: goodwill credit caps for late delivery.

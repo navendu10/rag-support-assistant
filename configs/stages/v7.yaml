@@ -1,0 +1,43 @@
+# Stage v7: v6 plus layered prompt-injection defences (Session 9). See ADR 0007.
+#   Layer 1: third-party documents lose hidden content before chunking, and flagged
+#            third-party chunks are dropped (security/sanitize.py). It works at ingestion,
+#            so v7 has its own collections, Chunks_v7_public and Chunks_v7_internal, with
+#            v5's access-control roles (re-run scripts/setup_access.py after ingesting).
+#   Layer 2: sources arrive as <source trust="..."> blocks; text inside them is data.
+#   Layer 3: the output guard (security/output_guard.py), one regeneration, then handoff;
+#            at most injection.max_generations (3) answers per question.
+#   Layer 4: no secrets in the data, a test (tests/unit/test_no_secrets.py).
+# Retrieval, rewriting, grounding and the corrective flow are v6's, unchanged.
+name: v7
+description: v6 + layered injection defences (sanitised ingestion, tagged sources, output guard)
+chunking: structure
+chunk_size: 1200
+chunk_overlap: 150
+min_chunk_chars: 200
+search: hybrid
+hybrid:
+  alpha_strategy: dynamic
+  code_alpha: 0.25
+  default_alpha: 1.0
+  fusion: relative_score
+  query_properties: [text, title, product_code^2]
+rerank: true
+rerank_model: Xenova/ms-marco-MiniLM-L-6-v2
+fetch_k: 20
+min_score: 0.1           # retry trigger only (see v6.yaml)
+retry_fetch_k: 30        # the wider search's candidates (fetch_k: 20)
+retry_top_k: 8           # the wider search's context chunks (top_k: 4)
+rerank_fusion: blend
+rerank_blend_weight: 0.5
+query_rewrite: true
+use_history: true
+region_filter: true
+access_control: true
+grounding: true
+corrective_flow: true
+injection_guard: true    # v6: false
+top_k: 4
+injection:
+  sanitize_ingestion: true   # layer 1 (ingestion: decides this stage's collections)
+  tagged_sources: true       # layer 2: sources are data
+  output_guard: true         # layer 3: numbers and promises checked against store sources

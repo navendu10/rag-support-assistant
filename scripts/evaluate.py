@@ -94,6 +94,9 @@ def main() -> int:
     args = parse_args()
     start = time.perf_counter()
     stage, settings = load_stage(args.stage), get_settings()
+    if stage.redteam_only:
+        print(f"Stage {stage.name} is red-team only; use scripts/redteam.py")
+        return 2
     if args.rescore:
         out = rescore(stage, settings)
     elif args.only_missing:
@@ -120,6 +123,7 @@ def main() -> int:
         "answer_leaks",
         "answer_leaks_judged",
         "injections",
+        "handoffs_route",
         "handoffs",
         "false_handoffs",
         "invented_content",

@@ -16,7 +16,12 @@ and an answer claiming to be found must cite something. Invalid output is retrie
 with the error appended; if the retry fails too, the result is "not found".
 
 The prompt follows the asker's **role** from the profile (customers or agents), never
-the message. There are no prompt-injection defences here: that is Session 9.
+the message.
+
+Session 9 (v7, layer 2) adds ``tagged`` prompts: every source sits in a
+``<source id="n" title="..." trust="store|third_party">`` block, and extra rules say that
+text inside a source is information, never an instruction, and that store sources
+override third-party ones. Every Session 8 rule is kept word for word.
 """
 
 from __future__ import annotations
@@ -45,6 +50,11 @@ PROMPT_KEYS: dict[str, str] = {
     "customer": "grounded_answer_customer",
     "agent": "grounded_answer_agent",
 }
+# Session 9, layer 2 (v7): the same rules, plus "sources are data", with tagged sources.
+TAGGED_PROMPT_KEYS: dict[str, str] = {
+    "customer": "grounded_answer_customer_tagged",
+    "agent": "grounded_answer_agent_tagged",
+}
 
 
 class InvalidGroundedReplyError(ValueError):
@@ -69,6 +79,7 @@ class Source:
     doc_id: str
     title: str
     section: str
+    trust: str = "store"
 
 
 @dataclass(frozen=True)
@@ -95,7 +106,7 @@ class GroundedResult:
 
 def number_sources(chunks: Sequence[RetrievedChunk]) -> list[Source]:
     """Sources ``[1]..[n]`` in context order."""
-    return [Source(n, c.doc_id, c.title, c.section) for n, c in enumerate(chunks, start=1)]
+    return [Source(n, c.doc_id, c.title, c.section, c.trust) for n, c in enumerate(chunks, start=1)]
 
 
 class SourceText(Protocol):
@@ -118,14 +129,31 @@ def format_sources(chunks: Sequence[SourceText]) -> str:
     return "\n\n".join(f"[{n}] {c.title}\n{c.text}" for n, c in enumerate(chunks, start=1))
 
 
-def prompt_for_role(prompts: dict[str, str], role: Role) -> str:
-    """The grounded template for ``role`` (from the user's profile)."""
-    return prompts[PROMPT_KEYS[role]]
+def _neutralise_tags(text: str) -> str:
+    """Stop a source from opening or closing a ``<source>`` block of its own."""
+    return text.replace("<source", "&lt;source").replace("</source", "&lt;/source")
 
 
-def build_grounded_prompt(template: str, question: str, chunks: Sequence[RetrievedChunk]) -> str:
-    """Fill a grounded template with the numbered sources and the question."""
-    return template.format(n=len(chunks), sources=format_sources(chunks), question=question)
+def format_tagged_sources(chunks: Sequence[RetrievedChunk]) -> str:
+    """Layer 2: each source in a ``<source>`` block with its number, title and trust."""
+    return "\n\n".join(
+        f'<source id="{n}" title="{_neutralise_tags(c.title)}" trust="{c.trust}">\n'
+        f"{_neutralise_tags(c.text)}\n</source>"
+        for n, c in enumerate(chunks, start=1)
+    )
+
+
+def prompt_for_role(prompts: dict[str, str], role: Role, tagged: bool = False) -> str:
+    """The grounded template for ``role`` (from the user's profile); ``tagged``: layer 2."""
+    return prompts[(TAGGED_PROMPT_KEYS if tagged else PROMPT_KEYS)[role]]
+
+
+def build_grounded_prompt(
+    template: str, question: str, chunks: Sequence[RetrievedChunk], tagged: bool = False
+) -> str:
+    """Fill a grounded template with the sources (numbered or tagged) and the question."""
+    sources = format_tagged_sources(chunks) if tagged else format_sources(chunks)
+    return template.format(n=len(chunks), sources=sources, question=question)
 
 
 def cited_numbers(reply: GroundedReply) -> tuple[int, ...]:
@@ -174,27 +202,36 @@ class GroundedGenerator:
         complete: Completer,
         prompts: dict[str, str],
         max_attempts: int = 2,
+        tagged: bool = False,
     ) -> None:
-        """Use ``complete`` for LLM calls and the grounded templates in ``prompts``."""
+        """Use ``complete`` for LLM calls and the grounded templates in ``prompts``;
+        ``tagged`` selects the layer-2 prompts (v7)."""
         if max_attempts < 1:
             raise ValueError("max_attempts must be at least 1")
         self._complete = complete
         self._prompts = prompts
         self._max_attempts = max_attempts
+        self.tagged = tagged
 
     def prompt(self, question: str, chunks: Sequence[RetrievedChunk], role: Role) -> str:
         """The first-attempt prompt (shown by tests and tools)."""
-        return build_grounded_prompt(prompt_for_role(self._prompts, role), question, chunks)
+        template = prompt_for_role(self._prompts, role, self.tagged)
+        return build_grounded_prompt(template, question, chunks, self.tagged)
 
     def generate(
-        self, question: str, chunks: Sequence[RetrievedChunk], role: Role
+        self,
+        question: str,
+        chunks: Sequence[RetrievedChunk],
+        role: Role,
+        note: str | None = None,
     ) -> GroundedResult:
         """Answer ``question`` from ``chunks`` for an asker with ``role``.
 
+        ``note`` is appended to the prompt (the output guard's regeneration, Session 9).
         Never raises on invalid model output: after ``max_attempts`` invalid replies the
         result is "not found" with the last error. Rate-limit and network errors still raise.
         """
-        base = self.prompt(question, chunks, role)
+        base = self.prompt(question, chunks, role) + (note or "")
         prompt, error = base, None
         for attempt in range(1, self._max_attempts + 1):
             try:

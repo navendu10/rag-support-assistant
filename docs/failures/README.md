@@ -12,7 +12,8 @@ failure, and an honest account of what did and did not reproduce.
 [03-reranking.md](03-reranking.md) (stage v3),
 [04-query-and-region.md](04-query-and-region.md) (stages v4a and v4) and
 [05-access-control.md](05-access-control.md) (stage v5) and
-[06-grounding-and-handoff.md](06-grounding-and-handoff.md) (stages v6a and v6).
+[06-grounding-and-handoff.md](06-grounding-and-handoff.md) (stages v6a and v6) and
+[07-prompt-injection.md](07-prompt-injection.md) (stage v7). All seven are fixed.
 
 | # | Failure | Example symptom | Planned fix | Page |
 |---|---------|-----------------|-------------|------|
@@ -22,7 +23,7 @@ failure, and an honest account of what did and did not reproduce.
 | 4 | Vague queries and wrong region | "How long is the warranty?" answered with the US policy for a UK customer | Query rewriting with chat history (small model, catalogue), region filter from the user profile | [04-query-and-region](04-query-and-region.md) |
 | 5 | Internal-document leaks | Staff-only margin notes quoted to a customer | Per-audience collections and Weaviate RBAC: the customer key can't read internal documents | [05-access-control](05-access-control.md) |
 | 6 | Hallucination | "We don't price-match" when no document mentions price matching | Role-aware grounded prompts with numbered sources and checked citations; a LangGraph corrective flow that retries weak retrieval and hands unanswered questions to a person | [06-grounding-and-handoff](06-grounding-and-handoff.md) |
-| 7 | Prompt injection | A document or message says "ignore previous instructions" | Context sanitising, instruction hierarchy, output checks | _pending_ |
+| 7 | Prompt injection | A hidden listing line makes the assistant promise a "lifetime warranty" | Four layers: sanitised third-party ingestion with trust levels, tagged "sources are data" prompts, an output guard on figures and promises, no secrets in the data; measured by an 18-attack red team | [07-prompt-injection](07-prompt-injection.md) |
 
 **Stale documents** (an outdated UK returns policy beside the current one) are tracked
 under their own golden tag, `stale`. The region filter can't fix them (the outdated

@@ -18,6 +18,7 @@ from markdownify import markdownify
 
 from rag_assistant.ingestion.loaders import strip_front_matter
 from rag_assistant.schemas import DocMetadata
+from rag_assistant.security.sanitize import sanitize_html, trust_for
 
 PAGE_MARKER = re.compile(r"^<!-- page:(\d+) -->$")
 _BOLD = re.compile(r"\*\*")
@@ -54,9 +55,7 @@ def parse_pdf(path: Path) -> str:
 
 def parse_html(path: Path) -> str:
     """HTML to Markdown with ATX (``#``) headings; hidden elements are kept."""
-    markdown = markdownify(path.read_text(encoding="utf-8"), heading_style="ATX")
-    lines = [line.rstrip() for line in markdown.splitlines()]
-    return _BLANK_RUNS.sub("\n\n", "\n".join(lines)).strip()
+    return html_to_markdown(path.read_text(encoding="utf-8"))
 
 
 def parse_markdown(path: Path) -> str:
@@ -67,9 +66,22 @@ def parse_markdown(path: Path) -> str:
 PARSERS = {".pdf": parse_pdf, ".html": parse_html, ".md": parse_markdown}
 
 
-def parse_structured(meta: DocMetadata, generated_dir: Path) -> str:
-    """Parse the document described by ``meta`` into Markdown."""
+def html_to_markdown(html: str) -> str:
+    """HTML text to Markdown with ATX (``#``) headings."""
+    markdown = markdownify(html, heading_style="ATX")
+    lines = [line.rstrip() for line in markdown.splitlines()]
+    return _BLANK_RUNS.sub("\n\n", "\n".join(lines)).strip()
+
+
+def parse_structured(meta: DocMetadata, generated_dir: Path, sanitize: bool = False) -> str:
+    """Parse the document described by ``meta`` into Markdown.
+
+    ``sanitize`` (Session 9, layer 1): third-party HTML loses its hidden content before
+    conversion (``security/sanitize.py``). Store documents are never changed.
+    """
     path = generated_dir / meta.source_path
+    if sanitize and path.suffix.lower() == ".html" and trust_for(meta.doc_type) != "store":
+        return html_to_markdown(sanitize_html(path.read_text(encoding="utf-8")))
     try:
         parser = PARSERS[path.suffix.lower()]
     except KeyError:

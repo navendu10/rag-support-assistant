@@ -98,6 +98,10 @@ def path_record(answer: Answer) -> PathRecord | None:
         ticket_created=p.ticket_id is not None,
         retry_trigger=p.retry_trigger,
         retry_changed_outcome=p.retry_changed_outcome,
+        generations=p.generations,
+        guard_triggered=p.guard_triggered,
+        guard_regenerated=p.guard_regenerated,
+        guard_problems=list(p.guard_problems),
     )
 
 
@@ -296,6 +300,7 @@ def run_evaluation(
             if stage.grounding
             else {}
         ),
+        **({"injection": stage.injection.model_dump()} if stage.injection is not None else {}),
         **(
             {
                 "corrective_flow": "LangGraph: grade, broader retry, answer or handoff",

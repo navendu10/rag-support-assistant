@@ -23,6 +23,11 @@ From Session 8:
   and structured output (``generation/grounded.py``) replaces the naive prompt.
 - ``corrective_flow`` (v6): ``answer`` runs the LangGraph flow in ``graph/corrective.py``
   (grade, one broader retry, then answer or hand off to a human).
+
+From Session 9, ``injection_guard`` (v7) adds layered injection defences: sanitised
+collections (layer 1, at ingestion), tagged "sources are data" prompts (layer 2) and the
+output guard (layer 3). A ``redteam_only`` stage (v7raw, the unsanitised index) opens only
+for ``scripts/redteam.py``.
 """
 
 from __future__ import annotations
@@ -63,8 +68,9 @@ from rag_assistant.retrieval.rerank import Reranker
 from rag_assistant.retrieval.result import Retrieval
 from rag_assistant.retrieval.vector import RetrievedChunk
 from rag_assistant.schemas import Product, Turn, User, load_catalogue
+from rag_assistant.security.output_guard import OutputGuard
 
-__all__ = ["Answer", "Pipeline", "Retrieval", "make_rewriter"]
+__all__ = ["Answer", "Pipeline", "Retrieval", "make_guard", "make_rewriter"]
 
 
 @dataclass(frozen=True)
@@ -119,6 +125,8 @@ class Pipeline:
         rewrite_model: str | None = None,
         tickets: TicketStore | None = None,
         prompts: dict[str, str] | None = None,
+        guard: OutputGuard | None = None,
+        max_generations: int = 3,
     ) -> None:
         """Assemble a pipeline from already-built parts.
 
@@ -127,6 +135,8 @@ class Pipeline:
         ``stage.access_control``, and ``generator`` a ``GroundedGenerator`` exactly when
         ``stage.grounding``. ``corrective_flow`` stages need ``tickets`` (where customer
         handoffs go). ``prompts`` holds the fixed messages (default: configs/prompts.yaml).
+        ``guard`` is passed exactly when the stage's ``injection.output_guard`` is on, and
+        the generator is tagged exactly when ``injection.tagged_sources`` is.
         The model names say whose throttle waits to exclude.
         """
         stage.ensure_supported()
@@ -140,6 +150,12 @@ class Pipeline:
             raise ValueError("pass a GroundedGenerator exactly when the stage has grounding: true")
         if stage.corrective_flow and tickets is None:
             raise ValueError("a corrective_flow stage needs a ticket store")
+        layers = stage.injection
+        if (layers is not None and layers.output_guard) != (guard is not None):
+            raise ValueError("pass a guard exactly when the stage has injection.output_guard")
+        tagged = isinstance(generator, GroundedGenerator) and generator.tagged
+        if (layers is not None and layers.tagged_sources) != tagged:
+            raise ValueError("use a tagged generator exactly when injection.tagged_sources")
         self.stage = stage
         self._retriever = retriever
         self._generator = generator
@@ -159,6 +175,8 @@ class Pipeline:
                 int(stage.retry_fetch_k or 0),
                 int(stage.retry_top_k or 0),
                 stage.top_k,
+                guard,
+                max_generations,
             )
 
     @property
@@ -179,14 +197,21 @@ class Pipeline:
         stage: str | StageConfig,
         settings: Settings | None = None,
         tickets: TicketStore | None = None,
+        allow_redteam: bool = False,
     ) -> Pipeline:
         """Build the pipeline for a stage name (or config) using the real services.
 
         ``tickets`` defaults to ``handoff.tickets_path`` (corrective-flow stages only);
-        evaluation passes an in-memory store.
+        evaluation passes an in-memory store. A ``redteam_only`` stage needs
+        ``allow_redteam`` (only ``scripts/redteam.py`` sets it).
         """
         settings = settings or get_settings()
         stage = load_stage(stage) if isinstance(stage, str) else stage
+        if stage.redteam_only and not allow_redteam:
+            raise ValueError(
+                f"stage {stage.name} is the unsanitised red-team index; only "
+                "scripts/redteam.py may use it"
+            )
         embedder = Embedder(settings.embedding)
         manifest = settings.paths.resolve(settings.paths.generated_dir) / "manifest.json"
         client = None
@@ -209,7 +234,10 @@ class Pipeline:
         generator: NaiveGenerator | GroundedGenerator
         if stage.grounding:
             generator = GroundedGenerator(
-                grounded.json_completer(model), prompts, settings.grounding.max_attempts
+                grounded.json_completer(model),
+                prompts,
+                settings.grounding.max_attempts,
+                tagged=stage.injection is not None and stage.injection.tagged_sources,
             )
         else:
             generator = NaiveGenerator(model, prompts["naive_answer"])
@@ -220,6 +248,7 @@ class Pipeline:
             reranker = Reranker(str(stage.rerank_model))
             reranker.warm_up()  # load once, so per-question rerank timings exclude start-up
         rewriter = make_rewriter(settings) if stage.query_rewrite else None
+        guard, max_generations = make_guard(stage, settings)
         return cls(
             stage,
             retriever,
@@ -231,6 +260,8 @@ class Pipeline:
             settings.llm.small_model,
             tickets,
             prompts,
+            guard,
+            max_generations,
         )
 
     def __enter__(self) -> Pipeline:
@@ -350,13 +381,20 @@ class Pipeline:
         return result, timings
 
     def generate_grounded(
-        self, question: str, chunks: Sequence[RetrievedChunk], user: User
+        self,
+        question: str,
+        chunks: Sequence[RetrievedChunk],
+        user: User,
+        note: str | None = None,
     ) -> tuple[GroundedResult, dict[str, float]]:
-        """The grounded answer for ``user``'s role, and its timings (grounding stages)."""
+        """The grounded answer for ``user``'s role, and its timings (grounding stages).
+
+        ``note`` is the output guard's regeneration note (Session 9).
+        """
         if not isinstance(self._generator, GroundedGenerator):
             raise ValueError(f"stage {self.stage.name} has grounding: false")
         with timed_calls(self._generation_model) as gen:
-            result = self._generator.generate(question, chunks, user.role)
+            result = self._generator.generate(question, chunks, user.role, note)
         return result, _generation_timings(gen)
 
     def _generate(
@@ -483,3 +521,18 @@ def make_rewriter(settings: Settings) -> QueryRewriter:
         settings.query.history_turns,
         settings.query.max_attempts,
     )
+
+
+def make_guard(stage: StageConfig, settings: Settings) -> tuple[OutputGuard | None, int]:
+    """Layer 3 for stages with ``injection.output_guard``, and the generation cap."""
+    injection = settings.injection
+    if stage.injection is None or injection is None:
+        if stage.injection is not None:
+            raise ValueError(f"stage {stage.name} has injection layers; configs need injection:")
+        return None, 3
+    if not stage.injection.output_guard:
+        return None, injection.max_generations
+    guard = OutputGuard(
+        injection.claim_phrases, injection.attribution_terms, injection.voltcart_policy_terms
+    )
+    return guard, injection.max_generations

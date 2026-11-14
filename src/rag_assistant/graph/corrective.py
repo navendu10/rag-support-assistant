@@ -27,6 +27,16 @@
 - The score is never a reason to hand off on its own: handing off on it would refuse
   answerable questions whose best chunk scores low (7 of 39 in v3 below 0.01).
 
+From Session 9 (v7, ``output_guard``), an answer that passes the check also goes through
+the **output guard** (``security/output_guard.py``): numbers and promises must come from a
+cited store source (or, for a seller's own product facts, an attributed listing). A
+failed guard **regenerates** once on the same context with a note listing the problems;
+if that fails too, the question is handed off (reason ``output_guard``). The guard's
+regeneration is separate from the retrieval retry, and a hard cap
+(``injection.max_generations``, 3) limits answer generations per question across every
+retry, whatever the path. A model-written not-found text shown in a handoff is guarded
+too; if it fails, only the fixed message is shown.
+
 The nodes are small functions over ``FlowState``; the steps that touch services
 (rewriting, retrieval, generation, the catalogue) come from ``FlowSteps``, which the
 pipeline provides and unit tests fake.
@@ -45,6 +55,7 @@ from rag_assistant.graph.handoff import TicketStore, handoff_reason, handoff_tex
 from rag_assistant.query.rewrite import RewriteResult
 from rag_assistant.retrieval.result import Retrieval
 from rag_assistant.schemas import Product, Turn, User
+from rag_assistant.security.output_guard import OutputGuard
 
 Grade = Literal["pass", "low"]
 RetryTrigger = Literal["low_score", "not_found", "none"]
@@ -80,9 +91,9 @@ class FlowSteps(Protocol):
         """Search, rerank and cut to ``k``."""
 
     def generate_grounded(
-        self, question: str, chunks: Sequence, user: User
+        self, question: str, chunks: Sequence, user: User, note: str | None = None
     ) -> tuple[GroundedResult, dict[str, float]]:
-        """The grounded answer and its timings."""
+        """The grounded answer and its timings (``note``: the guard's regeneration)."""
 
 
 class FlowState(TypedDict, total=False):
@@ -112,6 +123,11 @@ class FlowState(TypedDict, total=False):
     text: str
     model_text: str | None
     timings: dict[str, float]
+    generations: int
+    guard_used: bool
+    guard_passed: bool
+    guard_problems: list[str]
+    guard_note: str | None
 
 
 @dataclass(frozen=True)
@@ -132,6 +148,10 @@ class FlowPath:
     ticket_id: str | None = None
     retry_trigger: RetryTrigger = "none"
     retry_changed_outcome: bool | None = None
+    generations: int = 0
+    guard_triggered: bool = False
+    guard_regenerated: bool = False
+    guard_problems: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -173,8 +193,14 @@ class CorrectiveFlow:
         retry_fetch_k: int,
         retry_top_k: int,
         top_k: int,
+        guard: OutputGuard | None = None,
+        max_generations: int = 3,
     ) -> None:
-        """Build and compile the graph over ``steps``."""
+        """Build and compile the graph over ``steps``; ``guard`` turns on layer 3."""
+        if max_generations < 1:
+            raise ValueError("max_generations must be at least 1")
+        self._guard = guard
+        self._max_generations = max_generations
         self._steps = steps
         self._tickets = tickets
         self._prompts = prompts
@@ -192,6 +218,8 @@ class CorrectiveFlow:
         g.add_node("grade", self.grade)
         g.add_node("retry", self.retry)
         g.add_node("generate", self.generate)
+        g.add_node("guard", self.guard)
+        g.add_node("regenerate", self.regenerate)
         g.add_node("answer", self.answer)
         g.add_node("handoff", self.handoff)
         g.add_edge(START, "rewrite")
@@ -199,7 +227,9 @@ class CorrectiveFlow:
         g.add_edge("retrieve", "grade")
         g.add_conditional_edges("grade", self.after_grade, ["retry", "generate"])
         g.add_conditional_edges("retry", self.after_retry, ["grade", "generate"])
-        g.add_conditional_edges("generate", self.check, ["answer", "retry", "handoff"])
+        g.add_conditional_edges("generate", self.check, ["answer", "guard", "retry", "handoff"])
+        g.add_conditional_edges("guard", self.after_guard, ["answer", "regenerate", "handoff"])
+        g.add_edge("regenerate", "generate")
         g.add_edge("answer", END)
         g.add_edge("handoff", END)
         return g
@@ -218,6 +248,11 @@ class CorrectiveFlow:
                 "retry_used": False,
                 "retry_trigger": "none",
                 "timings": {},
+                "generations": 0,
+                "guard_used": False,
+                "guard_passed": True,
+                "guard_problems": [],
+                "guard_note": None,
             }
         )
         path = FlowPath(
@@ -230,6 +265,10 @@ class CorrectiveFlow:
             ticket_id=s.get("ticket_id"),
             retry_trigger=s["retry_trigger"],
             retry_changed_outcome=s.get("retry_changed_outcome"),
+            generations=s["generations"],
+            guard_triggered=bool(s["guard_problems"]),
+            guard_regenerated=s["guard_used"],
+            guard_problems=tuple(s["guard_problems"]),
         )
         return FlowOutcome(
             text=s["text"],
@@ -335,16 +374,57 @@ class CorrectiveFlow:
     def generate(self, state: FlowState) -> FlowState:
         """The grounded answer from the current context (``top_k``, or ``retry_top_k``)."""
         context = state["retrieval"].ranked[: state["context_k"]]
-        result, timings = self._steps.generate_grounded(state["standalone"], context, state["user"])
-        if state["retry_trigger"] == "not_found":  # the second generation: regenerate_*
+        result, timings = self._steps.generate_grounded(
+            state["standalone"], context, state["user"], state["guard_note"]
+        )
+        if state["generations"] > 0:  # a second or third generation: regenerate_*
             timings = {k.replace("generate", "regenerate"): v for k, v in timings.items()}
-        return {"grounded": result, "timings": {**state["timings"], **timings}}
+        return {
+            "grounded": result,
+            "generations": state["generations"] + 1,
+            "timings": {**state["timings"], **timings},
+        }
+
+    def _can_generate_again(self, state: FlowState) -> bool:
+        """The hard cap: fewer than ``max_generations`` answers generated so far."""
+        return state["generations"] < self._max_generations
 
     def check(self, state: FlowState) -> str:
-        """Answer if found and valid; else retry once (budget left) or hand off."""
+        """Found and valid: answer (or guard it). Else retry once (budget and cap left) or
+        hand off."""
         if handoff_reason(state["grounded"]) is None:
+            return "guard" if self._guard is not None else "answer"
+        if not state["retry_used"] and self._can_generate_again(state):
+            return "retry"
+        return "handoff"
+
+    def guard(self, state: FlowState) -> FlowState:
+        """Layer 3: check the answer's numbers and promises against its cited sources."""
+        if self._guard is None:
+            raise RuntimeError("the guard node runs only when a guard is configured")
+        context = state["retrieval"].ranked[: state["context_k"]]
+        result = state["grounded"]
+        verdict = self._guard.check(result.answer, result.citations, context)
+        return {
+            "guard_passed": verdict.passed,
+            "guard_problems": [*state["guard_problems"], *verdict.problems],
+        }
+
+    def after_guard(self, state: FlowState) -> str:
+        """Passed: answer. Failed: regenerate once (if the cap allows), else hand off."""
+        if state["guard_passed"]:
             return "answer"
-        return "handoff" if state["retry_used"] else "retry"
+        if not state["guard_used"] and self._can_generate_again(state):
+            return "regenerate"
+        return "handoff"
+
+    def regenerate(self, state: FlowState) -> FlowState:
+        """Spend the guard's one regeneration: the next answer gets the problems as a note."""
+        problems = "; ".join(state["guard_problems"][-3:])
+        return {
+            "guard_used": True,
+            "guard_note": self._prompts["guard_retry_note"].format(problems=problems),
+        }
 
     def answer(self, state: FlowState) -> FlowState:
         """The grounded answer as it is."""
@@ -362,8 +442,10 @@ class CorrectiveFlow:
         """Customers: polite message and a ticket. Agents: not found, closest sources."""
         user, result = state["user"], state["grounded"]
         context = state["retrieval"].ranked[: state["context_k"]]
-        reason = handoff_reason(result) or "not_found"
-        text, model_text = handoff_text(user, result, context, self._prompts)
+        guard_failed = handoff_reason(result) is None and not state["guard_passed"]
+        reason = "output_guard" if guard_failed else handoff_reason(result) or "not_found"
+        show = not guard_failed and self._model_text_passes(result, context)
+        text, model_text = handoff_text(user, result, context, self._prompts, show)
         ticket_id = None
         if user.role == "customer":
             ticket = new_ticket(user, state["question"], state["standalone"], reason, context)
@@ -376,3 +458,9 @@ class CorrectiveFlow:
             "ticket_id": ticket_id,
             "retry_changed_outcome": False if state["retry_trigger"] == "not_found" else None,
         }
+
+    def _model_text_passes(self, result: GroundedResult, context: Sequence) -> bool:
+        """Without a guard, always; with one, the shown not-found text must pass it too."""
+        if self._guard is None:
+            return True
+        return self._guard.check(result.answer, result.citations, context).passed
