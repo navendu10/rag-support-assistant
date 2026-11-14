@@ -14,6 +14,7 @@ from weaviate.collections import Collection
 from weaviate.collections.classes.filters import _Filters
 
 from rag_assistant.embeddings import Embedder
+from rag_assistant.security.sanitize import trust_for
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class RetrievedChunk:
     page: int | None = None
     rerank_logit: float | None = None
     rerank_score: float | None = None
+    trust: str = "store"
 
 
 class VectorRetriever:
@@ -77,7 +79,11 @@ def _or_one(distance: float | None) -> float:
 
 
 def to_chunk(props: dict, score: float) -> RetrievedChunk:
-    """Convert a Weaviate object's properties and score into a ``RetrievedChunk``."""
+    """Convert a Weaviate object's properties and score into a ``RetrievedChunk``.
+
+    Collections built before Session 9 have no ``trust`` property; it is then derived
+    from ``doc_type``, exactly as ingestion would set it.
+    """
     return RetrievedChunk(
         text=str(props["text"]),
         doc_id=str(props["doc_id"]),
@@ -88,4 +94,5 @@ def to_chunk(props: dict, score: float) -> RetrievedChunk:
         score=score,
         section=str(props.get("section") or ""),
         page=int(props["page"]) if props.get("page") is not None else None,
+        trust=str(props.get("trust") or trust_for(props.get("doc_type"))),
     )

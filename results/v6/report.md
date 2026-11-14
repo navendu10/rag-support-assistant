@@ -18,7 +18,8 @@
 | Answer leaks, string check (leak items: forbidden phrase) | 0/3 (0%) | lower |
 | Answer leaks, LLM judge (leak items: reveals internal info) | 0/3 (0%) | lower |
 | Injection failures (injection items) | 0/3 (0%) | lower |
-| Handoffs (expect_handoff items: judge HANDOFF) | 7/7 (100%) | higher |
+| Handoffs by route (expect_handoff items: the flow handed off; v6 on) | 7/7 (100%) | higher |
+| Handoffs, judge's view (expect_handoff items: judge HANDOFF) | 7/7 (100%) | higher |
 | Answers containing a must_not_contain phrase | 3/35 (9%) | lower |
 | Agent internal access (agent items on playbooks: internal doc in context AND correct) | 2/4 (50%) | higher |
 | Agent internal retrieval (agent items on playbooks: internal doc in top 5) | 4/4 (100%) | higher |
@@ -33,6 +34,7 @@
 | Corrective flow: handoffs (all questions) | 11/50 (22%) | n/a |
 | Corrective flow: retries triggered by a low score | 7/50 (14%) | n/a |
 | Corrective flow: retries triggered by a not-found answer | 5/50 (10%) | n/a |
+| Output guard: handoffs after a second rejection | 0/50 (0%) | lower |
 | Corrective flow: not-found retries that ended in a CORRECT answer | 1/5 (20%) | higher |
 | Candidate recall (any expected doc among the reranker's fetch_k inputs) | 45/45 (100%) | higher |
 | Rewrite fallbacks (invalid output twice: raw message used) | 0/50 (0%) | lower |
@@ -50,18 +52,18 @@
 
 ## By failure tag
 
-| Tag | n | Recall@5 | Hit@1 | MRR | Correct | Retrieval leaks | Forbidden phrase | Handoff |
-|---|---|---|---|---|---|---|---|---|
-| chunking | 4 | 4/4 (100%) | 2/4 (50%) | 0.75 | 2/4 (50%) | 0/4 (0%) | 1/4 (25%) | n/a |
-| product_code | 8 | 8/8 (100%) | 8/8 (100%) | 1.00 | 8/8 (100%) | 0/8 (0%) | 0/7 (0%) | n/a |
-| ranking | 3 | 1/3 (33%) | 0/3 (0%) | 0.08 | 1/3 (33%) | 0/3 (0%) | 0/3 (0%) | n/a |
-| query_region | 7 | 6/7 (86%) | 3/7 (43%) | 0.64 | 4/7 (57%) | 0/7 (0%) | 1/7 (14%) | n/a |
-| stale | 2 | 2/2 (100%) | 0/2 (0%) | 0.50 | 2/2 (100%) | 0/2 (0%) | 0/2 (0%) | n/a |
-| leak | 4 | 3/3 (100%) | 3/3 (100%) | 1.00 | 3/4 (75%) | 0/3 (0%) | 0/3 (0%) | 3/3 (100%) |
-| hallucination | 4 | 1/1 (100%) | 1/1 (100%) | 1.00 | 3/4 (75%) | 0/4 (0%) | 0/4 (0%) | 4/4 (100%) |
-| injection | 3 | 2/2 (100%) | 2/2 (100%) | 1.00 | 3/3 (100%) | 0/3 (0%) | 0/3 (0%) | n/a |
-| normal | 12 | 12/12 (100%) | 12/12 (100%) | 1.00 | 11/12 (92%) | 0/12 (0%) | 1/2 (50%) | n/a |
-| agent_access | 3 | 3/3 (100%) | 2/3 (67%) | 0.75 | 2/3 (67%) | n/a | n/a | n/a |
+| Tag | n | Recall@5 | Hit@1 | MRR | Correct | Retrieval leaks | Forbidden phrase | Handoff (route) | Handoff (judge) |
+|---|---|---|---|---|---|---|---|---|---|
+| chunking | 4 | 4/4 (100%) | 2/4 (50%) | 0.75 | 2/4 (50%) | 0/4 (0%) | 1/4 (25%) | n/a | n/a |
+| product_code | 8 | 8/8 (100%) | 8/8 (100%) | 1.00 | 8/8 (100%) | 0/8 (0%) | 0/7 (0%) | n/a | n/a |
+| ranking | 3 | 1/3 (33%) | 0/3 (0%) | 0.08 | 1/3 (33%) | 0/3 (0%) | 0/3 (0%) | n/a | n/a |
+| query_region | 7 | 6/7 (86%) | 3/7 (43%) | 0.64 | 4/7 (57%) | 0/7 (0%) | 1/7 (14%) | n/a | n/a |
+| stale | 2 | 2/2 (100%) | 0/2 (0%) | 0.50 | 2/2 (100%) | 0/2 (0%) | 0/2 (0%) | n/a | n/a |
+| leak | 4 | 3/3 (100%) | 3/3 (100%) | 1.00 | 3/4 (75%) | 0/3 (0%) | 0/3 (0%) | 3/3 (100%) | 3/3 (100%) |
+| hallucination | 4 | 1/1 (100%) | 1/1 (100%) | 1.00 | 3/4 (75%) | 0/4 (0%) | 0/4 (0%) | 4/4 (100%) | 4/4 (100%) |
+| injection | 3 | 2/2 (100%) | 2/2 (100%) | 1.00 | 3/3 (100%) | 0/3 (0%) | 0/3 (0%) | n/a | n/a |
+| normal | 12 | 12/12 (100%) | 12/12 (100%) | 1.00 | 11/12 (92%) | 0/12 (0%) | 1/2 (50%) | n/a | n/a |
+| agent_access | 3 | 3/3 (100%) | 2/3 (67%) | 0.75 | 2/3 (67%) | n/a | n/a | n/a | n/a |
 
 ## Query rewrites flagged or fallen back
 

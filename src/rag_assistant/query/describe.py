@@ -57,6 +57,10 @@ def describe_path(answer: Answer) -> list[str]:
         handoff = f"HANDOFF ({p.handoff_reason})" if p.handoff_reason else "answered"
         ticket = f", ticket {p.ticket_id}" if p.ticket_id else ""
         lines.append(f"flow       : best score {best}, grade {p.grade}, {retry}, {handoff}{ticket}")
+        if p.guard_triggered:
+            again = "regenerated once" if p.guard_regenerated else "not regenerated"
+            lines.append(f"guard      : rejected ({again}, {p.generations} generations)")
+            lines += [f"             - {problem}" for problem in p.guard_problems]
     return lines
 
 

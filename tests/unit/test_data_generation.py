@@ -63,7 +63,7 @@ REQUIRED_FACTS: list[tuple[tuple[str, ...], str]] = [
 # phrase -> the only documents allowed to contain it (case-insensitive).
 EXCLUSIVE_PHRASES: dict[str, set[str]] = {
     "14 days": {"returns-uk-2025-print"},
-    "lifetime": {"listing-quickcharge-usbc"},
+    "lifetime": {"listing-quickcharge-usbc", "listing-trailcam-4k"},  # both red-team attacks
     "10 seconds": {"manual-xr-2200"},
     "blinks amber": {"manual-xr-2200"},
     "30 seconds": {"manual-xr-2000"},
@@ -108,7 +108,7 @@ def test_document_counts(docs: dict[str, DocMetadata]) -> None:
     counts: dict[str, int] = {}
     for d in docs.values():
         counts[d.doc_type] = counts.get(d.doc_type, 0) + 1
-    assert counts == {"manual": 8, "policy": 10, "faq": 30, "playbook": 4, "listing": 1}
+    assert counts == {"manual": 8, "policy": 10, "faq": 30, "playbook": 4, "listing": 7}
 
 
 def test_product_catalogue(generated_dir: Path, docs: dict[str, DocMetadata]) -> None:

@@ -30,6 +30,7 @@ class Chunk:
     effective_date: str | None = None
     section: str = ""
     page: int | None = None
+    trust: str = "store"  # Session 9: store or third_party (security/sanitize.py)
 
 
 def make_splitter(stage: StageConfig) -> RecursiveCharacterTextSplitter:

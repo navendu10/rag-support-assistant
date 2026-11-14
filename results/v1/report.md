@@ -18,7 +18,8 @@
 | Answer leaks, string check (leak items: forbidden phrase) | 0/3 (0%) | lower |
 | Answer leaks, LLM judge (leak items: reveals internal info) | 3/3 (100%) | lower |
 | Injection failures (injection items) | 0/3 (0%) | lower |
-| Handoffs (expect_handoff items: judge HANDOFF) | 1/7 (14%) | higher |
+| Handoffs by route (expect_handoff items: the flow handed off; v6 on) | n/a | higher |
+| Handoffs, judge's view (expect_handoff items: judge HANDOFF) | 1/7 (14%) | higher |
 | Answers containing a must_not_contain phrase | 4/35 (11%) | lower |
 | Agent internal access (agent items on playbooks: internal doc in context AND correct) | 1/4 (25%) | higher |
 | Agent internal retrieval (agent items on playbooks: internal doc in top 5) | 3/4 (75%) | higher |
@@ -32,18 +33,18 @@
 
 ## By failure tag
 
-| Tag | n | Recall@5 | Hit@1 | MRR | Correct | Retrieval leaks | Forbidden phrase | Handoff |
-|---|---|---|---|---|---|---|---|---|
-| chunking | 4 | 3/4 (75%) | 0/4 (0%) | 0.21 | 1/4 (25%) | 0/4 (0%) | 2/4 (50%) | n/a |
-| product_code | 8 | 8/8 (100%) | 7/8 (88%) | 0.94 | 8/8 (100%) | 0/8 (0%) | 0/7 (0%) | n/a |
-| ranking | 3 | 2/3 (67%) | 0/3 (0%) | 0.28 | 1/3 (33%) | 0/3 (0%) | 0/3 (0%) | n/a |
-| query_region | 7 | 4/7 (57%) | 2/7 (29%) | 0.41 | 1/7 (14%) | 0/7 (0%) | 1/7 (14%) | n/a |
-| stale | 2 | 2/2 (100%) | 0/2 (0%) | 0.42 | 1/2 (50%) | 0/2 (0%) | 0/2 (0%) | n/a |
-| leak | 4 | 3/3 (100%) | 1/3 (33%) | 0.56 | 1/4 (25%) | 3/3 (100%) | 0/3 (0%) | 1/3 (33%) |
-| hallucination | 4 | 1/1 (100%) | 0/1 (0%) | 0.50 | 3/4 (75%) | 0/4 (0%) | 0/4 (0%) | 0/4 (0%) |
-| injection | 3 | 2/2 (100%) | 2/2 (100%) | 1.00 | 3/3 (100%) | 1/3 (33%) | 0/3 (0%) | n/a |
-| normal | 12 | 11/12 (92%) | 11/12 (92%) | 0.92 | 9/12 (75%) | 0/12 (0%) | 1/2 (50%) | n/a |
-| agent_access | 3 | 2/3 (67%) | 1/3 (33%) | 0.42 | 1/3 (33%) | n/a | n/a | n/a |
+| Tag | n | Recall@5 | Hit@1 | MRR | Correct | Retrieval leaks | Forbidden phrase | Handoff (route) | Handoff (judge) |
+|---|---|---|---|---|---|---|---|---|---|
+| chunking | 4 | 3/4 (75%) | 0/4 (0%) | 0.21 | 1/4 (25%) | 0/4 (0%) | 2/4 (50%) | n/a | n/a |
+| product_code | 8 | 8/8 (100%) | 7/8 (88%) | 0.94 | 8/8 (100%) | 0/8 (0%) | 0/7 (0%) | n/a | n/a |
+| ranking | 3 | 2/3 (67%) | 0/3 (0%) | 0.28 | 1/3 (33%) | 0/3 (0%) | 0/3 (0%) | n/a | n/a |
+| query_region | 7 | 4/7 (57%) | 2/7 (29%) | 0.41 | 1/7 (14%) | 0/7 (0%) | 1/7 (14%) | n/a | n/a |
+| stale | 2 | 2/2 (100%) | 0/2 (0%) | 0.42 | 1/2 (50%) | 0/2 (0%) | 0/2 (0%) | n/a | n/a |
+| leak | 4 | 3/3 (100%) | 1/3 (33%) | 0.56 | 1/4 (25%) | 3/3 (100%) | 0/3 (0%) | n/a | 1/3 (33%) |
+| hallucination | 4 | 1/1 (100%) | 0/1 (0%) | 0.50 | 3/4 (75%) | 0/4 (0%) | 0/4 (0%) | n/a | 0/4 (0%) |
+| injection | 3 | 2/2 (100%) | 2/2 (100%) | 1.00 | 3/3 (100%) | 1/3 (33%) | 0/3 (0%) | n/a | n/a |
+| normal | 12 | 11/12 (92%) | 11/12 (92%) | 0.92 | 9/12 (75%) | 0/12 (0%) | 1/2 (50%) | n/a | n/a |
+| agent_access | 3 | 2/3 (67%) | 1/3 (33%) | 0.42 | 1/3 (33%) | n/a | n/a | n/a | n/a |
 
 ## False handoffs (answerable questions handed off)
 

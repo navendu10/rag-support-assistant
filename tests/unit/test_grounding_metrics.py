@@ -228,3 +228,14 @@ def test_rescore_reads_only_the_first_recall_k_chunks() -> None:
     user = User(user_id="cust_uk_01", name="O", role="customer", region="UK")
     assert rescore_row(row, item, user, recall_k=5).checks.recall_hit is False
     assert rescore_row(row, item, user, recall_k=8).checks.recall_hit is True
+
+
+def test_handoffs_by_route_are_the_main_metric_and_the_judge_is_secondary() -> None:
+    """Session 9: the flow's route decides a handoff; the judge's view is kept beside it.
+    g020 in v7 took the handoff route, but the judge read its text as an answer."""
+    routed = _row(id="g020", expect_handoff=True, path=_path("not_found"), handoff=ANSWERED)
+    answered = _row(id="g022", expect_handoff=True, path=_path(None), handoff=ANSWERED)
+    no_flow = _row(id="g023", expect_handoff=True, handoff=HANDOFF)  # before v6: n/a by route
+    s = summarise_rows([routed, answered, no_flow])
+    assert s["handoffs_route"] == {"count": 1, "total": 2}
+    assert s["handoffs"] == {"count": 1, "total": 3}

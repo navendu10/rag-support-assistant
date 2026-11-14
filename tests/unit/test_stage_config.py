@@ -43,25 +43,47 @@ def test_v0_loads_with_expected_switches() -> None:
     assert stage.collection_name == "Chunks_v0"
 
 
-OTHER_VALUES = {
-    "injection_guard": True,
-}
+def test_every_switch_is_implemented() -> None:
+    """Session 9 implemented the last switch (injection_guard): nothing raises any more."""
+    assert UNIMPLEMENTED_SWITCHES == {}
+    for name in ("v0", "v5", "v6", "v7", "v7raw"):
+        load_stage(name).ensure_supported()
 
 
-@pytest.mark.parametrize(("switch", "value"), OTHER_VALUES.items())
-def test_unimplemented_switch_raises_naming_session(
-    tmp_path: Path, switch: str, value: object
-) -> None:
-    """Any non-v0 value raises NotImplementedError that names the session adding it."""
-    name = _write_stage(tmp_path, name="probe", **{switch: value})
-    session = UNIMPLEMENTED_SWITCHES[switch][1]
-    with pytest.raises(NotImplementedError, match=rf"{switch}=.*Session {session}"):
-        load_stage(name, stages_dir=tmp_path)
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"injection_guard": False}, "set an injection: block exactly when injection_guard"),
+        ({"injection": None}, "set an injection: block exactly when injection_guard"),
+        ({"corrective_flow": False, "min_score": None, "retry_fetch_k": None,
+          "retry_top_k": None}, "injection_guard: true needs corrective_flow"),
+    ],
+)  # fmt: skip
+def test_injection_settings_are_validated(overrides: dict, message: str) -> None:
+    """The layers need injection_guard and the corrective flow (the guard routes through it)."""
+    with pytest.raises(ValidationError, match=message):
+        StageConfig.model_validate({**load_stage("v7").model_dump(), **overrides})
 
 
-def test_every_switch_has_a_session() -> None:
-    """The switch table covers exactly the toggles tested above."""
-    assert set(UNIMPLEMENTED_SWITCHES) == set(OTHER_VALUES)
+def test_v7_is_v6_plus_the_layers_and_v7raw_only_skips_sanitising() -> None:
+    """v7 = v6 + injection_guard (own collections); v7raw differs only in layer 1 and is
+    red-team only."""
+    v6, v7, raw = load_stage("v6"), load_stage("v7"), load_stage("v7raw")
+    meta = {"name", "description", "index", "injection_guard", "injection", "redteam_only"}
+
+    def body(stage: StageConfig) -> dict:
+        return {k: v for k, v in stage.model_dump().items() if k not in meta}
+
+    assert body(v7) == body(v6) == body(raw)
+    assert v7.injection is not None and raw.injection is not None
+    assert (v7.injection.sanitize_ingestion, v7.injection.tagged_sources) == (True, True)
+    assert v7.injection.output_guard and v7.sanitizes and not raw.sanitizes
+    assert raw.redteam_only and not v7.redteam_only
+    assert v7.audience_collections == {
+        "public": "Chunks_v7_public",
+        "internal": "Chunks_v7_internal",
+    }
+    assert raw.audience_collections["internal"] == "Chunks_v7raw_internal"
 
 
 V6 = load_stage("v6")

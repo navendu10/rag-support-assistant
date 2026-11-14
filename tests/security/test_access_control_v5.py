@@ -16,7 +16,7 @@ import pytest
 import weaviate
 from weaviate.exceptions import InsufficientPermissionsError
 
-from rag_assistant.config import Settings, load_settings, load_stage
+from rag_assistant.config import Settings, access_control_stages, load_settings, load_stage
 from rag_assistant.ingestion.store import open_client
 from rag_assistant.pipeline import Pipeline
 from rag_assistant.retrieval.access import key_for_role
@@ -90,8 +90,10 @@ def test_customer_query_on_internal_collection_is_refused(
 def test_customer_cannot_list_or_read_internal_config(
     customer_client: weaviate.WeaviateClient,
 ) -> None:
-    """Listing shows only the public collection; reading internal config is refused."""
-    assert sorted(customer_client.collections.list_all()) == [PUBLIC]
+    """Listing shows only public collections (v5's, v7's and v7raw's since Session 9);
+    reading internal config is refused."""
+    publics = sorted(s.audience_collections["public"] for s in access_control_stages())
+    assert sorted(customer_client.collections.list_all()) == publics
     assert read_config(customer_client, INTERNAL) == "refused"
     with pytest.raises(InsufficientPermissionsError):
         customer_client.collections.exists(INTERNAL)

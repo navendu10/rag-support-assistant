@@ -1,0 +1,38 @@
+# Stage v7raw: v7 WITHOUT layer 1, for red-team runs only (scripts/redteam.py).
+# The same documents ingested unsanitised into Chunks_v7raw_public and
+# Chunks_v7raw_internal (same roles), so layer 1 can be switched off at question time.
+# redteam_only: the normal pipeline and evaluate.py refuse it.
+name: v7raw
+description: v7 without layer 1 (the unsanitised index), red-team runs only
+chunking: structure
+chunk_size: 1200
+chunk_overlap: 150
+min_chunk_chars: 200
+search: hybrid
+hybrid:
+  alpha_strategy: dynamic
+  code_alpha: 0.25
+  default_alpha: 1.0
+  fusion: relative_score
+  query_properties: [text, title, product_code^2]
+rerank: true
+rerank_model: Xenova/ms-marco-MiniLM-L-6-v2
+fetch_k: 20
+min_score: 0.1           # retry trigger only (see v6.yaml)
+retry_fetch_k: 30        # the wider search's candidates (fetch_k: 20)
+retry_top_k: 8           # the wider search's context chunks (top_k: 4)
+rerank_fusion: blend
+rerank_blend_weight: 0.5
+query_rewrite: true
+use_history: true
+region_filter: true
+access_control: true
+grounding: true
+corrective_flow: true
+injection_guard: true    # v6: false
+top_k: 4
+injection:
+  sanitize_ingestion: false   # layer 1 (ingestion: decides this stage's collections)
+  tagged_sources: true       # layer 2: sources are data
+  output_guard: true         # layer 3: numbers and promises checked against store sources
+redteam_only: true

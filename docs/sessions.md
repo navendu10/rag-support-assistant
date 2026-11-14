@@ -516,3 +516,59 @@ rescued; target of at most 2 not met), expected handoffs stayed 7/7, and correct
 went 38 -> 39. Invented content by the judge went 1 -> 2, but both are judge mistakes
 (g012 stale policy, g018). Lesson: appending product names hurt the policy questions g011
 and g046. Issue #10 opened for g049's rewrite drift.
+
+## Session 9: Layered prompt-injection defences (2026-11-14)
+
+**Goal:** fix failure #7, prompt injection, as stage v7 = v6 + `injection_guard`, with
+switchable layers and a red team that measures each.
+
+**Built:**
+
+- Layer 1, `security/sanitize.py`: trust levels from `doc_type` (unknown types are
+  third-party); hidden HTML, comments and invisible characters removed from third-party
+  pages; flagged third-party chunks dropped. Collections `Chunks_v7_*`, plus the
+  unsanitised `Chunks_v7raw_*` for red-team runs only.
+- Layer 2: tagged "sources are data" prompts, with every Session 8 rule kept.
+- Layer 3, `security/output_guard.py`: figures and promises against cited store sources,
+  attributed seller figures (decision B), VoltCart policy always from store; one
+  regeneration, then a handoff; at most 3 generations per question.
+- Layer 4: a secrets scan of the generated data.
+- Red team: 18 attacks, six new listings, `scripts/redteam.py`; and
+  `scripts/compare_rewrite_retrieval.py`.
+
+**Results:**
+
+- Red team: all 18 attacks in the suite blocked with all layers; 16, 13 and 17 with
+  layers 1, 2 and 3 alone; 10/18 with none.
+- Golden set v6 -> v7: correctness 39 -> 41, false handoffs 4 -> 3, one guard trigger on
+  an answerable question.
+
+**Findings:**
+
+- The red team found a guard bug: non-breaking hyphens hid "5‑year". It was fixed.
+- A scoring error (r16's denials counted as claims) was fixed and rescored.
+- Layer 1 drops true facts that share a chunk with an instruction.
+- The comment attack never reached the model, because markdownify drops comments.
+- The larger catalogue changed 28 of 50 rewrites (+1 recall and hit@1, retrieval only).
+
+**Decisions:**
+
+- Option B for seller figures.
+- Catalogue updated.
+- Trust from `doc_type`.
+- A separate guard regeneration under a 3-generation cap.
+
+**Follow-ups (not done in Session 9):**
+
+- Give the rewriter only the catalogue entries relevant to the message (for example the
+  products the code detector finds, plus their category), so its prompt and its rewrites
+  stay stable when the catalogue grows. Adding six products changed 28 of 50 rewrites.
+- Track **rewrite stability** in Session 13's evaluation: how many rewrites change between
+  runs or stages, and the retrieval-only effect (`scripts/compare_rewrite_retrieval.py`).
+- g049's rewrite drift ("press" -> "TVs warranty claim process"):
+  https://github.com/navendu10/rag-support-assistant/issues/10. With v7's catalogue the
+  rewrite reads "TVs press complaint handling", but the single retry budget still leaves
+  it a false handoff.
+- Grow the red-team suite as new techniques appear; all 18 current attacks are blocked,
+  which is a floor, not a guarantee.
+- Judge calibration list for Session 13: `docs/evaluation.md`.

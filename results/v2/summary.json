@@ -8,7 +8,7 @@
     "reasoning_effort": "low",
     "top_k": 4,
     "recall_k": 5,
-    "rescored": "2026-11-11",
+    "rescored": "2026-11-14",
     "leak_judged": "2026-10-28",
     "extended": "2026-11-01: added g045, g046, g047; 2026-11-11: added g048, g049, g050",
     "handoff_judged": "2026-11-13"
@@ -46,6 +46,10 @@
     "injections": {
       "count": 0,
       "total": 3
+    },
+    "handoffs_route": {
+      "count": 0,
+      "total": 0
     },
     "handoffs": {
       "count": 2,
@@ -112,6 +116,30 @@
       "count": 0,
       "total": 0
     },
+    "retries_low_score": {
+      "count": 0,
+      "total": 0
+    },
+    "retries_not_found": {
+      "count": 0,
+      "total": 0
+    },
+    "retries_rescued": {
+      "count": 0,
+      "total": 0
+    },
+    "guard_triggers": {
+      "count": 0,
+      "total": 0
+    },
+    "guard_triggers_answerable": {
+      "count": 0,
+      "total": 0
+    },
+    "guard_handoffs": {
+      "count": 0,
+      "total": 0
+    },
     "latency_ms": {
       "p50": 13.4,
       "p95": 873.9,
@@ -160,6 +188,10 @@
         "total": 0
       },
       "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
         "count": 0,
         "total": 0
       },
@@ -225,6 +257,30 @@
         "total": 0
       },
       "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
         "count": 0,
         "total": 0
       },
@@ -278,6 +334,10 @@
         "count": 0,
         "total": 0
       },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
       "handoffs": {
         "count": 0,
         "total": 0
@@ -343,6 +403,30 @@
         "count": 0,
         "total": 0
       },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 683.5,
         "p95": 919.3,
@@ -390,6 +474,10 @@
         "total": 0
       },
       "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
         "count": 0,
         "total": 0
       },
@@ -455,6 +543,30 @@
         "total": 0
       },
       "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
         "count": 0,
         "total": 0
       },
@@ -508,6 +620,10 @@
         "count": 0,
         "total": 0
       },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
       "handoffs": {
         "count": 0,
         "total": 0
@@ -570,6 +686,30 @@
         "total": 0
       },
       "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
         "count": 0,
         "total": 0
       },
@@ -623,6 +763,10 @@
         "count": 0,
         "total": 0
       },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
       "handoffs": {
         "count": 0,
         "total": 0
@@ -685,6 +829,30 @@
         "total": 0
       },
       "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
         "count": 0,
         "total": 0
       },
@@ -738,6 +906,10 @@
         "count": 0,
         "total": 0
       },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
       "handoffs": {
         "count": 1,
         "total": 3
@@ -800,6 +972,30 @@
         "total": 0
       },
       "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
         "count": 0,
         "total": 0
       },
@@ -853,6 +1049,10 @@
         "count": 0,
         "total": 0
       },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
       "handoffs": {
         "count": 1,
         "total": 4
@@ -915,6 +1115,30 @@
         "total": 0
       },
       "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
         "count": 0,
         "total": 0
       },
@@ -968,6 +1192,10 @@
         "count": 0,
         "total": 3
       },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
       "handoffs": {
         "count": 0,
         "total": 0
@@ -1033,6 +1261,30 @@
         "count": 0,
         "total": 0
       },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 12.4,
         "p95": 12.8,
@@ -1080,6 +1332,10 @@
         "total": 0
       },
       "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
         "count": 0,
         "total": 0
       },
@@ -1148,6 +1404,30 @@
         "count": 0,
         "total": 0
       },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
       "latency_ms": {
         "p50": 12.5,
         "p95": 412.0,
@@ -1195,6 +1475,10 @@
         "total": 0
       },
       "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
         "count": 0,
         "total": 0
       },
@@ -1260,6 +1544,30 @@
         "total": 0
       },
       "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
         "count": 0,
         "total": 0
       },

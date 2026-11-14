@@ -34,6 +34,7 @@ PROPERTIES = [
     Property(name="effective_date", data_type=DataType.TEXT, tokenization=Tokenization.FIELD),
     Property(name="section", data_type=DataType.TEXT, tokenization=Tokenization.WORD),
     Property(name="page", data_type=DataType.INT),
+    Property(name="trust", data_type=DataType.TEXT, tokenization=Tokenization.FIELD),
 ]
 
 

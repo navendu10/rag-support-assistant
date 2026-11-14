@@ -58,3 +58,39 @@ grounding:
 # Human handoff (Session 8, v6). Customer tickets are appended here (git-ignored).
 handoff:
   tickets_path: data/tickets/tickets.jsonl
+
+# Prompt-injection defences (Session 9, v7). See docs/security.md and ADR 0007.
+injection:
+  # Layer 1: instruction-like phrases flagged at ingestion (regex, case-insensitive).
+  # Flagged third-party chunks are dropped; flagged store chunks are only logged.
+  patterns:
+    - '\b(assistant|system|chatbot)\s*:'
+    - '\bignore\s+(all\s+)?(previous|prior|above|your|the)\s+(instructions|rules|prompts?)'
+    - '\b(disregard|forget)\s+(all\s+)?(previous|prior|your)\s+(instructions|rules)'
+    - '\btell\s+(the\s+)?customers?\b'
+    - '\bnote\s+to\s+(the\s+)?(ai|assistant|bot|chatbot)s?\b'
+    - '\b(ai|assistant|bot)s?\s+(must|should)\s+(always\s+)?(say|tell|answer|reply)'
+    - '\bdeveloper\s+mode\b'
+    - '\byou\s+are\s+now\b'
+  # Layer 3: promises allowed only when a cited STORE source contains them.
+  claim_phrases:
+    - lifetime warranty
+    - lifetime guarantee
+    - guaranteed forever
+    - warranty for life
+    - free replacement for life
+    - never expires
+  # A sentence naming one of these attributes its facts to the seller (layer 3, option B).
+  attribution_terms: [seller, sold by, the listing says, according to the listing]
+  # A sentence about one of these states VoltCart's own policy: it always needs a STORE
+  # source, even when attributed to a seller.
+  voltcart_policy_terms:
+    - return
+    - refund
+    - credit
+    - discount
+    - restocking
+    - voltcart warranty
+    - our warranty
+    - voltcart guarantee
+  max_generations: 3   # answer generations per question, across every retry

@@ -6,7 +6,8 @@ Usage (see docs/security.md for the full order):
 
 The first form writes a random WEAVIATE_ADMIN_KEY to .env if it is missing; Docker Compose
 reads it from there. The second connects with the admin key, (re)creates the roles
-customer_reader and agent_reader for stage v5's collections, creates or refreshes the
+customer_reader and agent_reader for the collections of every access-control stage (v5,
+v7 and the red-team-only v7raw), creates or refreshes the
 users customer-bot and agent-copilot, and writes WEAVIATE_CUSTOMER_KEY and
 WEAVIATE_AGENT_KEY to .env. Keys are printed masked, never in full. Re-running is safe.
 """
@@ -16,7 +17,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from rag_assistant.config import DEFAULT_ENV_PATH, load_settings, load_stage
+from rag_assistant.config import DEFAULT_ENV_PATH, access_control_stages, load_settings
 from rag_assistant.ingestion.store import admin_key, open_client
 from rag_assistant.security.access_setup import (
     DB_USERS,
@@ -29,8 +30,6 @@ from rag_assistant.security.access_setup import (
     role_collections,
     update_env_text,
 )
-
-ACCESS_STAGE = "v5"
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,7 +50,7 @@ def main() -> int:
         print(f"WEAVIATE_ADMIN_KEY {state}: {mask(key)}. Now run: docker compose up -d")
         return 0
     settings = load_settings()
-    collections = load_stage(ACCESS_STAGE).audience_collections
+    collections = [stage.audience_collections for stage in access_control_stages()]
     env_text = DEFAULT_ENV_PATH.read_text(encoding="utf-8")
     updates: dict[str, str] = {}
     client = open_client(settings.weaviate, admin_key(settings))

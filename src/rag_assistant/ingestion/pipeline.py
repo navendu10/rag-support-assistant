@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Collection, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from rag_assistant.config import Settings, StageConfig
@@ -21,6 +21,13 @@ from rag_assistant.ingestion.parsers import parse_structured
 from rag_assistant.ingestion.store import connect_admin, insert_chunks, recreate_collection
 from rag_assistant.ingestion.structure_chunker import chunk_markdown
 from rag_assistant.schemas import DocMetadata, load_manifest
+from rag_assistant.security.sanitize import (
+    Flag,
+    Screening,
+    compile_patterns,
+    screen_chunks,
+    with_trust,
+)
 
 
 @dataclass(frozen=True)
@@ -31,6 +38,7 @@ class IngestStats:
     documents: int
     chunks: int
     chunks_by_audience: dict[str, int]
+    flags: list[Flag] = field(default_factory=list)  # Session 9: instruction-like chunks
 
 
 def load_documents(generated_dir: Path) -> list[DocMetadata]:
@@ -67,16 +75,29 @@ def chunk_document(stage: StageConfig, meta: DocMetadata, generated_dir: Path) -
     """Parse and chunk one document the way the stage says.
 
     ``fixed`` (v0): plain text and fixed-size chunks. ``structure`` (v1+): Markdown
-    parsing and structure-aware chunks with context headers.
+    parsing and structure-aware chunks with context headers. From Session 9 every chunk
+    carries its document's trust level, and stages with ``sanitize_ingestion`` remove
+    hidden content from third-party HTML before chunking.
     """
     if stage.chunking == "structure":
-        return chunk_markdown(parse_structured(meta, generated_dir), meta, stage)
-    return split_document(load_text(meta, generated_dir), meta, make_splitter(stage))
+        text = parse_structured(meta, generated_dir, sanitize=stage.sanitizes)
+        return with_trust(chunk_markdown(text, meta, stage))
+    return with_trust(split_document(load_text(meta, generated_dir), meta, make_splitter(stage)))
 
 
-def build_chunks(stage: StageConfig, settings: Settings) -> list[Chunk]:
-    """Load and split every manifest document (public AND internal: no stage filters yet)."""
-    return chunk_documents(stage, settings.paths.resolve(settings.paths.generated_dir))
+def build_chunks(stage: StageConfig, settings: Settings) -> Screening:
+    """Load and split every manifest document (public AND internal).
+
+    Stages with ``sanitize_ingestion`` (v7) then screen every chunk for instruction-like
+    phrases: flagged third-party chunks are dropped, flagged store chunks kept and logged.
+    Other stages keep every chunk.
+    """
+    chunks = chunk_documents(stage, settings.paths.resolve(settings.paths.generated_dir))
+    if not stage.sanitizes:
+        return Screening(chunks, [])
+    if settings.injection is None:
+        raise ValueError(f"stage {stage.name} sanitises, so configs need an injection: block")
+    return screen_chunks(chunks, compile_patterns(settings.injection.patterns))
 
 
 def split_by_audience(chunks: Sequence[Chunk], audiences: Sequence[str]) -> dict[str, list[Chunk]]:
@@ -109,7 +130,8 @@ def ingest(stage: StageConfig, settings: Settings, embedder: Embedder | None = N
             f"Stage {stage.name} reuses {stage.collection_name}; "
             f"ingest stage {stage.index_owner} instead"
         )
-    chunks = build_chunks(stage, settings)
+    screening = build_chunks(stage, settings)
+    chunks = screening.kept
     embedder = embedder or Embedder(settings.embedding)
     plan = collection_plan(stage, chunks)
     with connect_admin(settings) as client:
@@ -121,4 +143,5 @@ def ingest(stage: StageConfig, settings: Settings, embedder: Embedder | None = N
         documents=len({c.doc_id for c in chunks}),
         chunks=len(chunks),
         chunks_by_audience=dict(Counter(c.audience for c in chunks)),
+        flags=screening.flags,
     )

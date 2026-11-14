@@ -145,6 +145,23 @@ class GroundingSettings(BaseModel):
     max_attempts: int = Field(default=2, ge=1, description="1 call plus retries on invalid output")
 
 
+class InjectionSettings(BaseModel):
+    """Prompt-injection defences (Session 9): the phrases and terms the layers look for.
+
+    ``patterns`` (regular expressions, case-insensitive) flag instruction-like text at
+    ingestion. ``claim_phrases`` are promises the output guard allows only when a cited
+    store source contains them. ``attribution_terms`` mark a sentence as attributing a fact
+    to the seller. ``voltcart_policy_terms`` mark a sentence as stating VoltCart's own
+    policy, which always needs a store source.
+    """
+
+    patterns: list[str] = Field(min_length=1)
+    claim_phrases: list[str] = Field(min_length=1)
+    attribution_terms: list[str] = Field(min_length=1)
+    voltcart_policy_terms: list[str] = Field(min_length=1)
+    max_generations: int = Field(default=3, ge=1, description="answer generations per question")
+
+
 class HandoffSettings(BaseModel):
     """Human handoff (Session 8): where customer tickets are appended (git-ignored)."""
 
@@ -179,6 +196,7 @@ class Settings(BaseSettings):
     query: QuerySettings = Field(default_factory=QuerySettings)
     grounding: GroundingSettings = Field(default_factory=GroundingSettings)
     handoff: HandoffSettings = Field(default_factory=HandoffSettings)
+    injection: InjectionSettings | None = None
 
     @field_validator("groq_api_key")
     @classmethod
@@ -300,6 +318,23 @@ RerankFusion = Literal["replace", "rrf", "blend"]
 
 # Fields that decide what ingestion stores; a stage reusing an index must match them.
 INGESTION_FIELDS = ("chunking", "chunk_size", "chunk_overlap", "min_chunk_chars")
+
+
+class InjectionConfig(BaseModel):
+    """The switchable injection-defence layers of a stage (Session 9, v7).
+
+    Layer 1 (``sanitize_ingestion``) works at ingestion, so it decides what a stage's
+    collections hold; layers 2 and 3 work at question time. Layer 4 (no secrets in the
+    data) is a test, not a switch.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    sanitize_ingestion: bool
+    tagged_sources: bool
+    output_guard: bool
+
+
 # Reranked stages are scored on recall@5, so at least 5 candidates are needed.
 MIN_FETCH_K = 5
 # access_control stages store each audience in its own collection (Session 7).
@@ -351,6 +386,10 @@ class StageConfig(BaseModel):
         default=None, gt=0, le=50, description="corrective_flow only: the wider context"
     )
     injection_guard: bool
+    injection: InjectionConfig | None = None
+    redteam_only: bool = Field(
+        default=False, description="only scripts/redteam.py may open it (unsanitised index)"
+    )
     top_k: int = Field(gt=0, le=50)
 
     @model_validator(mode="after")
@@ -423,6 +462,21 @@ class StageConfig(BaseModel):
             raise ValueError("retry_top_k must be larger than top_k and at most retry_fetch_k")
         return self
 
+    @model_validator(mode="after")
+    def _injection_settings(self) -> StageConfig:
+        """``injection_guard`` needs an ``injection`` block and the corrective flow (the
+        output guard routes through it); the block needs ``injection_guard``."""
+        if self.injection_guard != (self.injection is not None):
+            raise ValueError("set an injection: block exactly when injection_guard is true")
+        if self.injection_guard and not self.corrective_flow:
+            raise ValueError("injection_guard: true needs corrective_flow: true")
+        return self
+
+    @property
+    def sanitizes(self) -> bool:
+        """Whether ingestion runs layer 1 (sanitise third-party documents, drop flagged)."""
+        return self.injection is not None and self.injection.sanitize_ingestion
+
     @property
     def collection_name(self) -> str:
         """Weaviate collection for this stage: ``index`` if set, else e.g. ``Chunks_v0``.
@@ -470,10 +524,9 @@ class StageConfig(BaseModel):
 # switch -> (only supported value so far, session that adds the rest, feature)
 # (chunking since Session 3, search since Session 4, rerank since Session 5,
 # query_rewrite, use_history and region_filter since Session 6, access_control since
-# Session 7, and grounding, corrective_flow and min_score since Session 8.)
-UNIMPLEMENTED_SWITCHES: dict[str, tuple[object, int, str]] = {
-    "injection_guard": (False, 9, "prompt-injection defences"),
-}
+# Session 7, grounding, corrective_flow and min_score since Session 8, and
+# injection_guard since Session 9: every switch is implemented.)
+UNIMPLEMENTED_SWITCHES: dict[str, tuple[object, int, str]] = {}
 
 
 def load_stage(name: str, stages_dir: Path = STAGES_DIR) -> StageConfig:
@@ -503,6 +556,8 @@ def check_index_owner(stage: StageConfig, stages_dir: Path = STAGES_DIR) -> None
             f"{stage.name} reuses {stage.index}, but only one of them has access_control"
         )
     differ = [f for f in INGESTION_FIELDS if getattr(owner, f) != getattr(stage, f)]
+    if owner.sanitizes != stage.sanitizes:
+        differ.append("injection.sanitize_ingestion")
     if differ:
         raise ValueError(
             f"{stage.name} reuses {stage.index} but its {', '.join(differ)} differ from "
@@ -516,3 +571,26 @@ def load_prompts(path: Path = PROMPTS_PATH) -> dict[str, str]:
     if not isinstance(prompts, dict) or not all(isinstance(v, str) for v in prompts.values()):
         raise ValueError(f"{path} must map prompt names to strings")
     return prompts
+
+
+def access_control_stages(stages_dir: Path = STAGES_DIR) -> list[StageConfig]:
+    """Every stage that owns per-audience collections (v5, v7, v7raw), in name order.
+
+    ``setup_access.py`` grants the roles read access to all of their collections.
+    """
+    stages = [
+        StageConfig.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+        for path in sorted(stages_dir.glob("*.yaml"))
+    ]
+    return [s for s in stages if s.access_control and not s.reuses_index]
+
+
+def load_injection_settings(config_path: Path = DEFAULT_CONFIG_PATH) -> InjectionSettings:
+    """The ``injection:`` block of the YAML config, without the rest of ``Settings``.
+
+    Unit tests and CI use it: it needs no API keys or ``.env``.
+    """
+    data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or "injection" not in data:
+        raise ValueError(f"{config_path} has no injection: block")
+    return InjectionSettings.model_validate(data["injection"])

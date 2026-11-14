@@ -43,6 +43,11 @@ def main() -> int:
     )
     for audience, count in sorted(stats.chunks_by_audience.items()):
         print(f"  {audience:<9} {count} chunks")
+    for flag in stats.flags:
+        action = "DROPPED" if flag.dropped else "kept (store)"
+        print(
+            f"  flagged {flag.doc_id}#{flag.chunk_index} [{flag.trust}] {action}: {flag.phrase!r}"
+        )
     return 0
 
 

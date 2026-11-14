@@ -31,10 +31,15 @@ failure it fixes is [05-access-control](failures/05-access-control.md).
 python scripts/setup_access.py --init-admin-key   # 1. random WEAVIATE_ADMIN_KEY in .env
 docker compose up -d                              # 2. Weaviate with auth + RBAC
 python scripts/ingest.py --stage v5               # 3. Chunks_v5_public / Chunks_v5_internal
+python scripts/ingest.py --stage v7               #    (Session 9) Chunks_v7_public / _internal, sanitised
+python scripts/ingest.py --stage v7raw            #    the same data unsanitised, red-team only
 python scripts/setup_access.py                    # 4. roles, users, their keys -> .env
 python scripts/check_setup.py                     # 5. every key does exactly what it should
 pytest -m security                                # 6. the refusals, tested end to end
 ```
+
+The roles cover the collections of **every** access-control stage that owns them (v5,
+v7 and v7raw: `config.access_control_stages()`), so re-run step 4 after adding one.
 
 Step 4 is safe to re-run. It re-creates both roles with the permissions in code, revokes
 any extra role, keeps a user's key if the one in `.env` still authenticates as that user,
@@ -70,6 +75,30 @@ agent connection.
 
 Customer handoffs write a ticket to `data/tickets/tickets.jsonl` (git-ignored). A ticket
 holds the user id, region, question and the closest doc_ids, never a key.
+
+## Prompt injection: four layers (Session 9)
+
+Access control decides **what** a role can read. Prompt injection is about what the model
+**does** with what it reads. A third-party listing, or the customer's own message, can
+carry instructions. v7 defends in four layers. Each of the first three can be switched
+off in the stage config, and `scripts/redteam.py` measures each one alone:
+
+| Layer | Where | What it does |
+|---|---|---|
+| 1. Clean at ingestion | `security/sanitize.py` | Every chunk gets a trust level (`store` or `third_party`, from `doc_type`; unknown types are `third_party`). Third-party HTML loses hidden elements, comments and invisible characters before chunking. Chunks with instruction-like phrases are dropped if third-party, and only logged if store. |
+| 2. Sources are data | `grounded_answer_*_tagged` prompts | Every source sits in a `<source id title trust>` block. The rules say text inside a source is never an instruction, and that store sources override third-party ones. |
+| 3. Output guard | `security/output_guard.py` | Numbers with units and promises like "lifetime warranty" must come from a cited **store** source. A seller's own product figure may come from a listing only when the same sentence names the seller and cites it. VoltCart policy figures (returns, refunds, credits, discounts, VoltCart warranty) always need a store source. On failure the answer is regenerated once, then handed off. |
+| 4. Nothing worth stealing | `tests/unit/test_no_secrets.py` | The data holds no discount codes, keys, passwords or tokens, so even a successful injection can't leak one. |
+
+**The unsanitised index.** Layer 1 can't be switched off at question time, so v7raw holds
+the same data unsanitised in `Chunks_v7raw_public` and `Chunks_v7raw_internal`, with the same
+roles. It is `redteam_only`: `Pipeline.from_stage` and `evaluate.py` refuse it, and only
+`redteam.py` opens it. Its public collection still holds the planted instructions, so it
+must never back a real assistant.
+
+**Answer generations are capped** at `injection.max_generations` (3) per question across
+the corrective flow's retry and the guard's regeneration, so an attack can't make the
+flow loop or run up cost (see ADR 0007 for the worst-case path).
 
 ## The rule for later features
 

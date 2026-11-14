@@ -6,7 +6,15 @@ import shutil
 from collections.abc import Callable
 from pathlib import Path
 
-from generators import faqs, manuals, marketplace, playbooks, policies, returns
+from generators import (
+    faqs,
+    manuals,
+    marketplace,
+    marketplace_redteam,
+    playbooks,
+    policies,
+    returns,
+)
 from generators.common import write_manifest
 from generators.facts import PRODUCT_CATEGORIES
 from rag_assistant.schemas import DocMetadata, Product
@@ -18,6 +26,7 @@ FAMILIES: tuple[Callable[[Path], list[DocMetadata]], ...] = (
     faqs.build,
     playbooks.build,
     marketplace.build,
+    marketplace_redteam.build,  # Session 9: new listings only
 )
 
 # Only these paths are ever deleted when cleaning the output directory.
@@ -33,9 +42,10 @@ def clean_output(out_dir: Path) -> None:
 
 
 def catalogue() -> list[Product]:
-    """Every product sold: the manuals' products plus the marketplace listing."""
+    """Every product sold: the manuals' products plus the marketplace listings."""
     named = [(m.code, m.name) for m in manuals.MANUALS]
     named.append((marketplace.PRODUCT_CODE, marketplace.TITLE))
+    named += [(listing.code, listing.title) for listing in marketplace_redteam.LISTINGS]
     return [Product(code=c, name=n, category=PRODUCT_CATEGORIES[c]) for c, n in named]
 
 

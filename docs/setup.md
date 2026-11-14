@@ -47,6 +47,8 @@ python scripts/setup_access.py --init-admin-key   # writes a random WEAVIATE_ADM
 docker compose up -d
 docker compose ps        # STATUS should become "healthy"
 python scripts/ingest.py --stage v5    # the per-audience collections (admin key)
+python scripts/ingest.py --stage v7    # Session 9: sanitised collections (prompt-injection layer 1)
+python scripts/ingest.py --stage v7raw # the same data unsanitised, for scripts/redteam.py only
 python scripts/setup_access.py         # roles + customer/agent users; writes their keys to .env
 ```
 

@@ -7,6 +7,67 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-14 (Session 9: layered prompt-injection defences)
+
+### Added
+
+- Stage **v7** (`configs/stages/v7.yaml`): v6 plus `injection_guard: true` and an
+  `injection:` block with three switchable layers.
+  - **Layer 1** (`security/sanitize.py`):
+    - every chunk carries a `trust` level from `doc_type` (`store` or `third_party`;
+      unknown types are `third_party`)
+    - third-party HTML loses hidden elements, comments and invisible characters before
+      chunking
+    - chunks with instruction-like phrases are dropped if third-party and logged if store
+    - v7 has its own collections (`Chunks_v7_public`, `Chunks_v7_internal`)
+  - **Layer 2:** tagged prompts (`grounded_answer_*_tagged`) put each source in a
+    `<source id title trust>` block and say source text is never an instruction. Every
+    Session 8 rule is kept.
+  - **Layer 3** (`security/output_guard.py`):
+    - numbers with units and promise phrases must come from a cited store source
+    - a seller figure passes only when attributed and cited in the same sentence
+    - VoltCart policy figures always need a store source
+    - one regeneration, then a handoff
+  - **Layer 4** (`tests/unit/test_no_secrets.py`): no discount codes, keys, passwords or
+    tokens in the generated data.
+  - At most 3 answer generations per question across every retry
+    (`injection.max_generations`).
+- **v7raw**: the same data unsanitised (`Chunks_v7raw_*`, same roles, `redteam_only`), so
+  layer 1 can be switched off for red-team runs; the pipeline and `evaluate.py` refuse it.
+- Red team:
+  - `data/redteam/injection.jsonl` (18 attacks: 14 indirect, 4 direct)
+  - six new third-party listings (`generators/marketplace_redteam.py`), with their products
+    added to the catalogue
+  - `scripts/redteam.py --layers 1,2,3|1|2|3|none [--rescore]` writes
+    `results/v7/redteam.md`
+- `scripts/compare_rewrite_retrieval.py`: the retrieval-only effect of a rewrite change,
+  with no LLM calls.
+- Output-guard metrics: triggers overall and on answerable questions, and guard handoffs.
+- **Handoffs by route** is the main handoff metric in `report.md` and `compare_stages`
+  (v6 on), with the handoff judge's view beside it; all stages rescored from stored rows.
+- A judge-calibration list for Session 13 in `docs/evaluation.md`.
+- `docs/failures/07-prompt-injection.md` and `docs/adr/0007-layered-injection-defence.md`.
+
+### Changed
+
+- `setup_access.py` grants the roles on every access-control stage's collections (v5, v7
+  and v7raw; `config.access_control_stages()`).
+- `injection_guard` is implemented, so every stage switch is now implemented.
+
+### Results
+
+- Red team: all 18 attacks in the suite blocked with all layers (a result on this suite,
+  which should grow, not a claim of security); layer 1 alone 16/18, layer 2 alone 13/18,
+  layer 3 alone 17/18; none (v6) 10/18.
+- v6 -> v7 golden set: correctness 39 -> 41, false handoffs 4 -> 3, injection failures
+  0/3 -> 0/3, guard triggers on answerable questions 1/43 (a real mis-citation).
+  28 of 50 rewrites changed with the larger catalogue (retrieval-only: +1 recall, +1
+  hit@1).
+- The red team found a guard bug: Unicode non-breaking hyphens ("5‑year") hid figures
+  from it. It was fixed and re-checked. Guard messages now name the source, e.g.
+  `"15 days" is not in cited source [2]`.
+- v6's invented content is 2/50 by the judge (g012, g018), both judge mistakes.
+
 ## [0.9.0] - 2026-11-12 (Session 8: grounding, citations and human handoff)
 
 ### Added

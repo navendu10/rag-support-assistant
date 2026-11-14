@@ -11,7 +11,7 @@ import pytest
 import yaml
 from pydantic import SecretStr
 
-from rag_assistant.config import STAGES_DIR, load_settings, load_stage
+from rag_assistant.config import STAGES_DIR, access_control_stages, load_settings, load_stage
 from rag_assistant.eval.metrics import (
     ItemChecks,
     Judgement,
@@ -327,11 +327,21 @@ def test_keys_are_masked() -> None:
 
 
 def test_roles_grant_customers_the_public_collection_only() -> None:
-    """customer_reader: public; agent_reader: public + internal."""
-    assert role_collections(V5.audience_collections) == {
+    """customer_reader: public; agent_reader: public + internal, in every access-control
+    stage (v5, v7 and the red-team-only v7raw from Session 9)."""
+    assert role_collections([V5.audience_collections]) == {
         "customer_reader": ["Chunks_v5_public"],
         "agent_reader": ["Chunks_v5_public", "Chunks_v5_internal"],
     }
+    stages = [s.audience_collections for s in access_control_stages()]
+    roles = role_collections(stages)
+    assert roles["customer_reader"] == [
+        "Chunks_v5_public",
+        "Chunks_v7_public",
+        "Chunks_v7raw_public",
+    ]
+    assert not any(name.endswith("_internal") for name in roles["customer_reader"])
+    assert len(roles["agent_reader"]) == 6
 
 
 class FakeUsers:

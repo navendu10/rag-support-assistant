@@ -33,6 +33,7 @@ data/generators/           deterministic templates for the knowledge base (impor
                            facts.py is the single source of truth for every fact)
 data/generated/            generator output + manifest.json (git-ignored; see docs/data.md)
 data/golden/               hand-checked evaluation sets (committed)
+data/redteam/              prompt-injection attacks for scripts/redteam.py (committed)
 data/users.json            test users (committed)
 src/rag_assistant/
   config.py                typed settings (YAML < .env < env vars)
@@ -50,7 +51,9 @@ src/rag_assistant/
   query/                   rewrite (small-model query rewriter with history and catalogue,
                            validated JSON, retry then raw-message fallback), describe (CLI text)
   security/                access_setup (roles, database users, .env keys), probes (what a key
-                           may read)
+                           may read), sanitize (layer 1: trust levels, hidden HTML, instruction
+                           flags), output_guard (layer 3: numbers and promises vs store
+                           sources), redteam (attacks, layer configurations, scoring)
   generation/              naive (v0-v5 prompt), grounded (v6a on: role-aware prompt, numbered
                            sources, structured output, citation checks, "Sources:" list)
   graph/                   corrective (v6: LangGraph rewrite -> retrieve -> grade -> generate ->
@@ -58,8 +61,9 @@ src/rag_assistant/
                            not-found answer), handoff (reasons, messages, tickets to
                            data/tickets/tickets.jsonl, git-ignored)
   eval/contexts.py         rebuild a stored run's context texts offline for back-filled judges
-configs/stages/<stage>.yaml  StageConfig switches; unimplemented values raise NotImplementedError;
-                           `index: Chunks_vN` reuses another stage's collection (ingest skips it)
+configs/stages/<stage>.yaml  StageConfig switches (all implemented since Session 9);
+                           `index: Chunks_vN` reuses another stage's collection (ingest skips it);
+                           `redteam_only` (v7raw) opens only for scripts/redteam.py
 configs/prompts.yaml       all prompt templates (answer + judges)
 results/<stage>/           committed full evaluation runs (results.jsonl, summary.json, report.md)
   ingestion/ retrieval/ query/ security/ generation/ graph/
@@ -108,6 +112,9 @@ python scripts/evaluate.py --stage v4 --add-handoff-judge   # handoff judge on a
 python scripts/evaluate.py --stage v4 --add-invented-judge  # invented-content judge, rebuilt contexts
 python scripts/calibrate_invented_judge.py [--model large]  # invented judge vs hand labels
 python scripts/ask.py --stage v6 --user cust_uk_01 "Is there a student discount?"  # handoff + ticket
+python scripts/ingest.py --stage v7 ; python scripts/ingest.py --stage v7raw   # then setup_access.py
+python scripts/redteam.py --stage v7 --layers 1,2,3   # also 1, 2, 3, none -> results/v7/redteam.md
+python scripts/compare_rewrite_retrieval.py --stage v7 --rewrites-from v6   # no LLM calls
 python scripts/show_chunks.py --stage v1 --doc returns-uk-2026-print [--grep text]
 pytest -m integration                         # needs Weaviate + Groq (skipped by default)
 pytest -m security                            # access-control tests against Weaviate RBAC (local)

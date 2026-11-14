@@ -29,7 +29,7 @@ from rag_assistant.generation.grounded import GroundedResult
 from rag_assistant.retrieval.vector import RetrievedChunk
 from rag_assistant.schemas import User
 
-HandoffReason = Literal["invalid_output", "not_found", "no_citations"]
+HandoffReason = Literal["invalid_output", "not_found", "no_citations", "output_guard"]
 
 
 def handoff_reason(result: GroundedResult) -> HandoffReason | None:
@@ -63,11 +63,13 @@ def handoff_text(
     result: GroundedResult,
     chunks: Sequence[RetrievedChunk],
     prompts: dict[str, str],
+    allow_model_text: bool = True,
 ) -> tuple[str, str | None]:
     """The handoff reply for ``user``'s role, and the model-written part of it (or None).
 
     The model-written part is what the invented-content judge reads; the fixed message
-    is ours.
+    is ours. ``allow_model_text`` False (the output guard rejected it) shows the fixed
+    message alone.
     """
     if user.role == "agent":
         message = prompts["handoff_agent"].format(
@@ -75,7 +77,7 @@ def handoff_text(
         )
     else:
         message = prompts["handoff_customer"]
-    if not shows_model_text(result):
+    if not (allow_model_text and shows_model_text(result)):
         return message, None
     return f"{result.answer}\n\n{message}", result.answer
 
