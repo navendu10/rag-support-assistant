@@ -141,3 +141,56 @@ def load_golden(path: Path) -> list[GoldenItem]:
     """Read and validate a golden JSONL file, skipping blank lines."""
     lines = path.read_text(encoding="utf-8").splitlines()
     return [GoldenItem.model_validate_json(line) for line in lines if line.strip()]
+
+
+AGENT_TOOLS = (
+    "search_knowledge_base",
+    "list_my_orders",
+    "get_order",
+    "check_warranty",
+    "check_return_eligibility",
+    "draft_ticket",
+)
+
+
+class AgentScenario(BaseModel):
+    """One agent conversation to evaluate (Session 10, ``data/golden/agent_scenarios.jsonl``).
+
+    ``expected_tools`` must all be called; ``forbidden_tools`` must not be.
+    ``must_not_contain`` lists other customers' order ids, names and details: none may
+    appear in the answer or in any tool result.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: str = Field(pattern=r"^s\d{2}$")
+    topic: str = Field(min_length=1)
+    user_id: str = Field(min_length=1)
+    history: list[Turn] = Field(default_factory=list)
+    question: str = Field(min_length=1)
+    expected_tools: list[str]
+    forbidden_tools: list[str]
+    reference_answer: str = Field(min_length=1)
+    must_not_contain: list[str]
+
+    @model_validator(mode="after")
+    def _known_tools(self) -> AgentScenario:
+        """Tools must exist, and none may be both expected and forbidden."""
+        unknown = set(self.expected_tools + self.forbidden_tools) - set(AGENT_TOOLS)
+        if unknown:
+            raise ValueError(f"{self.id}: unknown tools {sorted(unknown)}")
+        if set(self.expected_tools) & set(self.forbidden_tools):
+            raise ValueError(f"{self.id}: a tool is both expected and forbidden")
+        return self
+
+
+def load_agent_scenarios(path: Path) -> list[AgentScenario]:
+    """The agent scenarios, with unique ids."""
+    scenarios = [
+        AgentScenario.model_validate_json(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    if len({s.id for s in scenarios}) != len(scenarios):
+        raise ValueError("duplicate scenario ids")
+    return scenarios

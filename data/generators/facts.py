@@ -96,3 +96,70 @@ PRODUCT_CATEGORIES = {
 
 # Internal only: goodwill credit caps for late delivery.
 GOODWILL_LATE_DELIVERY = {"IN": "Rs 2,000", "UK": "GBP 20", "US": "USD 25"}
+
+# ----------------------------------------------------------- orders (Session 10)
+# The agent's order database (generators/orders.py -> data/generated/orders.db). Dates are
+# chosen against the fixed reference date in configs/business_rules.yaml (2026-11-01).
+ORDER_REFERENCE_DATE = "2026-11-01"
+
+
+@dataclass(frozen=True)
+class OrderFact:
+    """One single-line order. ``delivered`` is None while it is in transit."""
+
+    order_id: str
+    customer_id: str
+    product_code: str
+    price: str
+    ordered: str
+    estimated_delivery: str
+    delivered: str | None
+    status: str
+    opened: bool | None
+
+
+# Customers who exist only in the order database: they never sign in, and their orders
+# must never be visible to anyone else.
+EXTRA_CUSTOMERS = (
+    ("cust_uk_02", "Amelia Clarke", "UK"),
+    ("cust_uk_03", "Harry Wilson", "UK"),
+    ("cust_in_02", "Arjun Mehta", "IN"),
+    ("cust_in_03", "Kavya Nair", "IN"),
+    ("cust_us_02", "Ethan Brooks", "US"),
+    ("cust_us_03", "Sofia Ramirez", "US"),
+)
+
+ORDERS = (
+    # cust_uk_01: the VisionMax TV bought in March 2026 (panel warranty 24 months).
+    OrderFact("VC-10001", "cust_uk_01", "VM-55Q", "GBP 549.00", "2026-03-09", "2026-03-12",
+              "2026-03-12", "delivered", True),
+    # cust_uk_01: opened AeroBuds Pro, delivered 12 days before the reference date (inside
+    # the 15-day opened-audio window) and 31 days before it (outside).
+    OrderFact("VC-10002", "cust_uk_01", "AB-PRO", "GBP 129.00", "2026-10-17", "2026-10-20",
+              "2026-10-20", "delivered", True),
+    OrderFact("VC-10003", "cust_uk_01", "AB-PRO", "GBP 129.00", "2026-09-28", "2026-10-01",
+              "2026-10-01", "delivered", True),
+    # cust_us_01: an opened NoteBook 14 inside the 15-day window, with the 10% restocking fee.
+    OrderFact("VC-10004", "cust_us_01", "NB-14", "USD 899.00", "2026-10-20", "2026-10-25",
+              "2026-10-25", "delivered", True),
+    OrderFact("VC-10005", "cust_us_01", "XR-2200", "USD 149.00", "2026-08-01", "2026-08-05",
+              "2026-08-05", "delivered", False),
+    # cust_in_01: a late delivery (5 days after the estimate) and one still in transit.
+    OrderFact("VC-10006", "cust_in_01", "SW-FIT2", "Rs 14,999", "2026-10-10", "2026-10-15",
+              "2026-10-20", "delivered", False),
+    OrderFact("VC-10007", "cust_in_01", "PB-20K", "Rs 2,999", "2026-10-29", "2026-11-03",
+              None, "shipped", None),
+    # Other customers' orders: never visible to the test users.
+    OrderFact("VC-20001", "cust_uk_02", "WM-700", "GBP 449.00", "2026-10-02", "2026-10-06",
+              "2026-10-06", "delivered", True),
+    OrderFact("VC-20002", "cust_uk_03", "VM-55Q", "GBP 549.00", "2026-06-11", "2026-06-15",
+              "2026-06-15", "delivered", True),
+    OrderFact("VC-20003", "cust_in_02", "AB-PRO", "Rs 10,999", "2026-10-21", "2026-10-25",
+              "2026-10-25", "delivered", True),
+    OrderFact("VC-20004", "cust_in_03", "XR-2000", "Rs 6,499", "2026-09-14", "2026-09-18",
+              "2026-09-18", "delivered", False),
+    OrderFact("VC-20005", "cust_us_02", "NB-14", "USD 899.00", "2026-10-26", "2026-10-30",
+              "2026-10-30", "delivered", False),
+    OrderFact("VC-20006", "cust_us_03", "SW-FIT2", "USD 199.00", "2026-07-01", "2026-07-06",
+              "2026-07-06", "delivered", True),
+)  # fmt: skip

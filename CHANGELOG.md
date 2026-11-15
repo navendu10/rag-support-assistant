@@ -7,6 +7,58 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-15 (Session 10: a tool-calling agent)
+
+### Added
+
+- Stage **v8** (`configs/stages/v8.yaml`): v7 + `agent: true`, a LangGraph tool-calling
+  agent (`agent/graph.py`) on Groq `gpt-oss-120b`.
+  - Role-aware system prompts.
+  - At most 6 tool calls per question, then one answer with the tools removed.
+  - At most 3 answer generations, shared with the guard.
+  - `AgentPipeline` gives it `Pipeline`'s interface.
+- Tools (`agent/tools.py`):
+  - `search_knowledge_base` (the v7 pipeline for the same user)
+  - `list_my_orders`, `get_order`, `check_warranty`, `check_return_eligibility`
+  - `draft_ticket` (a draft; writes nothing)
+  - The user is injected by code; no tool takes a user id.
+  - Another customer's order looks exactly like a missing one.
+- `agent/orders.py`: a read-only (`mode=ro`) order store scoped by role. Customers see
+  their own orders; staff look up any order by id and have none of their own.
+- Orders data: `generators/orders.py` builds `data/generated/orders.db` (git-ignored)
+  with planted cases: the March 2026 TV, earbuds inside and outside the window, a US
+  laptop restocking fee, a late delivery, and six database-only customers.
+- `configs/business_rules.yaml` and `agent/rules.py`: warranty periods, return windows and
+  the reference date 2026-11-01, tested against the policy text.
+- Agent mode in the output guard: this turn's tool results are trusted sources, dates are
+  checked, and a claimed ticket needs a real draft.
+- `data/golden/agent_scenarios.jsonl` (14 conversations) and
+  `scripts/evaluate_agent.py`: task success, tool correctness, data isolation, steps,
+  latency (`results/v8/agent_report.md`).
+- `scripts/redteam.py --stage v8`: the agent against v7's all-layers run.
+- `docs/agents-and-mcp.md` and `docs/adr/0008-agent-with-langgraph-tools.md`.
+
+### Changed
+
+- `handoff_writes_ticket` (default true): v6 and v7 unchanged; v8 writes no ticket on a
+  knowledge-base handoff.
+- The guard recognises `[**K1**]`, `【K1】` and `[​K1]` citations and no longer reads
+  "60 years old" as a time period (v7's stored answers re-checked: unchanged).
+- The invented-content judge sees the agent's tool results.
+- `chat.py` and `ask.py` print each tool call.
+
+### Results
+
+- Agent scenarios: task success 13/14, tool correctness 13/14, data isolation 14/14, no
+  step-limit hits, no forbidden tool calls.
+- Red team on v8: 18/18 blocked, the same as v7.
+- Golden set v7 -> v8: correctness 41 -> 40, recall 42/45 -> 38/45, false handoffs 3 -> 4,
+  invented content (judge) 2 -> 5 (0 on reading), after the knowledge-base rule ("for any
+  policy, product or process fact, call search_knowledge_base; if no order matches, answer
+  from it") re-answered the 10 questions without a knowledge call.
+- Pending: the scenario and v8 red-team re-runs with that rule stopped on Groq's daily
+  quota.
+
 ## [0.10.0] - 2026-11-14 (Session 9: layered prompt-injection defences)
 
 ### Added

@@ -174,6 +174,42 @@ listed for them.
 To change a fact, edit `data/generators/facts.py` and regenerate. The tests in
 `tests/unit/test_data_generation.py` state each fact independently, so update them as well.
 
+## Orders (Session 10)
+
+`generators/orders.py` writes a deterministic SQLite database,
+`data/generated/orders.db` (git-ignored, rebuilt by `scripts/generate_data.py`), for the
+v8 agent's tools. Every fact is in `facts.ORDERS` and `facts.EXTRA_CUSTOMERS`.
+
+| Table | Columns |
+|---|---|
+| `customers` | `customer_id`, `name`, `region` (IN, UK, US) |
+| `orders` | `order_id`, `customer_id`, `ordered`, `estimated_delivery`, `delivered` (NULL in transit), `status` (shipped, delivered) |
+| `order_lines` | `order_id`, `line_no`, `product_code`, `quantity`, `price`, `opened` (1, 0 or NULL) |
+
+**Customers.** The three signed-in test users from `data/users.json`, plus two per region
+who exist only in the database and never sign in: `cust_uk_02` Amelia Clarke, `cust_uk_03`
+Harry Wilson, `cust_in_02` Arjun Mehta, `cust_in_03` Kavya Nair, `cust_us_02` Ethan
+Brooks and `cust_us_03` Sofia Ramirez. Their orders exist so isolation can be tested.
+
+**Planted orders** (dates against the reference date 2026-11-01 in
+`configs/business_rules.yaml`):
+
+| Order | Customer | Product | Delivered | Case |
+|---|---|---|---|---|
+| VC-10001 | cust_uk_01 | VisionMax 55" TV (VM-55Q), opened | 2026-03-12 (bought 9 March) | the TV with lines: panel defects covered for 24 months, until 2028-03-12 |
+| VC-10002 | cust_uk_01 | AeroBuds Pro, opened | 2026-10-20 | inside the 15-day opened-audio window (day 12; last day 2026-11-04) |
+| VC-10003 | cust_uk_01 | AeroBuds Pro, opened | 2026-10-01 | outside it (day 31; the window closed 2026-10-16) |
+| VC-10004 | cust_us_01 | NoteBook 14, opened | 2026-10-25 | US opened laptop: 15 days (until 2026-11-09) and a 10% restocking fee |
+| VC-10005 | cust_us_01 | XR-2200, sealed | 2026-08-05 | standard 12-month warranty, until 2027-08-05 |
+| VC-10006 | cust_in_01 | SmartWatch Fit 2 | 2026-10-20 (estimated 2026-10-15) | a late delivery, 5 days after the estimate |
+| VC-10007 | cust_in_01 | PowerBank 20K | not yet (estimated 2026-11-03) | in transit |
+| VC-20001 to VC-20006 | the six database-only customers | various | various | **never visible** to the signed-in customers |
+
+**Business rules** live in `configs/business_rules.yaml`: the reference date, warranty
+periods (standard 12 months, the VisionMax panel 24, marketplace items under the seller's
+terms) and return windows by region, condition and category. A test checks every value
+against the generated policy text, so the rules and the documents can't drift apart.
+
 ## Users
 
 `data/users.json` is validated by `rag_assistant.schemas.User`. Customers must have a single

@@ -95,6 +95,7 @@ class Answer:
     sources: list[Source] = field(default_factory=list)
     path: FlowPath | None = None
     model_text: str | None = None
+    agent: object | None = None  # v8: the agent's trace (agent.graph.AgentResult)
 
     @property
     def rendered(self) -> str:
@@ -177,6 +178,7 @@ class Pipeline:
                 stage.top_k,
                 guard,
                 max_generations,
+                stage.handoff_writes_ticket,
             )
 
     @property

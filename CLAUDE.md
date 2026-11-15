@@ -34,6 +34,7 @@ data/generators/           deterministic templates for the knowledge base (impor
 data/generated/            generator output + manifest.json (git-ignored; see docs/data.md)
 data/golden/               hand-checked evaluation sets (committed)
 data/redteam/              prompt-injection attacks for scripts/redteam.py (committed)
+data/golden/agent_scenarios.jsonl  agent conversations for scripts/evaluate_agent.py
 data/users.json            test users (committed)
 src/rag_assistant/
   config.py                typed settings (YAML < .env < env vars)
@@ -61,10 +62,17 @@ src/rag_assistant/
                            not-found answer), handoff (reasons, messages, tickets to
                            data/tickets/tickets.jsonl, git-ignored)
   eval/contexts.py         rebuild a stored run's context texts offline for back-filled judges
+  eval/agent_eval.py       agent scenario scoring: task success, tools, data isolation, steps
+  agent/                   v8: rules (business rules, date arithmetic), orders (read-only SQLite,
+                           scoped to the user), tools (knowledge, order, warranty, return and
+                           draft-ticket tools; the user comes from the session), graph
+                           (LangGraph tool-calling agent, step limit, guard; AgentPipeline)
 configs/stages/<stage>.yaml  StageConfig switches (all implemented since Session 9);
                            `index: Chunks_vN` reuses another stage's collection (ingest skips it);
                            `redteam_only` (v7raw) opens only for scripts/redteam.py
-configs/prompts.yaml       all prompt templates (answer + judges)
+configs/prompts.yaml       all prompt templates (answer + judges + agent)
+configs/business_rules.yaml  warranty periods, return windows, reference date (checked against
+                           the policy text)
 results/<stage>/           committed full evaluation runs (results.jsonl, summary.json, report.md)
   ingestion/ retrieval/ query/ security/ generation/ graph/
   agent/ mcp_server/ cache/ eval/ api/ ui/
@@ -115,6 +123,9 @@ python scripts/ask.py --stage v6 --user cust_uk_01 "Is there a student discount?
 python scripts/ingest.py --stage v7 ; python scripts/ingest.py --stage v7raw   # then setup_access.py
 python scripts/redteam.py --stage v7 --layers 1,2,3   # also 1, 2, 3, none -> results/v7/redteam.md
 python scripts/compare_rewrite_retrieval.py --stage v7 --rewrites-from v6   # no LLM calls
+python scripts/chat.py --stage v8 --user cust_uk_01   # the agent; prints every tool call
+python scripts/evaluate_agent.py --stage v8 [--ids s01,s07]   # -> results/v8/agent_report.md
+python scripts/redteam.py --stage v8                # the agent vs v7's all-layers red team
 python scripts/show_chunks.py --stage v1 --doc returns-uk-2026-print [--grep text]
 pytest -m integration                         # needs Weaviate + Groq (skipped by default)
 pytest -m security                            # access-control tests against Weaviate RBAC (local)

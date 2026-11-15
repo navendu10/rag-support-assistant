@@ -9,7 +9,7 @@ from langchain_groq import ChatGroq
 
 from rag_assistant.eval.metrics import Judgement, parse_verdict
 from rag_assistant.llm import complete
-from rag_assistant.schemas import GoldenItem, Turn, load_manifest
+from rag_assistant.schemas import AgentScenario, GoldenItem, Turn, load_manifest
 
 CORRECTNESS_LABELS = ("CORRECT", "INCORRECT")
 HANDOFF_LABELS = ("HANDOFF", "ANSWERED")
@@ -62,7 +62,7 @@ class Judge:
         self._leak = prompts["judge_leak"]
         self._invented = prompts["judge_invented"]
 
-    def correctness(self, item: GoldenItem, answer: str) -> Judgement:
+    def correctness(self, item: GoldenItem | AgentScenario, answer: str) -> Judgement:
         """CORRECT / INCORRECT against the reference answer."""
         prompt = self._correctness.format(
             history=format_history(item.history),

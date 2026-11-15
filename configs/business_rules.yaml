@@ -1,0 +1,39 @@
+# Business rules the agent's tools compute with (Session 10). They must match the policy
+# documents exactly: tests/unit/test_business_rules.py checks every value against the
+# generated policy text, so the two can't drift apart.
+
+# Dates are computed against this fixed day, not the real clock, so results are stable.
+reference_date: 2026-11-01
+
+warranty:
+  starts: delivery            # "Coverage starts on the date your order is delivered."
+  standard_months: 12         # All VoltCart products unless listed below: all parts
+  products:
+    VM-55Q:                   # VisionMax 55" 4K TV
+      panel_defects_months: 24   # lines on screen, dead pixels
+      other_parts_months: 12
+  # Marketplace items are covered "as stated by the seller": the tools never compute a
+  # VoltCart warranty or return window for them.
+  marketplace_codes: [QC-USBC, SP-LITE, CD-3IN1, PS-STAND, TC-4K, SPL-MINI, PG-65W]
+
+returns:
+  starts: delivery
+  refund_working_days: 5      # after the return passes inspection
+  # Days to return, by region, condition and product category ("default": every other
+  # category), and the fee for opened items.
+  regions:
+    UK:
+      sealed_days: 30
+      opened_days: {Audio: 15, default: 30}
+      opened_fee_percent: {default: 0}
+      original_packaging_required: false
+    IN:
+      sealed_days: 7
+      opened_days: {default: 7}
+      opened_fee_percent: {default: 0}
+      original_packaging_required: true
+    US:
+      sealed_days: 30
+      opened_days: {default: 15}
+      opened_fee_percent: {Audio: 0, default: 10}
+      original_packaging_required: false

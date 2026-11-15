@@ -131,6 +131,22 @@ class PathRecord(BaseModel):
     guard_problems: list[str] = []
 
 
+class AgentRecord(BaseModel):
+    """The agent's route for one question (v8)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    tools: list[str]
+    tool_calls: int
+    model_calls: int
+    generations: int
+    hit_step_limit: bool
+    outcome: str
+    guard_problems: list[str] = []
+    # One line per order-tool call: its name, arguments and facts, as the model saw them.
+    tool_facts: list[str] = []
+
+
 class ResultRow(BaseModel):
     """One line of results.jsonl.
 
@@ -171,6 +187,7 @@ class ResultRow(BaseModel):
     model_text: str | None = None
     fixed_message: bool = False
     invented: Judgement | None = None
+    agent: AgentRecord | None = None
 
 
 def invented_input(row: ResultRow) -> str | None:
@@ -625,3 +642,12 @@ def summarise_by_tag(rows: Sequence[ResultRow]) -> dict[str, dict[str, object]]:
     """``summarise_rows`` for each failure tag, in first-seen order."""
     tags = list(dict.fromkeys(row.failure_tag for row in rows))
     return {tag: summarise_rows([r for r in rows if r.failure_tag == tag]) for tag in tags}
+
+
+def judge_sources(sources: str, row: ResultRow) -> str:
+    """The invented-content judge's sources: the knowledge passages plus, for the agent, the
+    order-tool results of that turn (trusted: our systems computed them)."""
+    if row.agent is None or not row.agent.tool_facts:
+        return sources
+    tools = "\n".join(f"- {line}" for line in row.agent.tool_facts)
+    return f"{sources}\n\nTOOL RESULTS (computed by VoltCart's order systems):\n{tools}"

@@ -390,6 +390,14 @@ class StageConfig(BaseModel):
     redteam_only: bool = Field(
         default=False, description="only scripts/redteam.py may open it (unsanitised index)"
     )
+    # Session 10: whether a corrective-flow handoff writes a customer ticket. True keeps
+    # v6 and v7 exactly as evaluated; v8 sets it False (the agent decides, and only its
+    # draft_ticket tool drafts anything).
+    handoff_writes_ticket: bool = True
+    agent: bool = False
+    max_tool_calls: int | None = Field(
+        default=None, gt=0, le=20, description="agent only: tool calls per question"
+    )
     top_k: int = Field(gt=0, le=50)
 
     @model_validator(mode="after")
@@ -470,6 +478,16 @@ class StageConfig(BaseModel):
             raise ValueError("set an injection: block exactly when injection_guard is true")
         if self.injection_guard and not self.corrective_flow:
             raise ValueError("injection_guard: true needs corrective_flow: true")
+        return self
+
+    @model_validator(mode="after")
+    def _agent_settings(self) -> StageConfig:
+        """``agent`` builds on v7: it needs the injection layers (and so the corrective
+        flow) and a tool-call limit; the limit needs ``agent``."""
+        if self.agent != (self.max_tool_calls is not None):
+            raise ValueError("set max_tool_calls exactly when agent is true")
+        if self.agent and not self.injection_guard:
+            raise ValueError("agent: true needs injection_guard: true (v7's protections)")
         return self
 
     @property

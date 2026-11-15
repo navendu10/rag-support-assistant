@@ -5,6 +5,7 @@ Usage:
     python scripts/redteam.py --stage v7 --layers 1       # one layer alone
     python scripts/redteam.py --stage v7 --layers none    # no layers: v6 behaviour
     python scripts/redteam.py --stage v7 --rescore         # re-score stored answers, no LLM
+    python scripts/redteam.py --stage v8                   # the agent, all layers, vs v7
 
 Layer 1 works at ingestion, so it decides the index: on -> v7's sanitised collections,
 off -> v7raw's unsanitised copy of the same data (red-team runs only). Layers 2 and 3 are
@@ -22,11 +23,12 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from rag_assistant.config import get_settings
+from rag_assistant.agent.graph import open_pipeline
+from rag_assistant.config import StageConfig, get_settings, load_stage
 from rag_assistant.graph.handoff import MemoryTicketStore
-from rag_assistant.pipeline import Pipeline
 from rag_assistant.schemas import load_users
 from rag_assistant.security.redteam import (
+    ALL_LAYERS,
     AttackResult,
     layers_label,
     load_attacks,
@@ -45,7 +47,9 @@ RUN_ORDER = ("1,2,3", "1", "2", "3", "none")
 def parse_args() -> argparse.Namespace:
     """Parse command-line options."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--stage", default="v7", choices=["v7"], help="the defended stage")
+    parser.add_argument(
+        "--stage", default="v7", choices=["v7", "v8"], help="v7 (layers) or v8 (the agent)"
+    )
     parser.add_argument("--layers", default="1,2,3", help='e.g. "1,2,3", "2" or "none"')
     parser.add_argument(
         "--rescore", action="store_true", help="re-score every stored run, no LLM calls"
@@ -58,16 +62,14 @@ def _cell(text: str) -> str:
     return text.replace("|", "\\|").replace("\n", " ")
 
 
-def run(layers: tuple[int, ...]) -> list[AttackResult]:
-    """Answer every attack with the stage for ``layers`` and score it."""
+def run(layers: tuple[int, ...], stage: StageConfig | None = None) -> list[AttackResult]:
+    """Answer every attack with the stage for ``layers`` (or ``stage``) and score it."""
     settings = get_settings()
     attacks = load_attacks(settings.paths.resolve(ATTACKS_FILE))
     users = {u.user_id: u for u in load_users(settings.paths.resolve(settings.paths.users_file))}
-    stage = stage_for_layers(layers)
+    stage = stage or stage_for_layers(layers)
     results = []
-    with Pipeline.from_stage(
-        stage, settings, tickets=MemoryTicketStore(), allow_redteam=True
-    ) as pipeline:
+    with open_pipeline(stage, settings, MemoryTicketStore(), allow_redteam=True) as pipeline:
         for attack in attacks:
             answer = pipeline.answer(attack.question, users[attack.user_id])
             hits = score(attack, answer.text)
@@ -77,6 +79,7 @@ def run(layers: tuple[int, ...]) -> list[AttackResult]:
                     id=attack.id,
                     technique=attack.technique,
                     layers=list(layers),
+                    tools=[] if answer.agent is None else list(answer.agent.tools_used),
                     answer=answer.text,
                     hits=hits,
                     handoff_reason=None if path is None else path.handoff_reason,
@@ -143,11 +146,58 @@ def rescore(out_dir: Path) -> None:
             print(f"layers {label}: {blocked}/{len(results)} attacks blocked (rescored)")
 
 
+def run_agent(out_dir: Path, v7_dir: Path) -> int:
+    """v8: the agent with every v7 layer, compared attack by attack with v7's all-layers run.
+
+    Any attack v7 blocked that gets through on v8 is listed first and flagged.
+    """
+    results = run(ALL_LAYERS, load_stage("v8"))
+    write_results(out_dir / "redteam" / "agent.jsonl", results)
+    v7 = {r.id: r for r in load_results(v7_dir / "redteam" / "1,2,3.jsonl")}
+    attacks = load_attacks(get_settings().paths.resolve(ATTACKS_FILE))
+    table = pass_table({"v7, all layers": list(v7.values()), "v8 agent": results}, attacks)
+    regressions = [r for r in results if r.hits and v7[r.id].blocked]
+    lines = [
+        "| id | technique | v7 | v8 | v8 tools | v8 answer |",
+        "|---|---|---|---|---|---|",
+    ]
+    for r in results:
+        lines.append(
+            f"| {r.id} | {r.technique} | {'blocked' if v7[r.id].blocked else 'through'} | "
+            f"{'blocked' if r.blocked else '**through**'} | {_cell(', '.join(r.tools) or '-')} | "
+            f"{_cell(r.answer[:160])} |"
+        )
+    flag = (
+        "**REGRESSION: attacks v7 blocked got through on v8: "
+        + ", ".join(r.id for r in regressions)
+        + ". Switch the agent to per-sentence citations.**"
+        if regressions
+        else "No attack that v7 blocked gets through on v8."
+    )
+    report = "\n\n".join(
+        [
+            "# Red-team results: stage `v8` (the agent) vs `v7`",
+            f"- Date: {date.today().isoformat()}; attacks: `{ATTACKS_FILE.as_posix()}` "
+            f"({len(attacks)}); v8 runs every v7 layer plus the agent's tools",
+            flag,
+            "## Attacks blocked, per technique",
+            table,
+            "## Per attack",
+            "\n".join(lines),
+        ]
+    )
+    (out_dir / "redteam.md").write_text(report + "\n", encoding="utf-8", newline="\n")
+    print(f"\nv8: {sum(r.blocked for r in results)}/{len(results)} blocked. {flag}")
+    return 0
+
+
 def main() -> int:
     """Run one layer configuration (or re-score them all), save it, rebuild the report."""
     args = parse_args()
     settings = get_settings()
     out_dir = settings.paths.resolve(settings.paths.results_dir) / args.stage
+    if args.stage == "v8":
+        return run_agent(out_dir, settings.paths.resolve(settings.paths.results_dir) / "v7")
     if args.rescore:
         rescore(out_dir)
         print(f"Report: {write_report(out_dir)}")

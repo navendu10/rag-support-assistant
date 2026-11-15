@@ -16,9 +16,10 @@ import argparse
 import sys
 from pathlib import Path
 
-from rag_assistant.config import get_settings
-from rag_assistant.pipeline import Pipeline
+from rag_assistant.agent.graph import open_pipeline
+from rag_assistant.config import get_settings, load_stage
 from rag_assistant.query.describe import (
+    describe_agent,
     describe_path,
     describe_retrieval,
     describe_rewrite,
@@ -49,11 +50,11 @@ def main() -> int:
         print(f"Unknown user {args.user!r}. Choose from: {', '.join(users)}")
         return 1
     history = load_history(args.history_file) if args.history_file else []
-    with Pipeline.from_stage(args.stage, settings) as pipeline:
+    with open_pipeline(load_stage(args.stage), settings) as pipeline:
         result = pipeline.answer(args.question, users[args.user], history)
     print(result.rendered)
     print()
-    print("\n".join(describe_rewrite(result) + describe_path(result)))
+    print("\n".join(describe_agent(result) + describe_rewrite(result) + describe_path(result)))
     print("\nRetrieved:")
     print("\n".join(describe_retrieval(result)))
     print(f"\n{describe_timings(result)}")

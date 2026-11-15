@@ -5,8 +5,9 @@ Usage:
 
 Each turn prints the rewritten query (standalone question, search query, codes,
 category), the applied region filter, the retrieved doc_ids, the grounding and corrective
-flow route (v6a/v6), and then the answer with its "Sources:" list. In v6 a customer handoff
-appends a ticket to data/tickets/tickets.jsonl.
+flow route (v6a/v6), and then the answer with its "Sources:" list. With an agent stage
+(v8) each tool call is printed too, with its arguments and a one-line result. In v6 and
+v7 a customer handoff appends a ticket to data/tickets/tickets.jsonl; v8 writes none.
 Commands: /reset clears the history, /quit (or Ctrl+C / Ctrl+Z) exits.
 """
 
@@ -15,9 +16,10 @@ from __future__ import annotations
 import argparse
 import sys
 
-from rag_assistant.config import get_settings
-from rag_assistant.pipeline import Pipeline
+from rag_assistant.agent.graph import open_pipeline
+from rag_assistant.config import get_settings, load_stage
 from rag_assistant.query.describe import (
+    describe_agent,
     describe_path,
     describe_retrieval,
     describe_rewrite,
@@ -49,7 +51,7 @@ def main() -> int:
         return 1
     user = users[args.user]
     history: list[Turn] = []
-    with Pipeline.from_stage(args.stage, settings) as pipeline:
+    with open_pipeline(load_stage(args.stage), settings) as pipeline:
         print(f"Stage {args.stage}, user {user.user_id} ({user.role}, {user.region}).")
         print("Type /reset to clear the history, /quit to exit.\n")
         while True:
@@ -70,7 +72,7 @@ def main() -> int:
             print("\n".join(describe_rewrite(result)))
             print("retrieved  :")
             print("\n".join(describe_retrieval(result)))
-            print("\n".join(describe_path(result)))
+            print("\n".join(describe_agent(result) + describe_path(result)))
             print(f"\nassistant> {result.rendered}\n")
             print(f"({describe_timings(result)})\n")
             history = add_turns(history, question, result.text)
