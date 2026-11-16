@@ -398,7 +398,8 @@ Verdicts that a reading of the answer and its sources showed to be wrong, kept s
 | v7 | g020 | handoff | ANSWERED | the flow handed off with a fixed handoff message; v6's nearly identical text was judged HANDOFF |
 | v5 | g020 | invented content (calibration) | SUPPORTED | hand label INVENTED: "we can't make an exception" is in no source (both small and large judge missed it) |
 | v5 | g030, g040 | invented content (calibration) | SUPPORTED | small invented details inside correct answers ("the recessed button on the back", "a short tone") |
-
+| v8 | s02 | agent task success | INCORRECT | "no fee, no original packaging" are in the `check_return_eligibility` result |
+| v8 | s05 | agent task success | CORRECT | the answer never states the delivery date or days late (no `get_order` call) |
 | v8 | g001, g010, g015, g019, g025 | invented content | INVENTED | g001: the stale 14 days is in a cited source; g010: "stuck pixels" vs the policy's "dead pixels"; g015: an offer to draft a ticket (the agent can); g019, g025: "no information about X" |
 | v8 | s01 (agent scenario) | correctness | CORRECT | the answer claimed a draft ticket that `draft_ticket` never made (an invented action); the ticket-claim check now catches it |
 

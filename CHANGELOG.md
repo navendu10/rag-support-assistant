@@ -49,15 +49,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Results
 
-- Agent scenarios: task success 13/14, tool correctness 13/14, data isolation 14/14, no
-  step-limit hits, no forbidden tool calls.
+- Agent scenarios: task success 13/14, tool correctness 12/14, data isolation 14/14, no
+  step-limit hits, no forbidden tool calls. s01 now drafts the repair ticket.
 - Red team on v8: 18/18 blocked, the same as v7.
 - Golden set v7 -> v8: correctness 41 -> 40, recall 42/45 -> 38/45, false handoffs 3 -> 4,
   invented content (judge) 2 -> 5 (0 on reading), after the knowledge-base rule ("for any
   policy, product or process fact, call search_knowledge_base; if no order matches, answer
   from it") re-answered the 10 questions without a knowledge call.
-- Pending: the scenario and v8 red-team re-runs with that rule stopped on Groq's daily
-  quota.
 
 ## [0.10.0] - 2026-11-14 (Session 9: layered prompt-injection defences)
 

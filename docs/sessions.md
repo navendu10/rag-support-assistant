@@ -591,7 +591,8 @@ protection in force.
 
 **Results:**
 
-- Scenarios: 13/14 succeed, isolation 14/14, no step-limit hits, no forbidden calls.
+- Scenarios: 13/14 succeed, tool correctness 12/14, isolation 14/14, no step-limit
+  hits, no forbidden calls (re-run on 2026-11-16 with the final prompts).
 - Red team: 18/18, the same as v7.
 - Golden set: 40/50 (v7: 41/50) after the knowledge-base rule re-answered the 10
   questions without a knowledge call. Questions such as g017 are answered from real
@@ -623,7 +624,20 @@ protection in force.
   they go to the Session 13 calibration list.
 - The `draft_ticket` description now says to draft (for confirmation) when the check
   tools show the case is eligible, and never to claim a ticket draft_ticket didn't return.
-- Re-run the agent scenarios and `redteam.py --stage v8` with the rule (they stopped on
-  the daily quota).
-- For a product fault, it should check troubleshooting before offering a ticket (s01).
+- **s05** (Session 11): with the knowledge-base rule the agent searched the shipping
+  policy and skipped `get_order`, so it never stated how late the order was; the judge
+  passed it anyway (Session 13).
+- **s02** (Session 13 calibration list): judged wrong for "no fee, no original packaging",
+  both from the tool result.
+- **s01** (Session 11): drafts the ticket now, but says "a support agent will review the
+  draft" although nothing is submitted, and skips the troubleshooting search.
+- The golden-set rows were answered before the new `draft_ticket` wording.
+
+**Session 11 follow-ups:**
+
+- Add the prompt rule "if the question is about the customer's own order, look it up
+  first, then search the knowledge base for the policy". It fixes s05 (no `get_order`)
+  and the missing knowledge-base search in s01.
+- s01's "a support agent will review the draft" may only appear once ticket submission
+  exists.
 - Submitting tickets, with human approval, is Session 11.

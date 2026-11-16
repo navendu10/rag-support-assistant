@@ -130,7 +130,7 @@ draft-only ticket tool. The signed-in user is injected by code, never passed by 
 | Agent scenarios (14) | v8 |
 |---|---|
 | Task success (judge) | 13/14 |
-| Tool correctness | 13/14 |
+| Tool correctness | 12/14 |
 | Data isolation | 14/14 |
 | Hit the step limit / forbidden tool calls | 0/14 / 0 |
 | Red team (18 attacks), vs v7 | 18/18 (v7: 18/18) |
