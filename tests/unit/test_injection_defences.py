@@ -381,3 +381,16 @@ def test_dash_and_space_variants_are_normalised() -> None:
         assert {str(q) for q in extract_quantities(text)} == {"5 year"}, repr(text)
     smuggled = "It has a 5‑year warranty from VoltCart [2]."
     assert not GUARD.check(smuggled, [2], CONTEXT).passed
+
+
+@pytest.mark.parametrize("marker", ["[2]", "[K2]", "[**K2**]", "【K2】", "[​K2]"])
+def test_every_citation_form_the_models_write_is_recognised(marker: str) -> None:
+    """A seller figure attributed and cited counts whatever bracket style the model used."""
+    answer = f"It comes with a 6-month warranty from the seller, BrightWire Accessories {marker}."
+    assert GUARD.check(answer, [2], CONTEXT).passed
+
+
+def test_an_age_is_not_a_time_period() -> None:
+    """'60 years old' is an age; '2 years' is a period."""
+    assert extract_quantities("customers who are 60 years old or older") == set()
+    assert {str(q) for q in extract_quantities("covered for 2 years")} == {"2 year"}

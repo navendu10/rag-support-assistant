@@ -73,3 +73,35 @@ def describe_timings(answer: Answer) -> str:
         if s in t
     ]
     return " | ".join(f"{s} {t[s]:.0f} ms" for s in steps)
+
+
+def _summary(result: dict) -> str:
+    """One short line for a tool result: its status and its first facts."""
+    status = str(result.get("status", "?"))
+    if "orders" in result:
+        ids = ", ".join(o["order_id"] for o in result["orders"]) or "none"
+        return f"{status}: {len(result['orders'])} orders ({ids})"
+    if "passages" in result:
+        docs = ", ".join(f"{p['id']} {p['doc_id']}" for p in result["passages"]) or "no passages"
+        return f"{status}: {docs}"
+    facts = result.get("facts") or [result.get("message", "")]
+    return f"{status}: {'; '.join(str(f) for f in facts[:2])}"[:160]
+
+
+def describe_agent(answer: Answer) -> list[str]:
+    """v8: each tool call with its arguments and a one-line result, then the route."""
+    agent = answer.agent
+    if agent is None:
+        return []
+    lines = [
+        f"tool {n}    : {c.name}({', '.join(f'{k}={v!r}' for k, v in c.args.items())})"
+        f" -> {_summary(c.result)}"
+        for n, c in enumerate(agent.calls, start=1)
+    ]
+    limit = ", HIT THE STEP LIMIT" if agent.hit_step_limit else ""
+    lines.append(
+        f"agent      : {agent.tool_calls} tool calls, {agent.model_calls} model calls, "
+        f"{agent.generations} answer generations, {agent.outcome}{limit}"
+    )
+    lines += [f"guard      : {p}" for p in agent.guard_problems]
+    return lines

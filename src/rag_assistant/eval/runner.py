@@ -8,10 +8,12 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
+from rag_assistant.agent.graph import AgentPipeline, AgentResult, open_pipeline
 from rag_assistant.config import Settings, StageConfig, load_prompts
 from rag_assistant.eval.contexts import chunk_lookup, stored_context
 from rag_assistant.eval.judge import Judge, internal_reference, needs_leak_judge
 from rag_assistant.eval.metrics import (
+    AgentRecord,
     GroundedRecord,
     Judgement,
     PathRecord,
@@ -19,6 +21,7 @@ from rag_assistant.eval.metrics import (
     RetrievedRef,
     check_item,
     invented_input,
+    judge_sources,
     summarise_by_tag,
     summarise_rows,
 )
@@ -105,6 +108,42 @@ def path_record(answer: Answer) -> PathRecord | None:
     )
 
 
+def agent_record(answer: Answer) -> AgentRecord | None:
+    """The stored form of the agent's route (None outside agent stages)."""
+    a = answer.agent
+    if not isinstance(a, AgentResult):
+        return None
+    return AgentRecord(
+        tools=a.tools_used,
+        tool_calls=a.tool_calls,
+        model_calls=a.model_calls,
+        generations=a.generations,
+        hit_step_limit=a.hit_step_limit,
+        outcome=a.outcome,
+        guard_problems=list(a.guard_problems),
+        tool_facts=[tool_fact(c.name, c.args, c.result) for c in a.calls if c.name != KNOWLEDGE],
+    )
+
+
+KNOWLEDGE = "search_knowledge_base"
+
+
+def tool_fact(name: str, args: dict, result: dict) -> str:
+    """One order-tool call in plain words for the invented-content judge: its facts, or for
+    ``list_my_orders`` every order with its product, delivery and status."""
+    call = f"{name}({', '.join(f'{k}={v}' for k, v in args.items())})"
+    if "orders" in result:
+        orders = [
+            f"{o['order_id']} {o['product']}, {o['status']}, "
+            f"estimated delivery {o['estimated_delivery']}, "
+            f"delivered {o['delivered'] or 'not yet'}"
+            for o in result["orders"]
+        ]
+        return f"{call}: {'; '.join(orders) or 'no orders on this account'}"
+    facts = result.get("facts") or [result.get("message") or result.get("status", "")]
+    return f"{call}: {'; '.join(str(f) for f in facts)}"
+
+
 def judge_invented(judge: Judge, row: ResultRow, sources: str) -> Judgement:
     """The invented-content verdict for ``row`` (no LLM call for a fixed message alone)."""
     text = invented_input(row)
@@ -116,7 +155,7 @@ def judge_invented(judge: Judge, row: ResultRow, sources: str) -> Judgement:
 def evaluate_item(
     item: GoldenItem,
     user: User,
-    pipeline: Pipeline,
+    pipeline: Pipeline | AgentPipeline,
     judge: Judge,
     recall_k: int,
     internal: str = "",
@@ -192,11 +231,17 @@ def evaluate_item(
         grounded=grounded_record(answer),
         path=path_record(answer),
         model_text=answer.model_text if answer.model_text != answer.text else None,
-        fixed_message=answer.grounded is not None and answer.model_text is None,
+        fixed_message=(answer.grounded is not None or answer.agent is not None)
+        and answer.model_text is None,
+        agent=agent_record(answer),
     )
     if pipeline.stage.grounding:
         row = row.model_copy(
-            update={"invented": judge_invented(judge, row, format_sources(answer.context))}
+            update={
+                "invented": judge_invented(
+                    judge, row, judge_sources(format_sources(answer.context), row)
+                )
+            }
         )
     return row
 
@@ -234,7 +279,7 @@ def answer_items(
     internal_ids = internal_doc_ids(settings)
     rows: list[ResultRow] = []
     # Evaluation never writes tickets to data/tickets/: rows record that one was created.
-    with Pipeline.from_stage(stage, settings, tickets=MemoryTicketStore()) as pipeline:
+    with open_pipeline(stage, settings, MemoryTicketStore()) as pipeline:
         for n, item in enumerate(items, start=1):
             row = evaluate_item(
                 item,
@@ -485,7 +530,7 @@ def add_invented_judgements(
     updated = []
     for row in rows:
         if row.invented is None:
-            sources = format_sources(stored_context(row, lookup))
+            sources = judge_sources(format_sources(stored_context(row, lookup)), row)
             verdict = judge_invented(judge, row, sources)
             progress(
                 f"{row.id} invented judge: {verdict.verdict or 'JUDGE-ERROR'} - {verdict.reason}"

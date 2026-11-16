@@ -100,6 +100,30 @@ must never back a real assistant.
 the corrective flow's retry and the guard's regeneration, so an attack can't make the
 flow loop or run up cost (see ADR 0007 for the worst-case path).
 
+## The agent's tools (Session 10)
+
+The v8 agent calls tools, so the question is what a tool lets the model reach.
+
+- **The user is never an argument.** Our code injects the signed-in user into the tools'
+  session (`agent/tools.py`), and a test checks that no tool's input model has a user,
+  customer, role or account field.
+- **Order access is decided by role, in code.** The role comes from `data/users.json`.
+  - A customer's lookups are always `WHERE order_id = ? AND customer_id = <the user>`.
+  - Staff (`agent_01`) can look up any order by its id, but have no orders of their own,
+    and no tool lists everyone's orders.
+  - A draft ticket's customer always comes from the order record.
+- **Not found means not found.** Another customer's order id gives exactly the same
+  result as an id that doesn't exist, so ids can't be probed.
+- **Read-only.** The order database is opened with SQLite's `mode=ro`; `draft_ticket`
+  writes nothing, and inside the agent a knowledge-base handoff writes no ticket
+  (`handoff_writes_ticket: false`). Tests check that no file changes.
+- **The knowledge tool is v7.** `search_knowledge_base` runs the v7 pipeline for the same
+  user: same Weaviate key, collections, region filter and injection layers.
+- **Tool results are trusted text.** They hold only our database fields and values our
+  code computed; there is no free-text field anyone else could write into. That is why
+  the output guard may accept their figures and dates.
+- **Limits.** At most 6 tool calls and 3 answer generations per question.
+
 ## The rule for later features
 
 Every feature that reads documents or stored answers must act **with the caller's role**,

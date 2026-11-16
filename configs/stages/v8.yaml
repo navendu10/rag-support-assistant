@@ -1,0 +1,42 @@
+# Stage v8: a LangGraph tool-calling agent on top of v7 (Session 10). See ADR 0008.
+# The agent (agent/graph.py) answers with tools: search_knowledge_base runs THIS stage's
+# v7 pipeline for the signed-in user (same role, collections, filters and injection
+# layers); the order tools read data/generated/orders.db read-only; draft_ticket drafts
+# and writes nothing. Retrieval reuses v7's sanitised collections.
+name: v8
+description: v7 + a tool-calling agent (knowledge, order, warranty, return and draft-ticket tools)
+index: Chunks_v7         # v7's sanitised per-audience collections
+chunking: structure
+chunk_size: 1200
+chunk_overlap: 150
+min_chunk_chars: 200
+search: hybrid
+hybrid:
+  alpha_strategy: dynamic
+  code_alpha: 0.25
+  default_alpha: 1.0
+  fusion: relative_score
+  query_properties: [text, title, product_code^2]
+rerank: true
+rerank_model: Xenova/ms-marco-MiniLM-L-6-v2
+fetch_k: 20
+min_score: 0.1           # retry trigger only (see v6.yaml)
+retry_fetch_k: 30        # the wider search's candidates (fetch_k: 20)
+retry_top_k: 8           # the wider search's context chunks (top_k: 4)
+rerank_fusion: blend
+rerank_blend_weight: 0.5
+query_rewrite: true
+use_history: true
+region_filter: true
+access_control: true
+grounding: true
+corrective_flow: true
+injection_guard: true    # v6: false
+top_k: 4
+injection:
+  sanitize_ingestion: true   # layer 1 (ingestion: decides this stage's collections)
+  tagged_sources: true       # layer 2: sources are data
+  output_guard: true         # layer 3: numbers and promises checked against store sources
+agent: true                    # v7: false
+max_tool_calls: 6              # hard step limit per question
+handoff_writes_ticket: false   # a knowledge-base handoff inside the agent writes no ticket

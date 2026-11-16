@@ -195,8 +195,14 @@ class CorrectiveFlow:
         top_k: int,
         guard: OutputGuard | None = None,
         max_generations: int = 3,
+        writes_ticket: bool = True,
     ) -> None:
-        """Build and compile the graph over ``steps``; ``guard`` turns on layer 3."""
+        """Build and compile the graph over ``steps``; ``guard`` turns on layer 3.
+
+        ``writes_ticket`` False (v8, inside the agent): a customer handoff records its
+        reason but adds no ticket.
+        """
+        self._writes_ticket = writes_ticket
         if max_generations < 1:
             raise ValueError("max_generations must be at least 1")
         self._guard = guard
@@ -447,7 +453,7 @@ class CorrectiveFlow:
         show = not guard_failed and self._model_text_passes(result, context)
         text, model_text = handoff_text(user, result, context, self._prompts, show)
         ticket_id = None
-        if user.role == "customer":
+        if user.role == "customer" and self._writes_ticket:
             ticket = new_ticket(user, state["question"], state["standalone"], reason, context)
             self._tickets.add(ticket)
             ticket_id = ticket.ticket_id

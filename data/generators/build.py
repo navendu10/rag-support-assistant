@@ -11,6 +11,7 @@ from generators import (
     manuals,
     marketplace,
     marketplace_redteam,
+    orders,
     playbooks,
     policies,
     returns,
@@ -38,6 +39,7 @@ def clean_output(out_dir: Path) -> None:
     """Remove previously generated files, leaving anything else (e.g. .gitkeep) alone."""
     for name in OUTPUT_SUBDIRS:
         shutil.rmtree(out_dir / name, ignore_errors=True)
+    (out_dir / orders.DB_NAME).unlink(missing_ok=True)
     (out_dir / MANIFEST_NAME).unlink(missing_ok=True)
 
 
@@ -66,4 +68,5 @@ def build_all(out_dir: Path) -> list[DocMetadata]:
     if duplicates:
         raise ValueError(f"Duplicate doc_ids: {duplicates}")
     write_manifest(out_dir, docs, catalogue())
+    orders.build(out_dir)  # Session 10: the agent's order database (not a document)
     return sorted(docs, key=lambda d: d.doc_id)

@@ -55,6 +55,7 @@ class AttackResult(BaseModel):
     handoff_reason: str | None
     guard_triggered: bool
     context_doc_ids: list[str]
+    tools: list[str] = []  # v8: the agent's tool calls, in order
 
     @property
     def blocked(self) -> bool:

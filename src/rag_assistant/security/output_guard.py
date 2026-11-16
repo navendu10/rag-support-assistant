@@ -14,6 +14,13 @@ credit. So the guard checks the facts that matter, sentence by sentence:
   source contains them. A phrase that the sentence negates before it ("does not have a
   lifetime warranty") is a denial and passes; numbers get no such exemption.
 
+**Agent mode (Session 10, v8).** The agent's answer cites knowledge passages as [K1],
+[K2]... and also states figures and **dates** that come from its order tools. So
+``check(..., trusted=...)`` accepts this turn's tool results as a trusted source: they
+hold only our database fields and values our code computed. With ``check_dates`` every
+date in the answer ("12 March 2026", "2026-03-12") must appear in a tool result or a
+store passage. v7 calls ``check`` without either, so its behaviour is unchanged.
+
 The guard is deterministic and needs no LLM. The corrective flow regenerates once when it
 fails and hands off if the second answer fails too (``graph/corrective.py``).
 """
@@ -24,6 +31,7 @@ import logging
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal
 
 from rag_assistant.retrieval.vector import RetrievedChunk
@@ -54,7 +62,7 @@ _CURRENCIES = {
 _CURRENCY = r"(£|\$|₹|gbp|usd|inr|rs\.?)"
 _TIME = re.compile(
     rf"\b{_NUM}[\s-]+(?:working[\s-]+|business[\s-]+|calendar[\s-]+)?"
-    r"(days?|weeks?|months?|years?|hours?)\b",
+    r"(days?|weeks?|months?|years?|hours?)\b(?![\s-]+old\b)",  # "60 years old" is an age
     re.IGNORECASE,
 )
 _PERCENT = re.compile(rf"\b{_NUM}\s*(?:%|percent\b|per\s+cent\b)", re.IGNORECASE)
@@ -63,7 +71,25 @@ _MONEY_AFTER = re.compile(rf"\b{_NUM}\s*(gbp|usd|inr)\b", re.IGNORECASE)
 _CLAUSE_BREAK = re.compile(r"[,;:]|but|however|though|although")
 _NEGATION_WINDOW = 6  # words before the phrase that may hold its negation
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
-_MARKER = re.compile(r"\[(\d+)\]")
+# [2] in the pipeline, [K2] in the agent; models also write [**K2**], 【K2】 and [​K2].
+_MARKER = re.compile(r"[\[【][\s*_​]*K?(\d+)[\s*_​]*[\]】]")
+_MONTHS = {
+    m: i
+    for i, names in enumerate(
+        [("jan", "january"), ("feb", "february"), ("mar", "march"), ("apr", "april"),
+         ("may",), ("jun", "june"), ("jul", "july"), ("aug", "august"),
+         ("sep", "sept", "september"), ("oct", "october"), ("nov", "november"),
+         ("dec", "december")],
+        start=1,
+    )
+    for m in names
+}  # fmt: skip
+_MONTH = "(" + "|".join(sorted(_MONTHS, key=len, reverse=True)) + r")\.?"
+_DAY_MONTH_YEAR = re.compile(
+    rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+(?:of\s+)?{_MONTH}\s+(\d{{4}})\b", re.I
+)
+_MONTH_DAY_YEAR = re.compile(rf"\b{_MONTH}\s+(\d{{1,2}})(?:st|nd|rd|th)?,?\s+(\d{{4}})\b", re.I)
+_ISO_DATE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 _NEGATION = re.compile(
     r"\b(not|no|never|without|isn't|doesn't|don't|aren't|won't|cannot|can't|nor)\b|"
     r"\brather than\b|\binstead of\b",
@@ -124,6 +150,23 @@ def extract_quantities(text: str) -> set[Quantity]:
     return found
 
 
+def extract_dates(text: str) -> set[date]:
+    """Every full date in ``text``: "12 March 2026", "March 12, 2026", "2026-03-12"."""
+    text = fold_typography(text)
+    found: set[date] = set()
+    candidates = [
+        *((int(y), _MONTHS[m.lower()], int(d)) for d, m, y in _DAY_MONTH_YEAR.findall(text)),
+        *((int(y), _MONTHS[m.lower()], int(d)) for m, d, y in _MONTH_DAY_YEAR.findall(text)),
+        *((int(y), int(m), int(d)) for y, m, d in _ISO_DATE.findall(text)),
+    ]
+    for year, month, day in candidates:
+        try:
+            found.add(date(year, month, day))
+        except ValueError:
+            continue  # not a real date (2026-02-30): ignore rather than guess
+    return found
+
+
 def split_sentences(text: str) -> list[str]:
     """Sentences and list items, roughly: split after . ! ? and at line breaks."""
     return [s.strip() for s in _SENTENCE_END.split(text) if s.strip()]
@@ -146,6 +189,15 @@ def _negated(sentence: str, phrase: str) -> bool:
         return False
     clause = _CLAUSE_BREAK.split(lowered[:position])[-1]
     return bool(_NEGATION.search(" ".join(clause.split()[-_NEGATION_WINDOW:])))
+
+
+@dataclass(frozen=True)
+class Trusted:
+    """Facts from this turn's tool results (agent mode), trusted like a store source."""
+
+    facts: set[Quantity] = field(default_factory=set)
+    dates: set[date] = field(default_factory=set)
+    check_dates: bool = False
 
 
 @dataclass(frozen=True)
@@ -176,6 +228,7 @@ class OutputGuard:
         store: Sequence[RetrievedChunk],
         chunks: Sequence[RetrievedChunk],
         citations: Sequence[int],
+        trusted: Trusted,
     ) -> list[str]:
         """What in one sentence isn't supported by the sources it may rely on.
 
@@ -185,7 +238,7 @@ class OutputGuard:
         problems = []
         sentence = fold_typography(sentence)
         lowered = sentence.lower()
-        store_facts = set().union(*(extract_quantities(c.text) for c in store))
+        store_facts = set().union(*(extract_quantities(c.text) for c in store), trusted.facts)
         cited_here = {int(n) for n in _MARKER.findall(sentence)}
         seller_facts: set[Quantity] = set()
         if any(term in lowered for term in self._attribution):
@@ -204,6 +257,12 @@ class OutputGuard:
             else:
                 why = f"is not in {where}"
             problems.append(f'"{quantity.label}" {why} ("{sentence}")')
+        if trusted.check_dates:
+            allowed = trusted.dates | set().union(*(extract_dates(c.text) for c in store))
+            for day in sorted(extract_dates(sentence) - allowed):
+                problems.append(
+                    f'"{day.isoformat()}" is not in a tool result or a store passage ("{sentence}")'
+                )
         for phrase in self._claims:
             claimed = _contains(sentence, phrase) and not _negated(sentence, phrase)
             if claimed and not any(_contains(c.text, phrase) for c in store):
@@ -211,14 +270,28 @@ class OutputGuard:
         return problems
 
     def check(
-        self, answer: str, citations: Sequence[int], chunks: Sequence[RetrievedChunk]
+        self,
+        answer: str,
+        citations: Sequence[int],
+        chunks: Sequence[RetrievedChunk],
+        trusted_texts: Sequence[str] = (),
+        check_dates: bool = False,
     ) -> GuardVerdict:
-        """Check ``answer`` against the cited sources among ``chunks`` (numbered from 1)."""
+        """Check ``answer`` against the cited sources among ``chunks`` (numbered from 1).
+
+        ``trusted_texts`` (agent mode): this turn's tool results, whose figures and dates
+        count like a store source. ``check_dates`` also checks every date in the answer.
+        """
         cited = [chunks[n - 1] for n in citations if 1 <= n <= len(chunks)]
         store = [c for c in cited if c.trust == "store"]
+        trusted = Trusted(
+            facts=set().union(*(extract_quantities(t) for t in trusted_texts)),
+            dates=set().union(*(extract_dates(t) for t in trusted_texts)),
+            check_dates=check_dates,
+        )
         problems = [
             p for sentence in split_sentences(answer)
-            for p in self._sentence_problems(sentence, store, chunks, citations)
+            for p in self._sentence_problems(sentence, store, chunks, citations, trusted)
         ]  # fmt: skip
         for problem in problems:
             logger.warning("OUTPUT GUARD: %s", problem)

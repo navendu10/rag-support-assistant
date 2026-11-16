@@ -572,3 +572,72 @@ switchable layers and a red team that measures each.
 - Grow the red-team suite as new techniques appear; all 18 current attacks are blocked,
   which is a floor, not a guarantee.
 - Judge calibration list for Session 13: `docs/evaluation.md`.
+
+## Session 10: A tool-calling agent (2026-11-15)
+
+**Goal:** stage v8 = v7 + a LangGraph tool-calling agent that uses the v7 pipeline as its
+knowledge tool, with order, warranty, return and draft-ticket tools, and every v7
+protection in force.
+
+**Built:**
+
+- `agent/rules.py`, `agent/orders.py` and `agent/tools.py`: business rules from
+  `configs/business_rules.yaml`, a read-only order store scoped by role, and six tools
+  with the user injected by code.
+- `agent/graph.py`: the graph, a 6-call step limit, the shared 3-generation cap, the
+  guard in agent mode, and `AgentPipeline`.
+- `generators/orders.py`: `orders.db`.
+- Agent scenarios, `scripts/evaluate_agent.py` and `redteam.py --stage v8`.
+
+**Results:**
+
+- Scenarios: 13/14 succeed, tool correctness 12/14, isolation 14/14, no step-limit
+  hits, no forbidden calls (re-run on 2026-11-16 with the final prompts).
+- Red team: 18/18, the same as v7.
+- Golden set: 40/50 (v7: 41/50) after the knowledge-base rule re-answered the 10
+  questions without a knowledge call. Questions such as g017 are answered from real
+  orders, while the reference assumes the customer's stated facts.
+
+**Found and fixed during the session:**
+
+- The TV case claimed a draft ticket it never made; the judge passed it. A ticket-claim
+  check was added.
+- The guard missed `【K1】` and `[**K1**]` citations; g026 and g027 fell back.
+- "60 years old" was read as a period.
+- The invented-content judge couldn't see the tool results.
+
+**Decisions:**
+
+- Staff can look up any order and have none of their own.
+- No tickets in v8 (`handoff_writes_ticket`).
+- At the step limit, one answer without tools, counted in the generation cap.
+- The guard's sources are the knowledge passages plus the tool results.
+
+**Follow-ups:**
+
+- The knowledge-base rule fixed g010 and g018.
+- **g012** (Session 13, judge and citation calibration): the agent cited a passage that
+  lacks "30 days", so the guard blocked the answer and gave the fixed reply.
+- **g046** (Session 11): the agent skips the knowledge base and claimed a ticket that
+  doesn't exist; the ticket-claim check caught it.
+- **The 5 invented-content judge flags** (g001, g010, g015, g019, g025) read as fine;
+  they go to the Session 13 calibration list.
+- The `draft_ticket` description now says to draft (for confirmation) when the check
+  tools show the case is eligible, and never to claim a ticket draft_ticket didn't return.
+- **s05** (Session 11): with the knowledge-base rule the agent searched the shipping
+  policy and skipped `get_order`, so it never stated how late the order was; the judge
+  passed it anyway (Session 13).
+- **s02** (Session 13 calibration list): judged wrong for "no fee, no original packaging",
+  both from the tool result.
+- **s01** (Session 11): drafts the ticket now, but says "a support agent will review the
+  draft" although nothing is submitted, and skips the troubleshooting search.
+- The golden-set rows were answered before the new `draft_ticket` wording.
+
+**Session 11 follow-ups:**
+
+- Add the prompt rule "if the question is about the customer's own order, look it up
+  first, then search the knowledge base for the policy". It fixes s05 (no `get_order`)
+  and the missing knowledge-base search in s01.
+- s01's "a support agent will review the draft" may only appear once ticket submission
+  exists.
+- Submitting tickets, with human approval, is Session 11.

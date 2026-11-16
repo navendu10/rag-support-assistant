@@ -121,6 +121,25 @@ Each stage has its own write-up:
 (Sessions 3-9: chunking, product codes, ranking, vague queries and region, leaks,
 hallucination, prompt injection).
 
+### Agent (Session 10, stage v8)
+
+[docs/agents-and-mcp.md](docs/agents-and-mcp.md): a LangGraph tool-calling agent that uses
+v7 as its knowledge tool and adds read-only order, warranty and return tools and a
+draft-only ticket tool. The signed-in user is injected by code, never passed by the model.
+
+| Agent scenarios (14) | v8 |
+|---|---|
+| Task success (judge) | 13/14 |
+| Tool correctness | 12/14 |
+| Data isolation | 14/14 |
+| Hit the step limit / forbidden tool calls | 0/14 / 0 |
+| Red team (18 attacks), vs v7 | 18/18 (v7: 18/18) |
+
+On the golden set v8 scores 40/50 against v7's 41/50. Some questions are answered from the
+customer's real orders, while the document-style references assume the customer's stated
+facts (g009, g017). One is a genuine miss: g046 still skips the knowledge base. See the
+doc.
+
 | Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs (route) | Handoffs (judge) | Rewrite fallbacks | Agent internal retrieval | Agent internal access | False handoffs | Invented content | Citations valid | Guard triggers (answerable) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | v0 | 40/45 (89%) | 26/45 (58%) | 0.69 | n/a | 29/50 (58%) | 5/46 (11%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | n/a | 1/7 (14%) | n/a | 3/4 (75%) | 2/4 (50%) | 3/43 (7%) | n/a | n/a | n/a |
@@ -133,6 +152,7 @@ hallucination, prompt injection).
 | v6a | 42/45 (93%) | 33/45 (73%) | 0.83 | 45/45 (100%) | 33/50 (66%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | n/a | 6/7 (86%) | 0/50 (0%) | 3/4 (75%) | 1/4 (25%) | 5/43 (12%) | 1/50 (2%) | 50/50 (100%) | n/a |
 | v6 | 42/45 (93%) | 33/45 (73%) | 0.82 | 45/45 (100%) | 39/50 (78%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | 7/7 (100%) | 7/7 (100%) | 0/50 (0%) | 4/4 (100%) | 2/4 (50%) | 4/43 (9%) | 2/50 (4%) | 50/50 (100%) | n/a |
 | v7 | 42/45 (93%) | 34/45 (76%) | 0.83 | 45/45 (100%) | 41/50 (82%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | 7/7 (100%) | 6/7 (86%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) | 3/43 (7%) | 2/50 (4%) | 50/50 (100%) | 1/43 (2%) |
+| v8 | 38/45 (84%) | 32/45 (71%) | 0.77 | 39/45 (87%) | 40/50 (80%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | n/a | 6/7 (86%) | 0/43 (0%) | 4/4 (100%) | 2/4 (50%) | 4/43 (9%) | 5/50 (10%) | n/a | n/a |
 
 Higher is better for recall, hit@1, MRR, candidate recall, correctness, handoffs and agent
 internal access; lower is better for leaks, injection failures and rewrite fallbacks.
@@ -153,7 +173,7 @@ because they are the insecure "before" state (see [docs/security.md](docs/securi
 | 7 | Fix 5: internal-document leaks (per-audience collections, Weaviate RBAC keys, stage v5) | ✅ Done |
 | 8 | Fix 6: hallucination (grounded citations, LangGraph corrective flow with handoff, stages v6a/v6) | ✅ Done |
 | 9 | Fix 7: prompt injection (sanitised ingestion, sources as data, output guard, red team; stage v7) | ✅ Done |
-| 10 | Agent tools: LangGraph agent with order lookup, warranty check and ticket creation | ⏳ Planned |
+| 10 | Agent tools: LangGraph agent with order lookup, warranty check, returns and draft tickets (stage v8) | ✅ Done |
 | 11 | Guardrails: human approval for write actions | ⏳ Planned |
 | 12 | MCP server for the agent's tools | ⏳ Planned |
 | 13 | Evaluation: held-out golden set, judge improvements | ⏳ Planned |
