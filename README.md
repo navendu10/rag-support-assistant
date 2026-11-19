@@ -140,6 +140,32 @@ customer's real orders, while the document-style references assume the customer'
 facts (g009, g017). One is a genuine miss: g046 still skips the knowledge base. See the
 doc.
 
+### Human approval for write actions (Session 11, stage v9)
+
+v9 can submit a ticket, but only after the user approves the exact draft (its id and hash)
+through the client: `/approve` in `chat.py`, a button in the UI later. The graph pauses on
+the draft; no tool submits, and no message text resumes it. On approval our code
+re-checks the owner, the order's eligibility, duplicates and a daily limit before
+writing. See [docs/agents-and-mcp.md](docs/agents-and-mcp.md) and
+[ADR 0009](docs/adr/0009-human-approval-for-writes.md).
+
+| Agent scenarios (25, 11 with approval steps) | v9 |
+|---|---|
+| Task success (judge, or the write checks) | 22/25 |
+| Data isolation | 25/25 |
+| Tickets written | 5, each after its approval |
+| Unapproved writes / duplicate tickets / false ticket claims | **0 / 0 / 0** |
+| Red team (23 attacks, 5 of them tool abuse), vs v8 | 23/23 (v8: 23/23), no ticket written |
+
+On the golden set v9 scores 37/50 (v8: 40/50, v7: 41/50).
+
+- **Real regressions (2):**
+  - g001: the order-first rule asks for an order id on a general policy question.
+  - g026: a retrieval change after the re-ingest, then a fallback.
+- **Judge flips (4):** near-identical answers to v8's got the opposite verdict.
+- **Gains (3):** g009, g032, g048.
+- See [docs/agents-and-mcp.md](docs/agents-and-mcp.md).
+
 | Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs (route) | Handoffs (judge) | Rewrite fallbacks | Agent internal retrieval | Agent internal access | False handoffs | Invented content | Citations valid | Guard triggers (answerable) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | v0 | 40/45 (89%) | 26/45 (58%) | 0.69 | n/a | 29/50 (58%) | 5/46 (11%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | n/a | 1/7 (14%) | n/a | 3/4 (75%) | 2/4 (50%) | 3/43 (7%) | n/a | n/a | n/a |
@@ -153,6 +179,7 @@ doc.
 | v6 | 42/45 (93%) | 33/45 (73%) | 0.82 | 45/45 (100%) | 39/50 (78%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | 7/7 (100%) | 7/7 (100%) | 0/50 (0%) | 4/4 (100%) | 2/4 (50%) | 4/43 (9%) | 2/50 (4%) | 50/50 (100%) | n/a |
 | v7 | 42/45 (93%) | 34/45 (76%) | 0.83 | 45/45 (100%) | 41/50 (82%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | 7/7 (100%) | 6/7 (86%) | 0/50 (0%) | 3/4 (75%) | 2/4 (50%) | 3/43 (7%) | 2/50 (4%) | 50/50 (100%) | 1/43 (2%) |
 | v8 | 38/45 (84%) | 32/45 (71%) | 0.77 | 39/45 (87%) | 40/50 (80%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | n/a | 6/7 (86%) | 0/43 (0%) | 4/4 (100%) | 2/4 (50%) | 4/43 (9%) | 5/50 (10%) | n/a | n/a |
+| v9 | 38/45 (84%) | 32/45 (71%) | 0.76 | 39/45 (87%) | 37/50 (74%) | 0/46 (0%) | 0/3 (0%) | 0/3 (0%) | 0/3 (0%) | n/a | 5/7 (71%) | 0/43 (0%) | 4/4 (100%) | 3/4 (75%) | 6/43 (14%) | 4/50 (8%) | n/a | n/a |
 
 Higher is better for recall, hit@1, MRR, candidate recall, correctness, handoffs and agent
 internal access; lower is better for leaks, injection failures and rewrite fallbacks.
@@ -174,7 +201,7 @@ because they are the insecure "before" state (see [docs/security.md](docs/securi
 | 8 | Fix 6: hallucination (grounded citations, LangGraph corrective flow with handoff, stages v6a/v6) | ✅ Done |
 | 9 | Fix 7: prompt injection (sanitised ingestion, sources as data, output guard, red team; stage v7) | ✅ Done |
 | 10 | Agent tools: LangGraph agent with order lookup, warranty check, returns and draft tickets (stage v8) | ✅ Done |
-| 11 | Guardrails: human approval for write actions | ⏳ Planned |
+| 11 | Guardrails: human approval for write actions (stage v9) | ✅ Done |
 | 12 | MCP server for the agent's tools | ⏳ Planned |
 | 13 | Evaluation: held-out golden set, judge improvements | ⏳ Planned |
 | 14 | Tracing and freshness (`effective_date`, stale documents) | ⏳ Planned |

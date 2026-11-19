@@ -168,6 +168,16 @@ class HandoffSettings(BaseModel):
     tickets_path: Path = Path("data/tickets/tickets.jsonl")
 
 
+class ApprovalSettings(BaseModel):
+    """Human approval for write actions (Session 11, v9): where state, tickets and the
+    audit log live (all git-ignored), and the per-user daily ticket limit."""
+
+    checkpoint_path: Path = Path(".state/checkpoints.db")
+    tickets_db: Path = Path("data/tickets/tickets.db")
+    audit_path: Path = Path("data/audit/audit.jsonl")
+    max_tickets_per_day: int = Field(default=3, ge=1, description="per user, per UTC day")
+
+
 class Settings(BaseSettings):
     """Top-level settings object for the whole application."""
 
@@ -196,6 +206,7 @@ class Settings(BaseSettings):
     query: QuerySettings = Field(default_factory=QuerySettings)
     grounding: GroundingSettings = Field(default_factory=GroundingSettings)
     handoff: HandoffSettings = Field(default_factory=HandoffSettings)
+    approval: ApprovalSettings = Field(default_factory=ApprovalSettings)
     injection: InjectionSettings | None = None
 
     @field_validator("groq_api_key")
@@ -398,6 +409,9 @@ class StageConfig(BaseModel):
     max_tool_calls: int | None = Field(
         default=None, gt=0, le=20, description="agent only: tool calls per question"
     )
+    # Session 11: tickets can be submitted, but only after a person approves the exact
+    # draft through the client (never through conversation text).
+    approval: bool = False
     top_k: int = Field(gt=0, le=50)
 
     @model_validator(mode="after")
@@ -488,6 +502,11 @@ class StageConfig(BaseModel):
             raise ValueError("set max_tool_calls exactly when agent is true")
         if self.agent and not self.injection_guard:
             raise ValueError("agent: true needs injection_guard: true (v7's protections)")
+        if self.approval and not (self.agent and not self.handoff_writes_ticket):
+            raise ValueError(
+                "approval: true needs agent: true and handoff_writes_ticket: false "
+                "(every ticket goes through the approval step)"
+            )
         return self
 
     @property

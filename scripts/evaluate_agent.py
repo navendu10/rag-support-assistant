@@ -1,12 +1,16 @@
-"""Evaluate the v8 agent on its scenarios (Session 10).
+"""Evaluate an agent stage on its scenarios (Session 10: v8; Session 11: v9).
 
 Usage:
     python scripts/evaluate_agent.py --stage v8 [--ids s01,s07]
+    python scripts/evaluate_agent.py --stage v9            # adds the approval scenarios
 
 Runs every conversation in data/golden/agent_scenarios.jsonl through the agent for its
-user, then scores task success (the correctness judge), tool correctness, data isolation,
-steps and latency. Writes results/<stage>/agent_results.jsonl and agent_report.md.
-With --ids, only those scenarios are run, and the stored results for the others are kept.
+user, then scores task success, tool correctness, data isolation, steps and latency.
+Scenarios with client steps (approve, reject, more messages) run only on an approval
+stage, each with a fresh in-memory ticket store, and are scored on what was written:
+unapproved writes, duplicate tickets and false ticket claims must all be 0. Writes
+results/<stage>/agent_results.jsonl and agent_report.md. With --ids, only those scenarios
+are run, and the stored results for the others are kept.
 """
 
 from __future__ import annotations
@@ -19,13 +23,7 @@ from pathlib import Path
 
 from rag_assistant.agent.graph import AgentPipeline
 from rag_assistant.config import get_settings, load_prompts, load_stage
-from rag_assistant.eval.agent_eval import (
-    ScenarioResult,
-    ToolCallRecord,
-    isolation_problems,
-    render_report,
-    tool_problems,
-)
+from rag_assistant.eval.agent_eval import ScenarioResult, render_report, run_scenario
 from rag_assistant.eval.judge import Judge
 from rag_assistant.graph.handoff import MemoryTicketStore
 from rag_assistant.llm import make_chat_model
@@ -81,45 +79,18 @@ def main() -> int:
                 if scenario.id in stored:
                     results.append(stored[scenario.id])
                 continue
-            user = users[scenario.user_id]
-            answer = pipeline.answer(scenario.question, user, scenario.history)
-            run = answer.agent
-            assert run is not None
-            calls = [
-                ToolCallRecord(
-                    name=c.name, args=c.args, status=str(c.result.get("status")), result=c.result
-                )
-                for c in run.calls
-            ]
-            missing, forbidden = tool_problems(scenario, run.tools_used)
-            isolation = isolation_problems(scenario, user, answer.text, calls, owners)
-            result = ScenarioResult(
-                id=scenario.id,
-                topic=scenario.topic,
-                user_id=scenario.user_id,
-                question=scenario.question,
-                answer=answer.text,
-                calls=calls,
-                correctness=judge.correctness(scenario, answer.text),
-                tools_ok=not missing and not forbidden,
-                missing_tools=missing,
-                forbidden_used=forbidden,
-                isolation_ok=not isolation,
-                isolation_problems=isolation,
-                tool_calls=run.tool_calls,
-                model_calls=run.model_calls,
-                generations=run.generations,
-                hit_step_limit=run.hit_step_limit,
-                outcome=run.outcome,
-                guard_problems=run.guard_problems,
-                latency_ms=run.ms,
-            )
+            if scenario.steps and not stage.approval:
+                continue  # approval scenarios need an approval stage (v9)
+            result = run_scenario(pipeline, scenario, users, owners, judge)
             results.append(result)
             print(
-                f"{scenario.id} {scenario.topic:<26} {result.correctness.verdict or 'ERROR':<9} "
+                f"{scenario.id} {scenario.topic:<36} "
+                f"{'ok' if result.success else 'FAIL':<5} "
                 f"tools={'ok' if result.tools_ok else 'NO'} "
                 f"isolation={'ok' if result.isolation_ok else 'FAIL'} "
-                f"path={' -> '.join(run.tools_used) or '-'}"
+                f"tickets={len(result.tickets)} "
+                f"actions={','.join(f'{x.action}:{x.status}' for x in result.steps) or '-'} "
+                f"path={' -> '.join(c.name for c in result.calls) or '-'}"
             )
     stored_path.write_text(
         "".join(r.model_dump_json() + "\n" for r in results), encoding="utf-8", newline="\n"

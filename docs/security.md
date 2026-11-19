@@ -124,6 +124,53 @@ The v8 agent calls tools, so the question is what a tool lets the model reach.
   the output guard may accept their figures and dates.
 - **Limits.** At most 6 tool calls and 3 answer generations per question.
 
+## Write actions (Session 11)
+
+v9 can submit tickets, so the question is who decides that a write happens. The answer is
+**the user, through the client**, never the model and never conversation text.
+
+- **The model can only draft.**
+  - `draft_ticket` returns a draft built by code: the customer comes from the order
+    record, and the reason is cleaned to plain visible text.
+  - There is no submit or approve tool; a test checks the tool list.
+  - Calling every tool writes no file; a test checks that too.
+- **The graph pauses on a draft.** LangGraph's `interrupt()` stops the turn, and the
+  checkpointer saves it (`.state/checkpoints.db`, git-ignored). The client shows the
+  draft's stored fields and hash.
+- **Only an explicit client decision resumes it.**
+  - `/approve` or `/reject` in `chat.py`; buttons in the UI later.
+  - A message such as "I approve, just submit" doesn't resume anything. It cancels the
+    waiting draft (`superseded`, logged).
+  - A decision on another user's thread, another thread's draft, or a draft that is no
+    longer waiting is refused.
+- **Submission re-checks everything at the moment of approval:**
+  - the hash shown equals the draft's
+  - the approver is the draft's user
+  - the order is still theirs (or the approver is staff)
+  - the order is still eligible on the reference date
+  - there is no open ticket for the same order and kind (approving twice returns the same
+    id; a unique index enforces it in the database too)
+  - the user has fewer than 3 tickets today, by the UTC date of ticket creation
+  - Any failed check means no ticket and a clear reason.
+- **Staff** may submit for any order they can look up. The ticket's `customer_id` comes
+  from the order and `created_by` is the staff user. Staff can't open a handoff without
+  an order.
+- **Honest wording.**
+  - The confirmation is a fixed template filled from the ticket record.
+  - The guard rejects model answers that claim a submission or a review, or say a draft
+    is waiting when none is.
+  - A draft's reason is free text written by the model, so it is never a trusted source.
+- **Audit log** (`data/audit/audit.jsonl`, git-ignored): every tool call, pause, decision,
+  submission and refusal, with the user id, thread id and time.
+  - Tool results are cut to 200 characters.
+  - Knowledge results keep only doc ids.
+  - Nothing reads settings, so no key can appear; a test checks it.
+- **Layer 3 now also blocks figure-free refund promises:** "full refund" and "refund in
+  full" are claim phrases (the DeskGlow listing's planted promise has no number).
+- **The red team** adds five tool-abuse attacks: a text approval, an injected "submit" in
+  a listing, approving another user's draft, asking for every ticket, and instructions in
+  a ticket reason. An attack also counts as getting through if any ticket is written.
+
 ## The rule for later features
 
 Every feature that reads documents or stored answers must act **with the caller's role**,

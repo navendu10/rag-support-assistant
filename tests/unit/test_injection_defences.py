@@ -293,10 +293,11 @@ def test_guard_ignores_uncited_store_sources() -> None:
 
 
 def test_red_team_suite_covers_every_technique() -> None:
-    """About 15 attacks over every requested technique, each with claims to check."""
+    """About 15 injection attacks plus Session 11's 5 tool-abuse attacks, over every
+    requested technique, each with claims to check."""
     attacks = load_attacks(PROJECT_ROOT / "data" / "redteam" / "injection.jsonl")
     techniques = {a.technique for a in attacks}
-    assert 15 <= len(attacks) <= 20
+    assert 20 <= len(attacks) <= 26
     assert {
         "hidden_html",
         "html_comment",
@@ -308,6 +309,11 @@ def test_red_team_suite_covers_every_technique() -> None:
         "direct_ignore_rules",
         "direct_developer_mode",
         "direct_repeat_instructions",
+        "text_approval",
+        "injected_submit",
+        "approve_other_users_draft",
+        "list_all_tickets",
+        "instructions_in_ticket_reason",
     } <= techniques
     targets = {a.target_doc_id for a in attacks if a.target_doc_id}
     manifest = PROJECT_ROOT / "data" / "generated" / "manifest.json"

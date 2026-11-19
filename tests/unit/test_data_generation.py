@@ -108,7 +108,7 @@ def test_document_counts(docs: dict[str, DocMetadata]) -> None:
     counts: dict[str, int] = {}
     for d in docs.values():
         counts[d.doc_type] = counts.get(d.doc_type, 0) + 1
-    assert counts == {"manual": 8, "policy": 10, "faq": 30, "playbook": 4, "listing": 7}
+    assert counts == {"manual": 8, "policy": 10, "faq": 30, "playbook": 4, "listing": 8}
 
 
 def test_product_catalogue(generated_dir: Path, docs: dict[str, DocMetadata]) -> None:

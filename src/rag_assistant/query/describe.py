@@ -105,3 +105,23 @@ def describe_agent(answer: Answer) -> list[str]:
     )
     lines += [f"guard      : {p}" for p in agent.guard_problems]
     return lines
+
+
+def describe_draft(draft: dict) -> list[str]:
+    """v9: a draft waiting for approval, as a box (the fields come from our code, not the
+    model's description of them)."""
+    rows = [
+        ("draft", draft["draft_id"]),
+        ("kind", draft["kind"]),
+        ("order", draft.get("order_id") or "(no order)"),
+        ("customer", draft["customer_id"]),
+        ("reason", draft["reason"]),
+        ("hash", draft["hash"][:12]),
+    ]
+    width = max(len(f"{k:<9}: {v}") for k, v in rows) + 2
+    title = " DRAFT TICKET - WAITING FOR YOUR APPROVAL "
+    width = max(width, len(title) + 2)
+    lines = [f"+{title.center(width, '-')}+"]
+    lines += [f"| {f'{k:<9}: {v}':<{width - 2}} |" for k, v in rows]
+    lines.append(f"+{'-' * width}+")
+    return lines

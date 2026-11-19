@@ -25,8 +25,12 @@ htmlcov/
 data/generated/*
 !data/generated/.gitkeep
 
-# Handoff tickets written by ask.py and chat.py (Session 8)
+# Handoff tickets written by ask.py and chat.py (Session 8), submitted tickets (Session 11)
 data/tickets/
+
+# Agent state and audit log (Session 11)
+.state/
+data/audit/
 
 # Filtered evaluation runs (only full runs are committed)
 results/*/subset/
