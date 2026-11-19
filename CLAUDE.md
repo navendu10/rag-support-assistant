@@ -66,7 +66,10 @@ src/rag_assistant/
   agent/                   v8: rules (business rules, date arithmetic), orders (read-only SQLite,
                            scoped to the user), tools (knowledge, order, warranty, return and
                            draft-ticket tools; the user comes from the session), graph
-                           (LangGraph tool-calling agent, step limit, guard; AgentPipeline)
+                           (LangGraph tool-calling agent, step limit, guard; AgentPipeline).
+                           v9: tickets (drafts, hash, Submitter re-checks, TicketDB), audit
+                           (JSONL audit log), session (ChatSession: send/approve/reject);
+                           graph pauses on a draft (interrupt) and only the client resumes it
 configs/stages/<stage>.yaml  StageConfig switches (all implemented since Session 9);
                            `index: Chunks_vN` reuses another stage's collection (ingest skips it);
                            `redteam_only` (v7raw) opens only for scripts/redteam.py
@@ -126,6 +129,9 @@ python scripts/compare_rewrite_retrieval.py --stage v7 --rewrites-from v6   # no
 python scripts/chat.py --stage v8 --user cust_uk_01   # the agent; prints every tool call
 python scripts/evaluate_agent.py --stage v8 [--ids s01,s07]   # -> results/v8/agent_report.md
 python scripts/redteam.py --stage v8                # the agent vs v7's all-layers red team
+python scripts/chat.py --stage v9 --user cust_uk_01   # drafts wait for /approve, /reject, /drafts
+python scripts/evaluate_agent.py --stage v9         # + approval scenarios -> results/v9/
+python scripts/redteam.py --stage v9                # vs v8 and v7, incl. tool-abuse attacks
 python scripts/show_chunks.py --stage v1 --doc returns-uk-2026-print [--grep text]
 pytest -m integration                         # needs Weaviate + Groq (skipped by default)
 pytest -m security                            # access-control tests against Weaviate RBAC (local)

@@ -20,6 +20,7 @@ from rag_assistant.agent.graph import open_pipeline
 from rag_assistant.config import get_settings, load_stage
 from rag_assistant.query.describe import (
     describe_agent,
+    describe_draft,
     describe_path,
     describe_retrieval,
     describe_rewrite,
@@ -50,10 +51,16 @@ def main() -> int:
         print(f"Unknown user {args.user!r}. Choose from: {', '.join(users)}")
         return 1
     history = load_history(args.history_file) if args.history_file else []
-    with open_pipeline(load_stage(args.stage), settings) as pipeline:
+    with open_pipeline(load_stage(args.stage), settings, persist=True) as pipeline:
         result = pipeline.answer(args.question, users[args.user], history)
     print(result.rendered)
     print()
+    if result.agent is not None and result.agent.pending_draft is not None:
+        print("\n".join(describe_draft(result.agent.pending_draft)))
+        print(
+            f"Nothing is submitted. To approve or reject it: python scripts/chat.py "
+            f"--stage {args.stage} --user {args.user} --thread {result.agent.thread_id}\n"
+        )
     print("\n".join(describe_agent(result) + describe_rewrite(result) + describe_path(result)))
     print("\nRetrieved:")
     print("\n".join(describe_retrieval(result)))

@@ -1,6 +1,6 @@
 # Red-team results: stage `v7`
 
-- Date: 2026-11-14; attacks: `data/redteam/injection.jsonl` (18); blocked = no `must_not_contain` claim in the answer
+- Date: 2026-11-18; attacks: `data/redteam/injection.jsonl` (18); blocked = no `must_not_contain` claim in the answer
 
 - Layer 1 on: v7's sanitised collections; off: v7raw (the same data, unsanitised). Layers 2 and 3 are switched on the stage. `none` is v6's behaviour on the same data.
 

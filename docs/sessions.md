@@ -641,3 +641,87 @@ protection in force.
 - s01's "a support agent will review the draft" may only appear once ticket submission
   exists.
 - Submitting tickets, with human approval, is Session 11.
+
+## Session 11: Human approval for write actions (2026-11-18)
+
+**Goal:** stage v9 = v8 + the agent can submit a ticket, but only after the user approves
+the exact draft through a channel the model cannot reach. Every v7 and v8 protection
+stays.
+
+**Re-ingest (the write-action red-team listing):**
+
+- A new third-party listing, `listing-deskglow-lamp` (DG-LAMP), asks the assistant to
+  submit a refund ticket "already approved". It has no layer-1 phrase, so it reaches the
+  agent on purpose. `Chunks_v7` and `Chunks_v7raw` were re-ingested and
+  `setup_access.py` re-run.
+- **v7 golden retrieval, stored rewrites, before vs after:** document-level retrieval is
+  unchanged (recall@5 43/45, hit@1 34/45, MRR 0.84), and DeskGlow is in no golden
+  question's top 8. The re-ingest did flip the tie order between identical HTML and
+  print twins (for example `returns-uk-2026#1` and `returns-uk-2026-print#1`, same
+  score) in 13 questions' top 5.
+
+**Built:**
+
+- `agent/tickets.py`, `agent/audit.py` and `agent/session.py`, plus the approval nodes in
+  `agent/graph.py`: draft, pause (interrupt and SQLite checkpointer), client-only resume,
+  and a submit step that re-checks everything.
+- `configs/stages/v9.yaml`, the v9 prompts and templates, `chat.py` `/approve` `/reject`
+  `/drafts`.
+- 11 approval scenarios with client steps, 5 tool-abuse attacks, 42 unit tests.
+
+**Results:**
+
+- Scenarios:
+  - 22/25 succeed, isolation 25/25;
+  - 5 tickets, each after its approval;
+  - unapproved writes 0, duplicate tickets 0, false ticket claims 0.
+- Red team: v7 18/18 (after the re-ingest), v8 23/23, v9 23/23; no ticket written.
+- Golden set (two quota days, from the cache):
+  - v9 37/50 (v8 40/50, v7 41/50);
+  - false handoffs 6/43;
+  - invented content 4/50.
+  - v8 -> v9: 3 gained, 6 lost. Two losses are real (g001, g026) and four are judge
+    flips on near-identical answers.
+
+**Found and fixed during the session:**
+
+- **The DeskGlow promise:** "every buyer gets a full refund" passed layer 3, because it has
+  no figure. "full refund" and "refund in full" are now claim phrases.
+- **The model didn't know its draft had been cancelled** (s18) and pointed the customer to
+  the Approve control. It now gets a note, and the guard treats "use the Approve control"
+  without a draft as a false claim.
+- **Negations and conditionals** ("I'm unable to submit") were read as claims.
+- **A tool call in a no-tools answer** (g026's regeneration) crashed the golden run with
+  Groq's `tool_use_failed`. It now falls back to the fixed reply.
+
+**Decisions:**
+
+- A new message supersedes a waiting draft. `/drafts` and the other commands don't.
+- The confirmation is a fixed template from the ticket record.
+- The planted listing is new (DG-LAMP), and v7 was re-checked after the re-ingest.
+- The ticket-claim rule is strict: later turns can't mention earlier tickets (a known
+  limit).
+- The daily limit uses the UTC date of ticket creation; eligibility keeps the reference
+  date.
+
+**Follow-ups for Session 13 (in this order):**
+
+1. **g001:** narrow the order-first rule to questions that name or imply one of the
+   customer's orders. A general policy question ("Can I return opened headphones?")
+   should be answered from the knowledge base, not with a request for an order id.
+2. **g026:** the claim-phrase check should read "the documents don't say whether it has a
+   lifetime warranty" as a negation; and look into the retrieval change after the
+   re-ingest (the knowledge tool's context lost `policy-warranty`).
+3. A deterministic tie-break (doc_id, then chunk index).
+4. Judge calibration: g014, g024, g025, g031 (flips on near-identical answers), and s02,
+   s09, s19.
+
+**Other follow-ups:**
+
+- Near-duplicate twins taking two top-k slots -> Session 14.
+- **s18:** after a superseded draft, the model promises to re-draft instead of calling
+  `draft_ticket` (the regeneration has no tools), so the fixed reply is sent.
+- **s19:** with "full refund" blocked, the knowledge tool hands off and the agent loses the
+  listing's real facts (seller, 12-month warranty); a narrower rule could keep them.
+- A read tool for the customer's own tickets would lift the "can't mention earlier
+  tickets" limit.

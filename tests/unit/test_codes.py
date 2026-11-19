@@ -12,6 +12,7 @@ from rag_assistant.schemas import DocMetadata
 MANIFEST_CODES = (
     "AB-PRO",
     "CD-3IN1",
+    "DG-LAMP",
     "NB-14",
     "PB-20K",
     "PG-65W",

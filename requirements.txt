@@ -26,3 +26,6 @@ groq==0.37.1
 # Session 8: the corrective RAG flow (graph/corrective.py). Already installed as a LangChain
 # dependency; pinned to that version because it is now imported directly.
 langgraph==1.2.15
+# Session 11: the SQLite checkpointer for paused (awaiting-approval) conversations.
+langgraph-checkpoint==4.3.2
+langgraph-checkpoint-sqlite==3.1.3

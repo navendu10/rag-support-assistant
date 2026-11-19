@@ -466,8 +466,12 @@ def test_knowledge_passages_are_numbered_across_the_turn(
 
 
 def test_agent_scenarios_cover_the_brief() -> None:
-    """About 12 scenarios over the required topics and both roles."""
-    scenarios = load_agent_scenarios(PROJECT_ROOT / "data" / "golden" / "agent_scenarios.jsonl")
+    """About 12 Session 10 scenarios (s01-s14) over the required topics and both roles."""
+    scenarios = [
+        s
+        for s in load_agent_scenarios(PROJECT_ROOT / "data" / "golden" / "agent_scenarios.jsonl")
+        if s.id <= "s14"
+    ]
     topics = {s.topic for s in scenarios}
     assert 12 <= len(scenarios) <= 16
     for topic in (

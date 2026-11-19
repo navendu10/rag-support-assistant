@@ -59,6 +59,13 @@ grounding:
 handoff:
   tickets_path: data/tickets/tickets.jsonl
 
+# Human approval for write actions (Session 11, v9). All three paths are git-ignored.
+approval:
+  checkpoint_path: .state/checkpoints.db   # paused conversations (one thread per chat)
+  tickets_db: data/tickets/tickets.db      # submitted tickets
+  audit_path: data/audit/audit.jsonl       # every tool call, pause, decision and submission
+  max_tickets_per_day: 3                   # per user, per UTC day of ticket creation
+
 # Prompt-injection defences (Session 9, v7). See docs/security.md and ADR 0007.
 injection:
   # Layer 1: instruction-like phrases flagged at ingestion (regex, case-insensitive).
@@ -80,6 +87,10 @@ injection:
     - warranty for life
     - free replacement for life
     - never expires
+    # Session 11: a refund promise without a figure (the DeskGlow listing's "every buyer
+    # gets a full refund"); no store document makes one.
+    - full refund
+    - refund in full
   # A sentence naming one of these attributes its facts to the seller (layer 3, option B).
   attribution_terms: [seller, sold by, the listing says, according to the listing]
   # A sentence about one of these states VoltCart's own policy: it always needs a STORE

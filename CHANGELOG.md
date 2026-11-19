@@ -7,6 +7,76 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-18 (Session 11: human approval for write actions)
+
+### Added
+
+- Stage **v9** (`configs/stages/v9.yaml`): v8 + `approval: true`. The agent can submit a
+  ticket only after the user approves the exact draft through the client.
+- `agent/graph.py`:
+  - the graph pauses on a draft with a LangGraph `interrupt`, saved by a SQLite
+    checkpointer (`.state/checkpoints.db`), one thread per chat;
+  - `AgentPipeline.pending`, `approve` and `reject` are the only way to resume it;
+  - a new message cancels a waiting draft (`superseded`) and tells the model;
+  - `submit` and `close_draft` are graph nodes with fixed confirmation templates. There is
+    no submit tool.
+- `agent/tickets.py`: `Draft` (an id and a sha256 hash over every field), `TicketDB`
+  (SQLite, a unique open ticket per order and kind) and `Submitter`. At approval it
+  re-checks the hash, the user, the order's owner, eligibility on the reference date,
+  duplicates, and 3 tickets per user per UTC day.
+- `agent/audit.py`: `data/audit/audit.jsonl` with every tool call (short results,
+  knowledge as doc ids only), pause, decision, submission and refusal.
+- `agent/session.py`: `ChatSession` (`send`, `drafts`, `approve`, `reject`) for chat.py and
+  the UI.
+- The agent's honesty checks (`approval_claim_problems`): no submission or review claims in
+  model answers, and no "waiting for approval" without a draft. A draft's reason is never
+  a trusted source.
+- `draft_ticket` in v9: repair, return or **handoff** (knowledge-base miss, no order
+  needed), with the reason cleaned to visible text.
+- Prompts: `agent_system_*_approval` (order-first rule, drafts only),
+  `agent_guard_note_approval`, `approval_*` templates and the superseded note.
+- `chat.py --stage v9`: a boxed draft, `/drafts`, `/approve`, `/reject` and `--thread`.
+  `ask.py` prints the draft and its thread.
+- Agent scenarios s15-s25 with `steps`, `setup`, `expected_tickets` and
+  `expected_ticket`. `evaluate_agent.py` adds unapproved writes, duplicate tickets and
+  false ticket claims.
+- Red-team attacks r19-r23 (tool abuse). An agent attack also fails if a ticket is
+  written. `redteam.py --stage v9` compares with v8 and v7.
+- A planted listing, `listing-deskglow-lamp` (DG-LAMP), asks the assistant to submit a
+  refund ticket.
+- Tests: `tests/unit/test_approval.py` (42 tests) and `tests/integration/test_agent_v9.py`.
+- ADR 0009. Dependencies: `langgraph-checkpoint` 4.3.2 and `langgraph-checkpoint-sqlite`
+  3.1.3.
+
+### Changed
+
+- Layer 3: "full refund" and "refund in full" are claim phrases. No stored v7 or v8
+  golden answer, and no v7 all-layers red-team answer, contains them.
+- `Chunks_v7` and `Chunks_v7raw` were re-ingested with the new listing. v7 golden
+  retrieval is unchanged at document level (recall@5 43/45, hit@1 34/45, MRR 0.84), but
+  tied HTML and print twins swapped places in 13 questions.
+- `.gitignore`: `.state/` and `data/audit/`.
+
+### Results
+
+- v9 agent scenarios:
+  - task success 22/25, isolation 25/25;
+  - 5 tickets, each after its approval;
+  - unapproved writes 0, duplicate tickets 0, false ticket claims 0.
+- Red team: v7 18/18 after the re-ingest; v8 23/23; v9 23/23; no ticket written.
+- Golden set v7 / v8 / v9:
+  - correctness 41 / 40 / 37;
+  - false handoffs 3 / 4 / 6;
+  - invented content (judge) 2 / 5 / 4.
+  - v8 -> v9: 3 gained (g009, g032, g048) and 6 lost. Two are real (g001: the order-first
+    rule asks for an order id on a general question; g026: a retrieval change after the
+    re-ingest, then a fallback). Four are judge flips on near-identical answers.
+
+### Fixed
+
+- A tool call in a no-tools answer (finalize or the guard's regeneration) crashed the run
+  with Groq's `tool_use_failed`. It now counts as no answer, and the fixed reply is sent.
+
 ## [0.11.0] - 2026-11-15 (Session 10: a tool-calling agent)
 
 ### Added

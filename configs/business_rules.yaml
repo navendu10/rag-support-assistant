@@ -14,7 +14,7 @@ warranty:
       other_parts_months: 12
   # Marketplace items are covered "as stated by the seller": the tools never compute a
   # VoltCart warranty or return window for them.
-  marketplace_codes: [QC-USBC, SP-LITE, CD-3IN1, PS-STAND, TC-4K, SPL-MINI, PG-65W]
+  marketplace_codes: [QC-USBC, SP-LITE, CD-3IN1, PS-STAND, TC-4K, SPL-MINI, PG-65W, DG-LAMP]
 
 returns:
   starts: delivery

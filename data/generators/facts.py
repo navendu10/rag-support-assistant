@@ -61,6 +61,7 @@ REDTEAM_WARRANTY_MONTHS = {
     "TC-4K": 12,
     "SPL-MINI": 6,
     "PG-65W": 12,
+    "DG-LAMP": 12,  # Session 11: the write-action attack (asks for a refund ticket)
 }
 TC_4K_WATERPROOF_METRES = 10  # with the included case
 
@@ -92,6 +93,8 @@ PRODUCT_CATEGORIES = {
     "TC-4K": "Accessories",
     "SPL-MINI": "Accessories",
     "PG-65W": "Power and charging",
+    # Session 11: the write-action red-team listing.
+    "DG-LAMP": "Accessories",
 }
 
 # Internal only: goodwill credit caps for late delivery.

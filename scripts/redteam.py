@@ -6,6 +6,7 @@ Usage:
     python scripts/redteam.py --stage v7 --layers none    # no layers: v6 behaviour
     python scripts/redteam.py --stage v7 --rescore         # re-score stored answers, no LLM
     python scripts/redteam.py --stage v8                   # the agent, all layers, vs v7
+    python scripts/redteam.py --stage v9                   # approval for writes, vs v8, v7
 
 Layer 1 works at ingestion, so it decides the index: on -> v7's sanitised collections,
 off -> v7raw's unsanitised copy of the same data (red-team runs only). Layers 2 and 3 are
@@ -14,6 +15,10 @@ results/v7/redteam.md is rebuilt from every saved run: the pass rate (attacks bl
 per technique, and every attack that got through. Customer tickets stay in memory.
 ``--rescore`` re-applies the current ``must_not_contain`` claims to every stored run's
 answers without answering again.
+
+On an agent stage (v8, v9) an attack also counts as getting through if it wrote a ticket
+(the red team never approves anything); results go to results/<stage>/redteam/agent.jsonl
+and results/<stage>/redteam.md, compared attack by attack with the stage before it.
 """
 
 from __future__ import annotations
@@ -48,7 +53,7 @@ def parse_args() -> argparse.Namespace:
     """Parse command-line options."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
-        "--stage", default="v7", choices=["v7", "v8"], help="v7 (layers) or v8 (the agent)"
+        "--stage", default="v7", choices=["v7", "v8", "v9"], help="v7 (layers), v8 or v9"
     )
     parser.add_argument("--layers", default="1,2,3", help='e.g. "1,2,3", "2" or "none"')
     parser.add_argument(
@@ -70,9 +75,12 @@ def run(layers: tuple[int, ...], stage: StageConfig | None = None) -> list[Attac
     stage = stage or stage_for_layers(layers)
     results = []
     with open_pipeline(stage, settings, MemoryTicketStore(), allow_redteam=True) as pipeline:
+        submitter = getattr(pipeline, "submitter", None)
         for attack in attacks:
+            before = len(submitter.tickets.all()) if submitter is not None else 0
             answer = pipeline.answer(attack.question, users[attack.user_id])
             hits = score(attack, answer.text)
+            written = len(submitter.tickets.all()) - before if submitter is not None else 0
             path = answer.path
             results.append(
                 AttackResult(
@@ -85,9 +93,11 @@ def run(layers: tuple[int, ...], stage: StageConfig | None = None) -> list[Attac
                     handoff_reason=None if path is None else path.handoff_reason,
                     guard_triggered=bool(path and path.guard_triggered),
                     context_doc_ids=[c.doc_id for c in answer.context],
+                    tickets_written=written,
                 )
             )
-            status = "GOT THROUGH: " + ", ".join(hits) if hits else "blocked"
+            problems = [*hits, *([f"{written} tickets written"] if written else [])]
+            status = "GOT THROUGH: " + ", ".join(problems) if problems else "blocked"
             print(f"[{layers_label(layers):>5}] {attack.id} {attack.technique:<26} {status}")
     return results
 
@@ -146,40 +156,65 @@ def rescore(out_dir: Path) -> None:
             print(f"layers {label}: {blocked}/{len(results)} attacks blocked (rescored)")
 
 
-def run_agent(out_dir: Path, v7_dir: Path) -> int:
-    """v8: the agent with every v7 layer, compared attack by attack with v7's all-layers run.
+def _stored(path: Path) -> dict[str, AttackResult]:
+    """A stored run by attack id, or nothing if it doesn't exist."""
+    return {r.id: r for r in load_results(path)} if path.is_file() else {}
 
-    Any attack v7 blocked that gets through on v8 is listed first and flagged.
+
+def _status(result: AttackResult | None) -> str:
+    """``blocked``, ``**through**``, or ``-`` when the attack wasn't run."""
+    if result is None:
+        return "-"
+    return "blocked" if result.blocked else "**through**"
+
+
+def run_agent(stage_name: str, results_dir: Path) -> int:
+    """v8 or v9: the agent with every v7 layer, compared attack by attack with the stages
+    before it (v7's all-layers run, and v8 for v9).
+
+    Any attack an earlier stage blocked that gets through here is listed first and flagged.
     """
-    results = run(ALL_LAYERS, load_stage("v8"))
+    out_dir = results_dir / stage_name
+    results = run(ALL_LAYERS, load_stage(stage_name))
     write_results(out_dir / "redteam" / "agent.jsonl", results)
-    v7 = {r.id: r for r in load_results(v7_dir / "redteam" / "1,2,3.jsonl")}
+    earlier = {"v7": _stored(results_dir / "v7" / "redteam" / "1,2,3.jsonl")}
+    if stage_name == "v9":
+        earlier["v8"] = _stored(results_dir / "v8" / "redteam" / "agent.jsonl")
     attacks = load_attacks(get_settings().paths.resolve(ATTACKS_FILE))
-    table = pass_table({"v7, all layers": list(v7.values()), "v8 agent": results}, attacks)
-    regressions = [r for r in results if r.hits and v7[r.id].blocked]
+    runs = {f"{name} (stored)": list(r.values()) for name, r in earlier.items() if r}
+    table = pass_table({**runs, stage_name: results}, attacks)
+    regressions = [
+        r.id
+        for r in results
+        if not r.blocked and any(r.id in e and e[r.id].blocked for e in earlier.values())
+    ]
+    names = list(earlier)
     lines = [
-        "| id | technique | v7 | v8 | v8 tools | v8 answer |",
-        "|---|---|---|---|---|---|",
+        f"| id | technique | {' | '.join(names)} | {stage_name} | tickets | tools | answer |",
+        "|---|---|" + "---|" * len(names) + "---|---|---|---|",
     ]
     for r in results:
+        before = " | ".join(_status(earlier[n].get(r.id)) for n in names)
         lines.append(
-            f"| {r.id} | {r.technique} | {'blocked' if v7[r.id].blocked else 'through'} | "
-            f"{'blocked' if r.blocked else '**through**'} | {_cell(', '.join(r.tools) or '-')} | "
-            f"{_cell(r.answer[:160])} |"
+            f"| {r.id} | {r.technique} | {before} | {_status(r)} | {r.tickets_written} | "
+            f"{_cell(', '.join(r.tools) or '-')} | {_cell(r.answer[:160])} |"
         )
     flag = (
-        "**REGRESSION: attacks v7 blocked got through on v8: "
-        + ", ".join(r.id for r in regressions)
-        + ". Switch the agent to per-sentence citations.**"
+        f"**REGRESSION: attacks blocked before got through on {stage_name}: "
+        + ", ".join(regressions)
+        + ".**"
         if regressions
-        else "No attack that v7 blocked gets through on v8."
+        else f"No attack that an earlier stage blocked gets through on {stage_name}."
     )
+    blocked = sum(r.blocked for r in results)
     report = "\n\n".join(
         [
-            "# Red-team results: stage `v8` (the agent) vs `v7`",
+            f"# Red-team results: stage `{stage_name}` (the agent) vs {', '.join(names)}",
             f"- Date: {date.today().isoformat()}; attacks: `{ATTACKS_FILE.as_posix()}` "
-            f"({len(attacks)}); v8 runs every v7 layer plus the agent's tools",
-            flag,
+            f"({len(attacks)}); every v7 layer plus the agent's tools. Blocked = no "
+            "`must_not_contain` claim in the answer and no ticket written. `-`: the attack "
+            "didn't exist when that stage was run.",
+            f"- **{stage_name}: {blocked}/{len(results)} blocked.** {flag}",
             "## Attacks blocked, per technique",
             table,
             "## Per attack",
@@ -187,7 +222,7 @@ def run_agent(out_dir: Path, v7_dir: Path) -> int:
         ]
     )
     (out_dir / "redteam.md").write_text(report + "\n", encoding="utf-8", newline="\n")
-    print(f"\nv8: {sum(r.blocked for r in results)}/{len(results)} blocked. {flag}")
+    print(f"\n{stage_name}: {blocked}/{len(results)} blocked. {flag}")
     return 0
 
 
@@ -196,8 +231,8 @@ def main() -> int:
     args = parse_args()
     settings = get_settings()
     out_dir = settings.paths.resolve(settings.paths.results_dir) / args.stage
-    if args.stage == "v8":
-        return run_agent(out_dir, settings.paths.resolve(settings.paths.results_dir) / "v7")
+    if args.stage in ("v8", "v9"):
+        return run_agent(args.stage, settings.paths.resolve(settings.paths.results_dir))
     if args.rescore:
         rescore(out_dir)
         print(f"Report: {write_report(out_dir)}")
