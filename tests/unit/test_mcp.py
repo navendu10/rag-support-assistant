@@ -441,7 +441,8 @@ def test_stdout_carries_only_protocol_messages(generated_dir: Path, tmp_path: Pa
         send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         send({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
               "params": {"name": "get_order", "arguments": {"order_id": "VC-10002"}}})  # fmt: skip
-        process.stdin.close()
+        # communicate() closes stdin itself (end of input stops the server). Closing it by
+        # hand first makes communicate() fail on POSIX ("flush of closed file").
         rest, err = process.communicate(timeout=120)
     finally:
         if process.poll() is None:
