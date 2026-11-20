@@ -166,6 +166,26 @@ On the golden set v9 scores 37/50 (v8: 40/50, v7: 41/50).
 - **Gains (3):** g009, g032, g048.
 - See [docs/agents-and-mcp.md](docs/agents-and-mcp.md).
 
+### The tools over MCP (Session 12, stage v10)
+
+`python -m rag_assistant.mcp_server --user cust_uk_01` serves the agent's six tools to any
+MCP client over stdio, for one user fixed at start-up:
+
+- the same names, descriptions and input models as v9;
+- no submit, approve or admin tools;
+- no user arguments (an extra `user_id` is refused);
+- every call audited.
+
+v10 is v9 with its tools loaded from that server. See
+[docs/agents-and-mcp.md](docs/agents-and-mcp.md), [ADR 0010](docs/adr/0010-mcp-server.md)
+and [docs/mcp-demo.md](docs/mcp-demo.md) (Claude Code in VS Code, MCP Inspector).
+
+| v9 vs v10 | v9 | v10 |
+|---|---|---|
+| Scenarios s01, s05, s07, s15, s18, s21 | 6/6, 1 ticket | 6/6, 1 ticket, the same tool paths |
+| Tool-abuse attacks r19-r23 | 5/5 blocked, 0 tickets | 5/5 blocked, 0 tickets |
+| Parity tests: 3 users, every tool, direct vs MCP | - | identical (draft ids aside) |
+
 | Stage | Recall@5 | Hit@1 | MRR | Cand. recall@20 | Correctness | Retrieval leaks | Answer leaks | Answer leaks (judge) | Injection failures | Handoffs (route) | Handoffs (judge) | Rewrite fallbacks | Agent internal retrieval | Agent internal access | False handoffs | Invented content | Citations valid | Guard triggers (answerable) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | v0 | 40/45 (89%) | 26/45 (58%) | 0.69 | n/a | 29/50 (58%) | 5/46 (11%) | 1/3 (33%) | 3/3 (100%) | 2/3 (67%) | n/a | 1/7 (14%) | n/a | 3/4 (75%) | 2/4 (50%) | 3/43 (7%) | n/a | n/a | n/a |
@@ -202,7 +222,7 @@ because they are the insecure "before" state (see [docs/security.md](docs/securi
 | 9 | Fix 7: prompt injection (sanitised ingestion, sources as data, output guard, red team; stage v7) | ✅ Done |
 | 10 | Agent tools: LangGraph agent with order lookup, warranty check, returns and draft tickets (stage v8) | ✅ Done |
 | 11 | Guardrails: human approval for write actions (stage v9) | ✅ Done |
-| 12 | MCP server for the agent's tools | ⏳ Planned |
+| 12 | MCP server for the agent's tools (stage v10) | ✅ Done |
 | 13 | Evaluation: held-out golden set, judge improvements | ⏳ Planned |
 | 14 | Tracing and freshness (`effective_date`, stale documents) | ⏳ Planned |
 | 15 | Caching and model routing | ⏳ Planned |

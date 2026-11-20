@@ -720,8 +720,76 @@ stays.
 
 - Near-duplicate twins taking two top-k slots -> Session 14.
 - **s18:** after a superseded draft, the model promises to re-draft instead of calling
-  `draft_ticket` (the regeneration has no tools), so the fixed reply is sent.
+  `draft_ticket` (the regeneration has no tools), so the fixed reply is sent. On v10
+  (Session 12) "I will prepare a new return-ticket draft" passed the guard although no
+  draft existed. Session 13 should check promised actions by meaning (an action the
+  answer says will happen must match a tool call this turn), not by a list of phrases.
 - **s19:** with "full refund" blocked, the knowledge tool hands off and the agent loses the
   listing's real facts (seller, 12-month warranty); a narrower rule could keep them.
 - A read tool for the customer's own tickets would lift the "can't mention earlier
   tickets" limit.
+
+## Session 12: The agent's tools over MCP (2026-11-19)
+
+**Goal:** stage v10 = v9 with the agent's tools served by an MCP server (official Python
+SDK, stdio), usable from any MCP client, with no new way to write or to act as another
+user. No golden-set run (Groq usage kept low).
+
+**Built:**
+
+- `mcp_server/server.py`: FastMCP with v9's six tools.
+  - Thin wrappers; the same descriptions and input models.
+  - One user per process, fresh state per call.
+  - The same JSON text, plus a structured retrieval context for the knowledge tool.
+  - stdout for the protocol only; every call audited.
+- `mcp_server/client.py`: the v10 agent's client (`langchain-mcp-adapters`, one session
+  per user), and `agent/knowledge.py` (`RetrievalContext`).
+- `configs/stages/v10.yaml`, `.mcp.json.example`, `docs/mcp-demo.md`, ADR 0010, and 18
+  unit tests.
+
+**Results:**
+
+- **Parity:** identical results directly and over MCP, for 3 users and every tool (draft
+  ids aside). The model is given byte-identical tool definitions.
+- **Scenarios** s01, s05, s07, s15, s18 and s21: v9 6/6, v10 6/6, with the same tool paths
+  and tickets.
+- **Tool-abuse attacks** r19-r23: v9 5/5, v10 5/5, with no ticket written.
+
+- **Claude Code demo (verified 2026-11-20):**
+  - it connected to `voltcart-support` and listed the six tools;
+  - it answered the UK opened-earbuds policy question (15 days) and the warranty question
+    (all three orders covered) through the server;
+  - it got "not found" for another customer's order;
+  - it had no tool to submit a ticket.
+- **Tool-call latency** (order and draft tools, mean of 20 calls each): 0.86 ms in-process
+  (v9) vs 6.0 ms over MCP stdio (v10), plus about 8 s to start the server once per user.
+
+**Found and fixed during the session:**
+
+- **Strict arguments.** FastMCP silently dropped unknown arguments (a `user_id` was
+  ignored, not refused). The server now uses a strict copy of each tool's model.
+- **Schemas.** The server's schemas carry `additionalProperties: false`, which LangChain
+  drops for a Pydantic model. The agent drops it too before binding, so v9 and v10 give
+  the model the same definitions.
+- **SQLite threads.** The order database connection was used from another thread inside
+  the server. The read-only connection now allows it.
+- **Shutdown.** The server didn't close its Weaviate clients on exit; it does now.
+
+**Decisions:**
+
+- `mcp` is pinned to 1.30.0, because `langchain-mcp-adapters` 0.3.2 requires `mcp<2`.
+  Upgrade both together.
+- The server is stateless; the turn's state stays in the agent.
+- The retrieval context goes in the structured result, so v10 rows keep recall and leak
+  metrics.
+- Drafts over MCP can't be submitted. External clients are told so, and a chat's
+  `/approve` refuses their ids.
+
+**Follow-ups:**
+
+- **The guard (Session 13, next to g001 and g026 in Session 11's list):** a past-tense claim ("the draft return
+  ticket that was created") after an "If…" slips past the conditional exemption (r19, in
+  v9 and v10 alike). Only conditional or future claims should be exempt.
+- **Retrieval fields:** a v10 golden-set run would confirm the mapped fields on real rows
+  (the unit test covers the mapping).
+- **HTTP transport** with sign-in and per-request identity, for remote clients (ADR 0010).

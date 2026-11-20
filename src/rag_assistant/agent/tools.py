@@ -136,6 +136,9 @@ class AgentSession:
     thread_id: str = ""
     drafts: list[Draft] = field(default_factory=list)
     audit: AuditLog | None = None
+    # Session 12: the retrieval context of each knowledge call this turn
+    # (agent.knowledge.RetrievalContext), for the evaluation's recall and leak metrics.
+    contexts: list = field(default_factory=list)
 
     @property
     def today(self) -> date:

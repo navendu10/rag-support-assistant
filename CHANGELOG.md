@@ -7,6 +7,58 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-19 (Session 12: the agent's tools over MCP)
+
+### Added
+
+- `mcp_server/server.py` (`python -m rag_assistant.mcp_server --user <id>`): FastMCP over
+  stdio with v9's six tools.
+  - Same names, descriptions and Pydantic input models; arguments validated by those
+    models (unknown fields refused).
+  - No submit, approve or admin tools; no resources or prompts.
+  - One user per process, from `--user` or `VOLTCART_MCP_USER`, checked against
+    `data/users.json` (exit code 2 otherwise).
+  - Fresh state per call, the same JSON text as the in-process tools, and a structured
+    result with the knowledge tool's retrieval context.
+  - Drafts for external clients say they can't be submitted.
+  - stdout carries protocol messages only; every call is audited (`via: "mcp"`).
+- `mcp_server/client.py`: the v10 agent's MCP client.
+  - One persistent session per user on a background event loop, via
+    `langchain-mcp-adapters`.
+  - Synchronous tool wrappers that keep the turn's state (K numbering, drafts with the
+    chat's thread id, retrieval context).
+- `agent/knowledge.py`: `RetrievalContext` (JSON round trip) and `make_knowledge`, shared
+  by the agent and the server.
+- Stage **v10** (`configs/stages/v10.yaml`): v9 + `tools_via_mcp: true`.
+- `redteam.py --stage v10` and `--ids`.
+- `.mcp.json.example` and `docs/mcp-demo.md` (Claude Code in VS Code, MCP Inspector);
+  `.mcp.json` is git-ignored.
+- `tests/unit/test_mcp.py` (18 tests):
+  - parity for 3 users and every tool, and the retrieval context;
+  - the tool list and what the model is given;
+  - refused arguments and the external-draft note;
+  - an MCP draft refused by a chat's `/approve`;
+  - the v10 agent's approval flow and K numbering;
+  - the real process: an unknown or missing user, stdout hygiene, the audit log.
+- ADR 0010. Dependencies: `mcp` 1.30.0 (not 2.x: the adapter requires `mcp<2`) and
+  `langchain-mcp-adapters` 0.3.2.
+
+### Changed
+
+- `OrderStore` allows the read-only connection to be used across threads (the server runs
+  tools off its event loop) and keeps its `path`.
+- `AgentRunner` takes a `tool_factory`. `AgentPipeline` has no local knowledge pipeline
+  in v10 and reads the retrieval context from `session.contexts`.
+
+### Results
+
+- v10 vs v9:
+  - the 6 scenarios s01, s05, s07, s15, s18 and s21 all succeed on both, with the same
+    tool paths and tickets;
+  - the 5 tool-abuse attacks are blocked on both, with no ticket written.
+- The differences are wording only, after the random draft ids changed later model
+  inputs.
+
 ## [0.12.0] - 2026-11-18 (Session 11: human approval for write actions)
 
 ### Added

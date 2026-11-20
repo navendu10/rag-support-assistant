@@ -29,3 +29,7 @@ langgraph==1.2.15
 # Session 11: the SQLite checkpointer for paused (awaiting-approval) conversations.
 langgraph-checkpoint==4.3.2
 langgraph-checkpoint-sqlite==3.1.3
+# Session 12: the MCP server and the agent's MCP client. mcp stays on 1.x because
+# langchain-mcp-adapters 0.3.2 requires mcp<2 (ADR 0010).
+mcp==1.30.0
+langchain-mcp-adapters==0.3.2

@@ -96,7 +96,12 @@ class OrderStore:
         """Open ``path`` read-only (raises if it doesn't exist)."""
         if not path.is_file():
             raise FileNotFoundError(f"{path} missing. Run: python scripts/generate_data.py")
-        self._db = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+        self.path = path
+        # Read-only, and callers make one query at a time, so the connection may be used from
+        # another thread (the MCP server runs tools off its event loop; Session 12).
+        self._db = sqlite3.connect(
+            f"{path.resolve().as_uri()}?mode=ro", uri=True, check_same_thread=False
+        )
         self._db.row_factory = sqlite3.Row
 
     def close(self) -> None:

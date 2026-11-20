@@ -69,7 +69,10 @@ src/rag_assistant/
                            (LangGraph tool-calling agent, step limit, guard; AgentPipeline).
                            v9: tickets (drafts, hash, Submitter re-checks, TicketDB), audit
                            (JSONL audit log), session (ChatSession: send/approve/reject);
-                           graph pauses on a draft (interrupt) and only the client resumes it
+                           graph pauses on a draft (interrupt) and only the client resumes it;
+                           knowledge (RetrievalContext, make_knowledge: shared with the server)
+  mcp_server/              v10: server (FastMCP stdio, one user per process, v9's six tools,
+                           no writes), client (the agent's MCP client, langchain-mcp-adapters)
 configs/stages/<stage>.yaml  StageConfig switches (all implemented since Session 9);
                            `index: Chunks_vN` reuses another stage's collection (ingest skips it);
                            `redteam_only` (v7raw) opens only for scripts/redteam.py
@@ -132,6 +135,9 @@ python scripts/redteam.py --stage v8                # the agent vs v7's all-laye
 python scripts/chat.py --stage v9 --user cust_uk_01   # drafts wait for /approve, /reject, /drafts
 python scripts/evaluate_agent.py --stage v9         # + approval scenarios -> results/v9/
 python scripts/redteam.py --stage v9                # vs v8 and v7, incl. tool-abuse attacks
+python -m rag_assistant.mcp_server --user cust_uk_01   # the tools over MCP (stdio); docs/mcp-demo.md
+python scripts/chat.py --stage v10 --user cust_uk_01  # the agent with its tools over MCP
+python scripts/redteam.py --stage v10 --ids r19,r20,r21,r22,r23   # chosen attacks only
 python scripts/show_chunks.py --stage v1 --doc returns-uk-2026-print [--grep text]
 pytest -m integration                         # needs Weaviate + Groq (skipped by default)
 pytest -m security                            # access-control tests against Weaviate RBAC (local)
