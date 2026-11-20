@@ -171,6 +171,23 @@ v9 can submit tickets, so the question is who decides that a write happens. The 
   a listing, approving another user's draft, asking for every ticket, and instructions in
   a ticket reason. An attack also counts as getting through if any ticket is written.
 
+## The tools over MCP (Session 12)
+
+- **One user per server process**, fixed at start-up by `--user` or `VOLTCART_MCP_USER` and
+  checked against `data/users.json`. The server won't start without a valid user.
+- **No tool takes a user id.** Unknown arguments are refused (FastMCP's default would drop
+  them silently; the server uses a strict copy of each tool's model).
+- **Role, region and the Weaviate key** follow the profile, as in the agent. Keys come from
+  `.env` on the server's machine, never from a client config.
+- **No writes.** `draft_ticket` only drafts. External clients are told the draft can't be
+  submitted from there, and a chat's `/approve` refuses a draft id it didn't show.
+- **Fresh state per call**, so nothing crosses between calls or clients.
+- **stdout is the protocol only.** Logs go to stderr, and every call is audited
+  (`via: "mcp"`) without passage text or keys.
+- **Not yet:** HTTP transport with authentication. stdio trusts whoever starts the
+  process, which is right for a local client such as Claude Code, and wrong for a remote
+  one.
+
 ## The rule for later features
 
 Every feature that reads documents or stored answers must act **with the caller's role**,

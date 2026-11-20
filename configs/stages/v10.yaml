@@ -1,0 +1,44 @@
+# Stage v10: v9 with its tools served by the MCP server (Session 12). See ADR 0010.
+# The agent (agent/graph.py) loads the six tools from `python -m rag_assistant.mcp_server
+# --user <the chat's user>` over stdio with langchain-mcp-adapters. The server wraps the
+# same agent/tools.py functions; approval, the guard, the step limit, submission and the
+# agent-side audit stay in the agent. Everything else is v9.
+name: v10
+description: v9 with the agent's tools loaded from the MCP server (stdio)
+index: Chunks_v7         # v7's sanitised per-audience collections
+chunking: structure
+chunk_size: 1200
+chunk_overlap: 150
+min_chunk_chars: 200
+search: hybrid
+hybrid:
+  alpha_strategy: dynamic
+  code_alpha: 0.25
+  default_alpha: 1.0
+  fusion: relative_score
+  query_properties: [text, title, product_code^2]
+rerank: true
+rerank_model: Xenova/ms-marco-MiniLM-L-6-v2
+fetch_k: 20
+min_score: 0.1           # retry trigger only (see v6.yaml)
+retry_fetch_k: 30        # the wider search's candidates (fetch_k: 20)
+retry_top_k: 8           # the wider search's context chunks (top_k: 4)
+rerank_fusion: blend
+rerank_blend_weight: 0.5
+query_rewrite: true
+use_history: true
+region_filter: true
+access_control: true
+grounding: true
+corrective_flow: true
+injection_guard: true    # v6: false
+top_k: 4
+injection:
+  sanitize_ingestion: true   # layer 1 (ingestion: decides this stage's collections)
+  tagged_sources: true       # layer 2: sources are data
+  output_guard: true         # layer 3: numbers and promises checked against store sources
+agent: true                    # v7: false
+max_tool_calls: 6              # hard step limit per question
+handoff_writes_ticket: false   # a knowledge-base handoff inside the agent writes no ticket
+approval: true                 # v8: false
+tools_via_mcp: true            # v9: false

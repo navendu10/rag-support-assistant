@@ -412,6 +412,9 @@ class StageConfig(BaseModel):
     # Session 11: tickets can be submitted, but only after a person approves the exact
     # draft through the client (never through conversation text).
     approval: bool = False
+    # Session 12: the agent loads its tools from the MCP server (mcp_server/), started for
+    # the signed-in user, instead of calling agent/tools.py in-process.
+    tools_via_mcp: bool = False
     top_k: int = Field(gt=0, le=50)
 
     @model_validator(mode="after")
@@ -507,6 +510,8 @@ class StageConfig(BaseModel):
                 "approval: true needs agent: true and handoff_writes_ticket: false "
                 "(every ticket goes through the approval step)"
             )
+        if self.tools_via_mcp and not self.approval:
+            raise ValueError("tools_via_mcp: true builds on v9 (needs approval: true)")
         return self
 
     @property

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "voltcart-support": {
+      "type": "stdio",
+      "command": "C:/<your folder>/rag-support-assistant/.venv/Scripts/python.exe",
+      "args": ["-m", "rag_assistant.mcp_server", "--user", "cust_uk_01"]
+    }
+  }
+}

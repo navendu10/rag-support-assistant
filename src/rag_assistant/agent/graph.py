@@ -47,7 +47,7 @@ import re
 import sqlite3
 import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from types import TracebackType
 from typing import Literal, TypedDict
@@ -70,6 +70,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command, interrupt
 
 from rag_assistant.agent.audit import AuditLog, FileAudit, MemoryAudit
+from rag_assistant.agent.knowledge import RetrievalContext, make_knowledge
 from rag_assistant.agent.orders import OrderStore
 from rag_assistant.agent.rules import BusinessRules, load_business_rules
 from rag_assistant.agent.tickets import Draft, Submitter, TicketDB
@@ -296,11 +297,13 @@ class AgentRunner:
         max_generations: int = 3,
         submitter: Submitter | None = None,
         checkpointer: BaseCheckpointSaver | None = None,
+        tool_factory: Callable[[AgentSession], list[StructuredTool]] = make_tools,
     ) -> None:
         """``model`` must support ``bind_tools``; the limits come from the stage and config.
 
         A ``submitter`` turns on v9's approval flow; it needs a checkpointer (in memory if
-        none is given) to pause and resume.
+        none is given) to pause and resume. ``tool_factory`` builds the session's tools:
+        in-process (``make_tools``) or, in v10, over MCP (``mcp_server.client``).
         """
         if max_tool_calls < 1 or max_generations < 1:
             raise ValueError("max_tool_calls and max_generations must be at least 1")
@@ -312,6 +315,7 @@ class AgentRunner:
         self.submitter = submitter
         self.approval = submitter is not None
         self._checkpointer = checkpointer or (InMemorySaver() if self.approval else None)
+        self._tool_factory = tool_factory
 
     # --------------------------------------------------------------- graph
 
@@ -521,7 +525,9 @@ class AgentRunner:
 
     def _compiled(self, session: AgentSession) -> CompiledStateGraph:
         """The graph for ``session``, with the checkpointer in v9."""
-        return self._build(session, make_tools(session)).compile(checkpointer=self._checkpointer)
+        return self._build(session, self._tool_factory(session)).compile(
+            checkpointer=self._checkpointer
+        )
 
     def run(
         self,
@@ -640,17 +646,20 @@ class AgentPipeline:
     Its knowledge tool is the stage's own v7 pipeline; the last knowledge call's
     retrieval fills the ``Answer``'s context fields, so the golden-set metrics still work.
     In an approval stage, ``pending``, ``approve`` and ``reject`` are the client API.
+    In v10 the tools run in the MCP server (``mcp``, a ``MCPToolClient``), so there is no
+    local knowledge pipeline; the retrieval context comes back in the tool results.
     """
 
     def __init__(
         self,
         stage: StageConfig,
-        knowledge: Pipeline,
+        knowledge: Pipeline | None,
         runner: AgentRunner,
         orders: OrderStore,
         rules: BusinessRules,
         catalogue: dict[str, Product],
         audit: AuditLog | None = None,
+        mcp: object | None = None,
     ) -> None:
         """Assemble from built parts (``from_stage`` builds them from config)."""
         if not stage.agent:
@@ -662,6 +671,7 @@ class AgentPipeline:
         self._rules = rules
         self._catalogue = catalogue
         self.audit = audit
+        self.mcp = mcp
 
     @classmethod
     def from_stage(
@@ -679,9 +689,20 @@ class AgentPipeline:
         """
         settings = settings or get_settings()
         stage = load_stage(stage) if isinstance(stage, str) else stage
-        knowledge = Pipeline.from_stage(
-            stage, settings, tickets or MemoryTicketStore(), allow_redteam=allow_redteam
-        )
+        knowledge, mcp, tool_factory = None, None, make_tools
+        if stage.tools_via_mcp:  # v10: the tools (and the v7 pipeline) run in the server
+            from rag_assistant.mcp_server.client import MCPToolClient, mcp_tool_factory
+
+            mcp = (
+                MCPToolClient.for_stage(stage.name, None)
+                if persist
+                else MCPToolClient.for_evaluation(stage.name)
+            )
+            tool_factory = mcp_tool_factory(mcp)
+        else:
+            knowledge = Pipeline.from_stage(
+                stage, settings, tickets or MemoryTicketStore(), allow_redteam=allow_redteam
+            )
         guard, max_generations = make_guard(stage, settings)
         generated = settings.paths.resolve(settings.paths.generated_dir)
         catalogue = {p.code: p for p in load_catalogue(generated / "manifest.json")}
@@ -707,8 +728,9 @@ class AgentPipeline:
             max_generations,
             submitter,
             checkpointer,
+            tool_factory,
         )
-        return cls(stage, knowledge, runner, orders, rules, catalogue, audit)
+        return cls(stage, knowledge, runner, orders, rules, catalogue, audit, mcp)
 
     def __enter__(self) -> AgentPipeline:
         """Enter the context manager."""
@@ -724,8 +746,11 @@ class AgentPipeline:
         self.close()
 
     def close(self) -> None:
-        """Release the Weaviate clients and the database connections."""
-        self._knowledge.close()
+        """Release the Weaviate clients, the MCP servers and the database connections."""
+        if self._knowledge is not None:
+            self._knowledge.close()
+        if self.mcp is not None:
+            self.mcp.close()  # type: ignore[attr-defined]
         self._orders.close()
         if self.submitter is not None:
             self.submitter.tickets.close()
@@ -742,27 +767,24 @@ class AgentPipeline:
 
     def _session(
         self, user: User, retrieve_k: int | None = None
-    ) -> tuple[AgentSession, list[Answer]]:
-        """A fresh tool session for ``user``, and the list its knowledge answers go to."""
-        last: list[Answer] = []
+    ) -> tuple[AgentSession, list[RetrievalContext]]:
+        """A fresh tool session for ``user``, and the list its retrieval contexts go to."""
 
-        def knowledge(q: str) -> KnowledgeResult:
-            answer = self._knowledge.answer(q, user, retrieve_k=retrieve_k)
-            last.append(answer)
-            answered = answer.path is None or answer.path.handoff_reason is None
-            cited = [answer.context[s.number - 1] for s in answer.sources]
-            return KnowledgeResult(answered, answer.model_text or "", cited)
+        def no_local_knowledge(q: str) -> KnowledgeResult:
+            raise RuntimeError("v10's knowledge tool runs in the MCP server")
 
         session = AgentSession(
             user,
             self._orders,
             self._rules,
             self._catalogue,
-            knowledge,
+            no_local_knowledge,
             approval=self.stage.approval,
-            audit=self.audit,
+            audit=None if self.stage.tools_via_mcp else self.audit,  # the server audits v10's
         )
-        return session, last
+        if self._knowledge is not None:
+            session.knowledge = make_knowledge(self._knowledge, user, session.contexts, retrieve_k)
+        return session, session.contexts
 
     def _log(self, event: str, user: User, thread_id: str, **fields: object) -> None:
         """Write an audit event, if there is a log."""
@@ -831,7 +853,7 @@ class AgentPipeline:
             candidates=kb.candidates if kb else [],
             rewrite=kb.rewrite if kb else None,
             region_filter=kb.region_filter if kb else None,
-            security_events=sum(a.security_events for a in last),
+            security_events=sum(c.security_events for c in last),
             model_text=None if result.outcome == "fallback" else result.text,
             agent=result,
         )

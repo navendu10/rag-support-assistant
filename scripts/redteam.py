@@ -7,6 +7,7 @@ Usage:
     python scripts/redteam.py --stage v7 --rescore         # re-score stored answers, no LLM
     python scripts/redteam.py --stage v8                   # the agent, all layers, vs v7
     python scripts/redteam.py --stage v9                   # approval for writes, vs v8, v7
+    python scripts/redteam.py --stage v10 --ids r19,r20    # tools over MCP, chosen attacks
 
 Layer 1 works at ingestion, so it decides the index: on -> v7's sanitised collections,
 off -> v7raw's unsanitised copy of the same data (red-team runs only). Layers 2 and 3 are
@@ -53,12 +54,16 @@ def parse_args() -> argparse.Namespace:
     """Parse command-line options."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
-        "--stage", default="v7", choices=["v7", "v8", "v9"], help="v7 (layers), v8 or v9"
+        "--stage",
+        default="v7",
+        choices=["v7", "v8", "v9", "v10"],
+        help="v7 (layers), or an agent stage",
     )
     parser.add_argument("--layers", default="1,2,3", help='e.g. "1,2,3", "2" or "none"')
     parser.add_argument(
         "--rescore", action="store_true", help="re-score every stored run, no LLM calls"
     )
+    parser.add_argument("--ids", help="agent stages: comma-separated attack ids (default: all)")
     return parser.parse_args()
 
 
@@ -67,10 +72,14 @@ def _cell(text: str) -> str:
     return text.replace("|", "\\|").replace("\n", " ")
 
 
-def run(layers: tuple[int, ...], stage: StageConfig | None = None) -> list[AttackResult]:
+def run(
+    layers: tuple[int, ...], stage: StageConfig | None = None, ids: set[str] | None = None
+) -> list[AttackResult]:
     """Answer every attack with the stage for ``layers`` (or ``stage``) and score it."""
     settings = get_settings()
-    attacks = load_attacks(settings.paths.resolve(ATTACKS_FILE))
+    attacks = [
+        a for a in load_attacks(settings.paths.resolve(ATTACKS_FILE)) if ids is None or a.id in ids
+    ]
     users = {u.user_id: u for u in load_users(settings.paths.resolve(settings.paths.users_file))}
     stage = stage or stage_for_layers(layers)
     results = []
@@ -168,19 +177,27 @@ def _status(result: AttackResult | None) -> str:
     return "blocked" if result.blocked else "**through**"
 
 
-def run_agent(stage_name: str, results_dir: Path) -> int:
+def run_agent(stage_name: str, results_dir: Path, ids: set[str] | None = None) -> int:
     """v8 or v9: the agent with every v7 layer, compared attack by attack with the stages
     before it (v7's all-layers run, and v8 for v9).
 
     Any attack an earlier stage blocked that gets through here is listed first and flagged.
     """
     out_dir = results_dir / stage_name
-    results = run(ALL_LAYERS, load_stage(stage_name))
+    results = run(ALL_LAYERS, load_stage(stage_name), ids)
     write_results(out_dir / "redteam" / "agent.jsonl", results)
     earlier = {"v7": _stored(results_dir / "v7" / "redteam" / "1,2,3.jsonl")}
-    if stage_name == "v9":
-        earlier["v8"] = _stored(results_dir / "v8" / "redteam" / "agent.jsonl")
-    attacks = load_attacks(get_settings().paths.resolve(ATTACKS_FILE))
+    for name in {"v9": ["v8"], "v10": ["v8", "v9"]}.get(stage_name, []):
+        earlier[name] = _stored(results_dir / name / "redteam" / "agent.jsonl")
+    attacks = [
+        a
+        for a in load_attacks(get_settings().paths.resolve(ATTACKS_FILE))
+        if ids is None or a.id in ids
+    ]
+    earlier = {
+        name: {k: v for k, v in runs.items() if ids is None or k in ids}
+        for name, runs in earlier.items()
+    }
     runs = {f"{name} (stored)": list(r.values()) for name, r in earlier.items() if r}
     table = pass_table({**runs, stage_name: results}, attacks)
     regressions = [
@@ -231,8 +248,9 @@ def main() -> int:
     args = parse_args()
     settings = get_settings()
     out_dir = settings.paths.resolve(settings.paths.results_dir) / args.stage
-    if args.stage in ("v8", "v9"):
-        return run_agent(args.stage, settings.paths.resolve(settings.paths.results_dir))
+    if load_stage(args.stage).agent:
+        ids = {i.strip() for i in args.ids.split(",")} if args.ids else None
+        return run_agent(args.stage, settings.paths.resolve(settings.paths.results_dir), ids)
     if args.rescore:
         rescore(out_dir)
         print(f"Report: {write_report(out_dir)}")

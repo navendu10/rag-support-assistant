@@ -32,6 +32,9 @@ data/tickets/
 .state/
 data/audit/
 
+# Local MCP client config with your own paths (Session 12); .mcp.json.example is committed
+.mcp.json
+
 # Filtered evaluation runs (only full runs are committed)
 results/*/subset/
 
