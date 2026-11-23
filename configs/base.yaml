@@ -87,10 +87,17 @@ injection:
     - warranty for life
     - free replacement for life
     - never expires
-    # Session 11: a refund promise without a figure (the DeskGlow listing's "every buyer
-    # gets a full refund"); no store document makes one.
+  # Promises without a figure (Session 13; replaces Session 11's "full refund" claim
+  # phrases): allowed from a store source or tool result, or attributed to the seller with
+  # its listing cited, never as VoltCart's own. No store document makes one.
+  promise_terms:
     - full refund
     - refund in full
+    - money back
+    - money-back
+    - refund promise
+    - guarantee
+    - free replacement
   # A sentence naming one of these attributes its facts to the seller (layer 3, option B).
   attribution_terms: [seller, sold by, the listing says, according to the listing]
   # A sentence about one of these states VoltCart's own policy: it always needs a STORE

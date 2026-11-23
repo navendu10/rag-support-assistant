@@ -43,3 +43,6 @@ results/*/subset/
 .idea/
 .DS_Store
 Thumbs.db
+
+# FastEmbed model cache (CI sets FASTEMBED_CACHE_PATH here; Session 13)
+.fastembed_cache/

@@ -14,6 +14,7 @@ from weaviate.collections import Collection
 from weaviate.collections.classes.filters import _Filters
 
 from rag_assistant.embeddings import Embedder
+from rag_assistant.retrieval.ordering import order_chunks, search_limit
 from rag_assistant.security.sanitize import trust_for
 
 
@@ -37,6 +38,7 @@ class RetrievedChunk:
     rerank_logit: float | None = None
     rerank_score: float | None = None
     trust: str = "store"
+    effective_date: str = ""  # ISO date of the source document (Session 13: tie-break)
 
 
 class VectorRetriever:
@@ -63,14 +65,15 @@ class VectorRetriever:
         del extra_codes
         response = self._collection.query.near_vector(
             near_vector=self._embedder.embed_one(query),
-            limit=k,
+            limit=search_limit(k),
             filters=filters,
             return_metadata=MetadataQuery(distance=True),
         )
-        return [
+        found = [
             to_chunk(obj.properties, 1.0 - _or_one(obj.metadata.distance))
             for obj in response.objects
         ]
+        return order_chunks(found, k)
 
 
 def _or_one(distance: float | None) -> float:
@@ -95,4 +98,5 @@ def to_chunk(props: dict, score: float) -> RetrievedChunk:
         section=str(props.get("section") or ""),
         page=int(props["page"]) if props.get("page") is not None else None,
         trust=str(props.get("trust") or trust_for(props.get("doc_type"))),
+        effective_date=str(props.get("effective_date") or ""),
     )

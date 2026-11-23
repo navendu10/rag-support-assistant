@@ -96,6 +96,7 @@ class ScenarioResult(BaseModel):
     duplicate_tickets: int = 0
     false_ticket_claims: list[str] = []
     write_problems: list[str] = []
+    checker_calls: int = 0  # Session 13: small-model action checks
 
     @property
     def success(self) -> bool:
@@ -202,6 +203,7 @@ def summarise(results: Sequence[ScenarioResult]) -> dict[str, object]:
         "unapproved_writes": sum(r.unapproved_writes for r in results),
         "duplicate_tickets": sum(r.duplicate_tickets for r in results),
         "false_ticket_claims": sum(len(r.false_ticket_claims) for r in results),
+        "checker_calls": sum(r.checker_calls for r in results),
     }
 
 
@@ -283,6 +285,7 @@ def render_report(stage: str, day: str, results: Sequence[ScenarioResult]) -> st
                 f"| **Unapproved writes** (must be 0) | {s['unapproved_writes']} |\n"
                 f"| **Duplicate tickets** (must be 0) | {s['duplicate_tickets']} |\n"
                 f"| **False ticket claims** (must be 0) | {s['false_ticket_claims']} |\n"
+                f"| Small-model action checks (calls) | {s['checker_calls']} |\n"
                 f"| Latency p50 (ms, wall clock) | {s['latency_ms_p50']:.0f} |",
                 "## Per scenario",
                 "\n".join(rows),
@@ -447,4 +450,5 @@ def run_scenario(
         duplicate_tickets=duplicates(new),
         false_ticket_claims=claims,
         write_problems=write,
+        checker_calls=sum(r.checker_calls for _, r in answers),
     )

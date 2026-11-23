@@ -307,11 +307,23 @@ def run_evaluation(
     tag: str | None = None,
     limit: int | None = None,
     progress: Callable[[str], None] = print,
+    heldout: bool = False,
 ) -> RunOutput:
-    """Evaluate ``stage`` on the golden set (optionally filtered) and write the outputs."""
-    items = select_items(
-        load_golden(settings.paths.resolve(settings.paths.golden_file)), tag, limit
-    )
+    """Evaluate ``stage`` on the golden set (optionally filtered) and write the outputs.
+
+    ``heldout`` (Session 13) runs the frozen held-out set instead, once per stage, into
+    ``results/heldout/<stage>/`` (``eval/heldout.py``).
+    """
+    heldout_dir = None
+    if heldout:
+        from rag_assistant.eval.heldout import load_heldout, run_dir
+
+        heldout_dir = run_dir(settings.paths.resolve(settings.paths.results_dir), stage.name)
+        items = load_heldout()
+    else:
+        items = select_items(
+            load_golden(settings.paths.resolve(settings.paths.golden_file)), tag, limit
+        )
     rows = answer_items(stage, settings, items, progress)
     filters = ", ".join(
         part for part in (f"tag={tag}" if tag else "", f"limit={limit}" if limit else "") if part
@@ -356,7 +368,9 @@ def run_evaluation(
             else {}
         ),
     }
-    out_dir = output_dir(settings, stage, filtered=bool(filters))
+    out_dir = heldout_dir or output_dir(settings, stage, filtered=bool(filters))
+    if heldout:
+        meta["set"] = "held-out (frozen; one run)"
     summary = write_outputs(out_dir, meta, rows)
     return RunOutput(out_dir, summary, rows)
 

@@ -535,6 +535,9 @@ def make_guard(stage: StageConfig, settings: Settings) -> tuple[OutputGuard | No
     if not stage.injection.output_guard:
         return None, injection.max_generations
     guard = OutputGuard(
-        injection.claim_phrases, injection.attribution_terms, injection.voltcart_policy_terms
+        injection.claim_phrases,
+        injection.attribution_terms,
+        injection.voltcart_policy_terms,
+        injection.promise_terms,
     )
     return guard, injection.max_generations

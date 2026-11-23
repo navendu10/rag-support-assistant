@@ -165,8 +165,17 @@ v9 can submit tickets, so the question is who decides that a write happens. The 
   - Tool results are cut to 200 characters.
   - Knowledge results keep only doc ids.
   - Nothing reads settings, so no key can appear; a test checks it.
-- **Layer 3 now also blocks figure-free refund promises:** "full refund" and "refund in
-  full" are claim phrases (the DeskGlow listing's planted promise has no number).
+- **Layer 3 checks figure-free promises** (Session 13, replacing Session 11's "full
+  refund" claim phrases). Promises without a number ("full refund", "money back",
+  "guarantee", `promise_terms`) pass only in one of two ways:
+  - a cited store source or a tool result makes them;
+  - the answer attributes them to the seller, and a cited listing makes them as the
+    seller's own.
+
+  A listing that frames its claim as VoltCart's ("VoltCart refund promise: ...") can't be
+  restated at all, not even as the seller's, because that would misreport the source.
+  Honest denials pass ("the documents don't mention a money-back guarantee"). Curly
+  apostrophes are folded first: before Session 13, "don’t" was never read as a negation.
 - **The red team** adds five tool-abuse attacks: a text approval, an injected "submit" in
   a listing, approving another user's draft, asking for every ticket, and instructions in
   a ticket reason. An attack also counts as getting through if any ticket is written.

@@ -12,7 +12,17 @@ credit. So the guard checks the facts that matter, sentence by sentence:
   source, attribution or not. A listing can't make a VoltCart promise.
 - **Claim phrases** ("lifetime warranty", "guaranteed forever") fail unless a cited store
   source contains them. A phrase that the sentence negates before it ("does not have a
-  lifetime warranty") is a denial and passes; numbers get no such exemption.
+  lifetime warranty") is a denial and passes; numbers get no such exemption. Session 13:
+  a phrase that is only reported as absent or asked about ("the documents don't say
+  whether it has a lifetime warranty") is a denial too.
+- **Promises without a figure** (Session 13: "full refund", "money back", "guarantee",
+  ``promise_terms``) pass if a cited store source or a tool result contains them, or if
+  the sentence attributes them to the seller **and** a cited third-party listing makes
+  that promise as its own (a listing sentence that contains it without presenting it as
+  VoltCart's). An answer presenting it as VoltCart's fails, and so does restating a
+  listing's "VoltCart refund promise: ..." as the seller's: a listing can't make a
+  VoltCart promise, and the answer mustn't misreport the source. The listing's other
+  facts (its seller, its own warranty) stay usable.
 
 **Agent mode (Session 10, v8).** The agent's answer cites knowledge passages as [K1],
 [K2]... and also states figures and **dates** that come from its order tools. So
@@ -41,7 +51,9 @@ logger = logging.getLogger(__name__)
 # U+2010-2015 and U+2212 dashes; U+00A0, U+2007, U+2009, U+202F spaces.
 _TYPOGRAPHY = str.maketrans(
     {**dict.fromkeys("\u2010\u2011\u2012\u2013\u2014\u2015\u2212", "-"),
-     **dict.fromkeys("\u00a0\u2007\u2009\u202f", " ")}
+     **dict.fromkeys("\u00a0\u2007\u2009\u202f", " "),
+     # Session 13: curly apostrophes and quotes, so "don\u2019t" and "can\u2019t" are negations
+     **dict.fromkeys("\u2018\u2019\u02bc", "'"), **dict.fromkeys("\u201c\u201d", '"')}
 )  # fmt: skip
 _WORDS = {
     "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
@@ -93,6 +105,18 @@ _ISO_DATE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 _NEGATION = re.compile(
     r"\b(not|no|never|without|isn't|doesn't|don't|aren't|won't|cannot|can't|nor)\b|"
     r"\brather than\b|\binstead of\b",
+    re.IGNORECASE,
+)
+# The phrase is only asked about or reported as absent, anywhere earlier in its clause:
+# "the documents don't say whether it has a lifetime warranty". A bare "if" is not enough:
+# "if you buy it today, it has a lifetime warranty" is still a claim.
+_NOT_ASSERTED = re.compile(
+    r"\bwhether\b|"
+    r"\b(?:don't|doesn't|didn't|do not|does not|did not|cannot|can't|couldn't|could not|"
+    r"unable to|(?:wasn't|weren't|was not|were not|not) able to)\s+"
+    r"(?:\w+\s+){0,2}?(?:say|state|mention|list|contain|include|show|specify|find|confirm|"
+    r"locate|see)\w*\b|"
+    r"\bno\s+(?:information|mention|record|details?|reference)\s+(?:about|of|on|to)\b",
     re.IGNORECASE,
 )
 
@@ -172,6 +196,29 @@ def split_sentences(text: str) -> list[str]:
     return [s.strip() for s in _SENTENCE_END.split(text) if s.strip()]
 
 
+def _clause_of(lowered: str, phrase: str) -> str:
+    """The clause of ``lowered`` that holds ``phrase`` (split at commas, semicolons, colons
+    and "but"): in "the listing mentions a refund promise from the seller, but VoltCart's
+    policies don't address it", VoltCart is in another clause."""
+    position = lowered.find(phrase)
+    if position < 0:
+        return lowered
+    before = _CLAUSE_BREAK.split(lowered[:position])[-1]
+    after = _CLAUSE_BREAK.split(lowered[position:])[0]
+    return before + after
+
+
+def _seller_makes(term: str, listings: Sequence[RetrievedChunk]) -> bool:
+    """True if a cited listing makes the promise ``term`` as its own: a sentence of the
+    listing contains it and doesn't present it as VoltCart's. "VoltCart refund promise:
+    every buyer gets a full refund" can't be restated as the seller's promise (Session 13)."""
+    return any(
+        _contains(sentence, term) and "voltcart" not in sentence.lower()
+        for chunk in listings
+        for sentence in split_sentences(chunk.text)
+    )
+
+
 def _contains(text: str, phrase: str) -> bool:
     """Case-insensitive substring match with whitespace and hyphens folded."""
     fold = lambda t: re.sub(r"[\s\-‐‑–—]+", " ", t.lower())  # noqa: E731
@@ -182,12 +229,17 @@ def _negated(sentence: str, phrase: str) -> bool:
     """True if ``phrase`` is denied in its own clause: a negation word among the few words
     just before it, with no comma, semicolon or "but" in between. "It does not have a
     lifetime warranty" is a denial; "I can't find it, but there's a lifetime warranty"
-    is a claim."""
-    lowered = sentence.lower()
-    position = lowered.find(phrase.lower())
+    is a claim. A phrase only asked about or reported as absent anywhere earlier in its
+    clause ("the documents don't say whether it has a lifetime warranty") is not a claim
+    either (Session 13, g026)."""
+    fold = lambda t: re.sub(r"[\s\-]+", " ", fold_typography(t).lower())  # noqa: E731
+    lowered = fold(sentence)
+    position = lowered.find(fold(phrase))
     if position <= 0:
         return False
     clause = _CLAUSE_BREAK.split(lowered[:position])[-1]
+    if _NOT_ASSERTED.search(clause):
+        return True
     return bool(_NEGATION.search(" ".join(clause.split()[-_NEGATION_WINDOW:])))
 
 
@@ -198,6 +250,7 @@ class Trusted:
     facts: set[Quantity] = field(default_factory=set)
     dates: set[date] = field(default_factory=set)
     check_dates: bool = False
+    texts: tuple[str, ...] = ()  # the tool results themselves (for promise terms)
 
 
 @dataclass(frozen=True)
@@ -216,11 +269,13 @@ class OutputGuard:
         claim_phrases: Sequence[str],
         attribution_terms: Sequence[str],
         voltcart_policy_terms: Sequence[str],
+        promise_terms: Sequence[str] = (),
     ) -> None:
         """The phrase lists come from ``injection`` in ``configs/base.yaml``."""
         self._claims = tuple(claim_phrases)
         self._attribution = tuple(t.lower() for t in attribution_terms)
         self._policy = tuple(t.lower() for t in voltcart_policy_terms)
+        self._promises = tuple(promise_terms)
 
     def _sentence_problems(
         self,
@@ -267,7 +322,53 @@ class OutputGuard:
             claimed = _contains(sentence, phrase) and not _negated(sentence, phrase)
             if claimed and not any(_contains(c.text, phrase) for c in store):
                 problems.append(f'"{phrase}" is not in a cited store source ("{sentence}")')
+        problem = self._promise_problem(sentence, store, chunks, cited_here, trusted)
+        if problem:
+            problems.append(problem)
         return problems
+
+    def _promise_problem(
+        self,
+        sentence: str,
+        store: Sequence[RetrievedChunk],
+        chunks: Sequence[RetrievedChunk],
+        cited_here: set[int],
+        trusted: Trusted,
+    ) -> str | None:
+        """A promise without a figure ("full refund", "money back") is allowed only from a
+        store source or tool result, or attributed to the seller with its listing cited,
+        and never as VoltCart's own."""
+        lowered = sentence.lower()
+        for term in self._promises:
+            if not _contains(sentence, term) or _negated(sentence, term):
+                continue
+            if any(_contains(c.text, term) for c in store) or any(
+                _contains(t, term) for t in trusted.texts
+            ):
+                continue
+            listings = [
+                chunks[n - 1]
+                for n in sorted(cited_here)
+                if 1 <= n <= len(chunks) and chunks[n - 1].trust != "store"
+            ]
+            attributed = any(t in lowered for t in self._attribution)
+            if "voltcart" in _clause_of(lowered, term.lower()):
+                return (
+                    f'"{term}" is presented as a VoltCart promise, but no store source makes '
+                    f'it ("{sentence}")'
+                )
+            if attributed and listings and _seller_makes(term, listings):
+                continue
+            if attributed and listings:
+                return (
+                    f'"{term}" is not a promise the cited listing makes as the seller\'s own '
+                    f'(it is absent, or the listing presents it as VoltCart\'s) ("{sentence}")'
+                )
+            return (
+                f'"{term}" needs a store source, or the seller named and its listing cited '
+                f'("{sentence}")'
+            )
+        return None
 
     def check(
         self,
@@ -288,6 +389,7 @@ class OutputGuard:
             facts=set().union(*(extract_quantities(t) for t in trusted_texts)),
             dates=set().union(*(extract_dates(t) for t in trusted_texts)),
             check_dates=check_dates,
+            texts=tuple(trusted_texts),
         )
         problems = [
             p for sentence in split_sentences(answer)

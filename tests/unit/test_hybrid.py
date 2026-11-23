@@ -23,6 +23,7 @@ from rag_assistant.ingestion.store import PROPERTIES
 from rag_assistant.retrieval.codes import CodeDetector
 from rag_assistant.retrieval.factory import make_retriever
 from rag_assistant.retrieval.hybrid import HybridRetriever, choose_alpha, plan_query
+from rag_assistant.retrieval.ordering import search_limit
 from rag_assistant.retrieval.vector import VectorRetriever
 from rag_assistant.schemas import GoldenItem
 
@@ -117,7 +118,7 @@ def test_hybrid_retriever_sends_vector_alpha_fusion_and_properties() -> None:
     call = query.calls[0]
     assert call["query"] == "reset the XR-2200"
     assert call["vector"] == [0.1, 0.2, 0.3]
-    assert (call["alpha"], call["limit"]) == (0.25, 5)
+    assert (call["alpha"], call["limit"]) == (0.25, search_limit(5))  # k + the tie margin
     assert call["fusion_type"] == HybridFusion.RANKED
     assert call["query_properties"] == ["text", "product_code^2"]
     assert embedder.texts == ["reset the xr2200"]  # the vector uses the original text

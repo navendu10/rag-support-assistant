@@ -27,6 +27,7 @@ from weaviate.collections.classes.filters import _Filters
 from rag_assistant.config import HybridConfig
 from rag_assistant.embeddings import Embedder
 from rag_assistant.retrieval.codes import CodeDetector
+from rag_assistant.retrieval.ordering import order_chunks, search_limit
 from rag_assistant.retrieval.vector import RetrievedChunk, to_chunk
 
 FUSION = {"relative_score": HybridFusion.RELATIVE_SCORE, "ranked": HybridFusion.RANKED}
@@ -77,6 +78,8 @@ def hybrid_search(
     """One Weaviate hybrid query with an explicit vector; best ``k`` chunks first.
 
     ``filters`` restricts both the keyword and the vector side before fusion and ranking.
+    Ties are broken by effective date, doc_id and chunk index before the cut
+    (``retrieval/ordering.py``).
     """
     response = collection.query.hybrid(
         query=keywords,
@@ -84,11 +87,12 @@ def hybrid_search(
         alpha=alpha,
         fusion_type=FUSION[fusion],
         query_properties=list(query_properties),
-        limit=k,
+        limit=search_limit(k),
         filters=filters,
         return_metadata=MetadataQuery(score=True),
     )
-    return [to_chunk(obj.properties, obj.metadata.score or 0.0) for obj in response.objects]
+    found = [to_chunk(obj.properties, obj.metadata.score or 0.0) for obj in response.objects]
+    return order_chunks(found, k)
 
 
 class HybridRetriever:

@@ -99,22 +99,19 @@ def test_rerank_reorders_a_hand_made_candidate_list() -> None:
         _chunk("policy-warranty", "Panel defects warranty: 24 months warranty", 2),
     ]
     ranked = rerank_chunks("TV lines?", candidates, keyword_scorer)
-    assert [c.doc_id for c in ranked] == ["policy-warranty", "manual-vm-55q", "faq-007"]
+    # manual-vm-55q and faq-007 score the same: doc_id decides (Session 13).
+    assert [c.doc_id for c in ranked] == ["policy-warranty", "faq-007", "manual-vm-55q"]
     assert ranked[0].rerank_logit == 10.0
     assert ranked[0].rerank_score == pytest.approx(sigmoid(10.0))
     assert ranked[0].score == candidates[2].score  # the search score is kept
     assert candidates[2].rerank_score is None  # inputs are not mutated
 
 
-def test_rerank_ties_keep_search_order() -> None:
-    """Equal scores keep their search order (stable sort)."""
-    candidates = [_chunk(f"d{n}", "same", n) for n in range(4)]
-    assert [c.doc_id for c in rerank_chunks("q", candidates, keyword_scorer)] == [
-        "d0",
-        "d1",
-        "d2",
-        "d3",
-    ]
+def test_rerank_ties_are_ordered_by_doc_id_then_chunk_index() -> None:
+    """Equal scores: doc_id, then chunk index, whatever the search order (Session 13)."""
+    candidates = [_chunk("d2", "same", 1), _chunk("d0", "same", 3), _chunk("d2", "same", 0)]
+    ranked = rerank_chunks("q", candidates, keyword_scorer)
+    assert [(c.doc_id, c.chunk_index) for c in ranked] == [("d0", 3), ("d2", 0), ("d2", 1)]
 
 
 def test_rerank_edge_cases() -> None:

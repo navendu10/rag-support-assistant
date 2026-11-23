@@ -8,6 +8,7 @@ Usage:
     python scripts/evaluate.py --stage v4 --add-handoff-judge
     python scripts/evaluate.py --stage v4 --add-invented-judge
     python scripts/evaluate.py --stage v6 --only-ids g011,g046
+    python scripts/evaluate.py --stage v9 --heldout     # the frozen held-out set, once
 
 Filtered runs (--tag/--limit) are written to results/<stage>/subset/ (git-ignored).
 --rescore re-applies the current metric code to the stored full run (no LLM calls).
@@ -49,6 +50,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, help="only the first N questions")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
+        "--heldout",
+        action="store_true",
+        help="run the frozen held-out set once (results/heldout/<stage>/); never for tuning",
+    )
+    mode.add_argument(
         "--rescore", action="store_true", help="recompute checks on the stored full run"
     )
     mode.add_argument(
@@ -86,6 +92,8 @@ def parse_args() -> argparse.Namespace:
     )
     if any(stored_modes) and (args.tag or args.limit):
         parser.error("these modes use the stored full run; drop --tag and --limit")
+    if args.heldout and (args.tag or args.limit):
+        parser.error("the held-out set runs whole, once: drop --tag and --limit")
     return args
 
 
@@ -111,7 +119,7 @@ def main() -> int:
     elif args.add_invented_judge:
         out = add_invented_judgements(stage, settings)
     else:
-        out = run_evaluation(stage, settings, args.tag, args.limit)
+        out = run_evaluation(stage, settings, args.tag, args.limit, heldout=args.heldout)
     s = out.summary
     print(f"\nDone in {time.perf_counter() - start:.0f}s -> {out.out_dir}")
     for key in (

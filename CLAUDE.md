@@ -35,6 +35,8 @@ data/generated/            generator output + manifest.json (git-ignored; see do
 data/golden/               hand-checked evaluation sets (committed)
 data/redteam/              prompt-injection attacks for scripts/redteam.py (committed)
 data/golden/agent_scenarios.jsonl  agent conversations for scripts/evaluate_agent.py
+data/golden/heldout.jsonl  held-out questions (frozen by heldout.lock; one run per stage, never tuned)
+data/golden/judge_labels.jsonl  hand labels from scripts/label_answers.py
 data/users.json            test users (committed)
 src/rag_assistant/
   config.py                typed settings (YAML < .env < env vars)
@@ -138,6 +140,10 @@ python scripts/redteam.py --stage v9                # vs v8 and v7, incl. tool-a
 python -m rag_assistant.mcp_server --user cust_uk_01   # the tools over MCP (stdio); docs/mcp-demo.md
 python scripts/chat.py --stage v10 --user cust_uk_01  # the agent with its tools over MCP
 python scripts/redteam.py --stage v10 --ids r19,r20,r21,r22,r23   # chosen attacks only
+python scripts/retrieval_gate.py [--write-baseline]   # v7 recall@5 + leaks + index check, no LLM (CI)
+python scripts/label_answers.py [--list]            # hand labels for 40 stored answers, no LLM
+python scripts/freeze_heldout.py                    # once: lock data/golden/heldout.jsonl by hash
+python scripts/evaluate.py --stage v9 --heldout     # the held-out set: once per stage, never for tuning
 python scripts/show_chunks.py --stage v1 --doc returns-uk-2026-print [--grep text]
 pytest -m integration                         # needs Weaviate + Groq (skipped by default)
 pytest -m security                            # access-control tests against Weaviate RBAC (local)

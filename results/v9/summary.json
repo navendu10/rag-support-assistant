@@ -22,7 +22,8 @@
     },
     "corrective_flow": "LangGraph: grade, broader retry, answer or handoff",
     "min_score": 0.1,
-    "retry_fetch_k": 30
+    "retry_fetch_k": 30,
+    "rerun": "2026-11-23: re-answered g001, g026; 2026-11-23: re-answered g026"
   },
   "overall": {
     "questions": 50,
@@ -35,11 +36,11 @@
       "total": 45
     },
     "mrr": {
-      "value": 0.759,
+      "value": 0.763,
       "total": 45
     },
     "correctness": {
-      "count": 37,
+      "count": 39,
       "total": 50
     },
     "retrieval_leaks": {
@@ -100,7 +101,7 @@
       "total": 43
     },
     "false_handoffs": {
-      "count": 6,
+      "count": 5,
       "total": 43
     },
     "invented_content": {
@@ -152,7 +153,7 @@
       "total": 0
     },
     "latency_ms": {
-      "p50": 3954.4,
+      "p50": 4226.9,
       "p95": 56684.5,
       "generate_excludes_waits": false
     }
@@ -169,11 +170,11 @@
         "total": 4
       },
       "mrr": {
-        "value": 0.458,
+        "value": 0.5,
         "total": 4
       },
       "correctness": {
-        "count": 3,
+        "count": 4,
         "total": 4
       },
       "retrieval_leaks": {
@@ -234,7 +235,7 @@
         "total": 3
       },
       "false_handoffs": {
-        "count": 1,
+        "count": 0,
         "total": 4
       },
       "invented_content": {
@@ -287,7 +288,7 @@
       },
       "latency_ms": {
         "p50": 1839.9,
-        "p95": 3339.3,
+        "p95": 4713.1,
         "generate_excludes_waits": false
       }
     },
@@ -1104,7 +1105,7 @@
         "total": 2
       },
       "correctness": {
-        "count": 2,
+        "count": 3,
         "total": 3
       },
       "retrieval_leaks": {
@@ -1218,7 +1219,7 @@
       },
       "latency_ms": {
         "p50": 1877.6,
-        "p95": 2788.1,
+        "p95": 4652.3,
         "generate_excludes_waits": false
       }
     },

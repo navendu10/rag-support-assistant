@@ -159,6 +159,7 @@ class InjectionSettings(BaseModel):
     claim_phrases: list[str] = Field(min_length=1)
     attribution_terms: list[str] = Field(min_length=1)
     voltcart_policy_terms: list[str] = Field(min_length=1)
+    promise_terms: list[str] = Field(default_factory=list)  # Session 13: promises without a figure
     max_generations: int = Field(default=3, ge=1, description="answer generations per question")
 
 

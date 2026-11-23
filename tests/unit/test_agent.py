@@ -53,7 +53,10 @@ TODAY = RULES.reference_date
 PROMPTS = load_prompts()
 INJECTION = load_injection_settings()
 GUARD = OutputGuard(
-    INJECTION.claim_phrases, INJECTION.attribution_terms, INJECTION.voltcart_policy_terms
+    INJECTION.claim_phrases,
+    INJECTION.attribution_terms,
+    INJECTION.voltcart_policy_terms,
+    INJECTION.promise_terms,
 )
 UK = User(user_id="cust_uk_01", name="Oliver Bennett", role="customer", region="UK")
 US = User(user_id="cust_us_01", name="Maya Johnson", role="customer", region="US")

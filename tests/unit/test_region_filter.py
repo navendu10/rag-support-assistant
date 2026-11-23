@@ -13,6 +13,7 @@ from rag_assistant.query.rewrite import Catalogue, QueryRewriter, Rewrite, Rewri
 from rag_assistant.retrieval.codes import CodeDetector
 from rag_assistant.retrieval.filters import build_region_filter, region_filter, region_values
 from rag_assistant.retrieval.hybrid import HybridRetriever, plan_query
+from rag_assistant.retrieval.ordering import search_limit
 from rag_assistant.retrieval.vector import RetrievedChunk
 from rag_assistant.schemas import Turn, User
 
@@ -188,4 +189,4 @@ def test_hybrid_retriever_passes_the_filter_to_weaviate() -> None:
     retriever = HybridRetriever(collection, embedder, cfg, CodeDetector.from_codes([]))  # type: ignore[arg-type]
     flt = region_filter(UK)
     retriever.search("returns", 20, filters=flt)
-    assert calls[0]["filters"] is flt and calls[0]["limit"] == 20
+    assert calls[0]["filters"] is flt and calls[0]["limit"] == search_limit(20)

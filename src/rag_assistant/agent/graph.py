@@ -152,6 +152,14 @@ _CONDITIONAL = re.compile(
     r"|n['’]t\b",
     re.IGNORECASE,
 )
+# A past-tense claim stays a claim after an "if" (Session 13, r19): "If you'd like to
+# proceed, use the Approve control on the draft ticket that was created".
+_PAST = re.compile(
+    r"\b(?:was|were|has been|have been|i['\u2019]ve|i have|we['\u2019]ve|we have)\b",
+    re.IGNORECASE,
+)
+# The answer mentions tickets or refunds: only then is the small-model action check asked.
+_ACTION_TOPIC = re.compile(r"\b(?:tickets?|refunds?|refunded)\b", re.IGNORECASE)
 # A negation inside the claim itself: "I'm unable to submit the ticket", "I have not sent".
 _NEGATED = re.compile(r"\b(?:unable|cannot|not|never)\b|n['’]t\b", re.IGNORECASE)
 
@@ -159,6 +167,43 @@ _NEGATED = re.compile(r"\b(?:unable|cannot|not|never)\b|n['’]t\b", re.IGNORECA
 def _sentence_before(text: str, start: int) -> str:
     """The part of ``start``'s sentence before it."""
     return re.split(r"[.!?\n]", text[:start])[-1]
+
+
+def _exempt(text: str, start: int) -> bool:
+    """A conditional or negation earlier in the sentence exempts a claim, unless the
+    sentence also makes a past-tense claim ("If you'd like to proceed, use the Approve
+    control on the draft ticket that was created": Session 13, r19)."""
+    before = _sentence_before(text, start)
+    if not _CONDITIONAL.search(before):
+        return False
+    rest = re.split(r"[.!?\n]", text[start:])[0]
+    return not _PAST.search(before + rest)
+
+
+ActionChecker = Callable[[str], bool]  # True: the answer promises or claims an action
+
+
+def make_action_checker(model: BaseChatModel, template: str) -> ActionChecker:
+    """The small model as a yes/no checker (Session 13): does ``answer`` say the assistant
+    took, or will take, an action on a ticket or refund? Only the first word counts; an
+    unclear reply or an API error counts as NO, so the deterministic checks still decide."""
+    from rag_assistant.llm import complete
+
+    def check(answer: str) -> bool:
+        try:
+            reply = complete(model, template.format(answer=answer))  # type: ignore[arg-type]
+        except Exception:  # noqa: BLE001 - fail open: the rule-based checks still apply
+            return False
+        words = reply.strip().split()
+        return bool(words) and words[0].strip(".,:*").upper() == "YES"
+
+    return check
+
+
+def needs_action_check(answer: str, drafts: Sequence[Draft]) -> bool:
+    """Ask the checker only when the answer mentions tickets or refunds and no draft was
+    made this turn (a draft is the one action an answer may describe)."""
+    return not drafts and bool(_ACTION_TOPIC.search(answer))
 
 
 def approval_claim_problems(answer: str, drafts: Sequence[Draft]) -> list[str]:
@@ -176,7 +221,7 @@ def approval_claim_problems(answer: str, drafts: Sequence[Draft]) -> list[str]:
     problems, drafted = [], bool(drafts)
     for match in _ACTION_CLAIM.finditer(answer):
         span = match.group(0)
-        if _CONDITIONAL.search(_sentence_before(answer, match.start())) or _NEGATED.search(span):
+        if _exempt(answer, match.start()) or _NEGATED.search(span):
             continue
         if "draft" in span.lower() and not _SUBMIT_WORD.search(span):
             if not drafted:
@@ -184,13 +229,13 @@ def approval_claim_problems(answer: str, drafts: Sequence[Draft]) -> list[str]:
             continue
         problems.append(f'claims a submitted ticket ("{span}"), but nothing was submitted')
     for match in _REVIEW_CLAIM.finditer(answer):
-        if not _CONDITIONAL.search(_sentence_before(answer, match.start())):
+        if not _exempt(answer, match.start()):
             problems.append(f'promises a review ("{match.group(0)}"), but nothing was submitted')
     if not drafted:
         problems += [
             f'mentions approval ("{m.group(0)}"), but no draft is waiting'
             for m in _WAITING_CLAIM.finditer(answer)
-            if not _CONDITIONAL.search(_sentence_before(answer, m.start()))
+            if not _exempt(answer, m.start())
         ]
     return problems
 
@@ -216,6 +261,7 @@ class AgentState(TypedDict, total=False):
     pending_draft: dict | None  # Draft.as_dict() of the draft awaiting approval
     decision: dict | None  # the client's resume value
     submission: dict | None  # Submission.as_dict() of this resume
+    checker_calls: int  # Session 13: small-model action checks this turn
 
 
 @dataclass(frozen=True)
@@ -239,6 +285,7 @@ class AgentResult:
     submission: dict | None = None  # what an approval did
     superseded: str | None = None  # the draft id this turn cancelled
     drafts: list[dict] = field(default_factory=list)  # every draft made this turn
+    checker_calls: int = 0  # Session 13: small-model action checks this turn
 
     @property
     def tools_used(self) -> list[str]:
@@ -298,12 +345,15 @@ class AgentRunner:
         submitter: Submitter | None = None,
         checkpointer: BaseCheckpointSaver | None = None,
         tool_factory: Callable[[AgentSession], list[StructuredTool]] = make_tools,
+        action_checker: ActionChecker | None = None,
     ) -> None:
         """``model`` must support ``bind_tools``; the limits come from the stage and config.
 
         A ``submitter`` turns on v9's approval flow; it needs a checkpointer (in memory if
         none is given) to pause and resume. ``tool_factory`` builds the session's tools:
         in-process (``make_tools``) or, in v10, over MCP (``mcp_server.client``).
+        ``action_checker`` (approval stages, Session 13) is the small-model yes/no check
+        for promised actions.
         """
         if max_tool_calls < 1 or max_generations < 1:
             raise ValueError("max_tool_calls and max_generations must be at least 1")
@@ -316,6 +366,7 @@ class AgentRunner:
         self.approval = submitter is not None
         self._checkpointer = checkpointer or (InMemorySaver() if self.approval else None)
         self._tool_factory = tool_factory
+        self._action_checker = action_checker
 
     # --------------------------------------------------------------- graph
 
@@ -407,9 +458,20 @@ class AgentRunner:
                 problems += approval_claim_problems(state["final"], session.drafts)
             else:
                 problems += claimed_ticket_problems(state["final"], session.calls)
+            checks = state.get("checker_calls", 0)
+            checker = self._action_checker
+            asks = self.approval and checker is not None and not problems
+            if asks and needs_action_check(state["final"], session.drafts):
+                checks += 1
+                if checker(state["final"]):  # type: ignore[misc]
+                    problems.append(
+                        "promises or claims an action on a ticket or refund, but no tool "
+                        "took one this turn (action check)"
+                    )
             update: dict = {
                 "guard_passed": not problems,
                 "guard_problems": [*state["guard_problems"], *problems],
+                "checker_calls": checks,
             }
             if self.approval and not problems and session.drafts:
                 update["pending_draft"] = session.drafts[-1].as_dict()
@@ -569,6 +631,7 @@ class AgentRunner:
                 "pending_draft": None,
                 "decision": None,
                 "submission": None,
+                "checker_calls": 0,
             },
             self._config(thread_id),
         )
@@ -587,6 +650,7 @@ class AgentRunner:
             thread_id=thread_id,
             pending_draft=state.get("pending_draft") if paused else None,
             drafts=[d.as_dict() for d in session.drafts],
+            checker_calls=state.get("checker_calls", 0),
         )
 
     def snapshot(self, session: AgentSession, thread_id: str) -> Snapshot | None:
@@ -720,15 +784,24 @@ class AgentPipeline:
             else:
                 checkpointer, ticket_db, audit = InMemorySaver(), TicketDB(), MemoryAudit()
             submitter = Submitter(ticket_db, orders, rules, catalogue, cfg.max_tickets_per_day)
+        prompts = load_prompts()
+        checker = (
+            make_action_checker(
+                make_chat_model(settings, settings.llm.small_model), prompts["action_check"]
+            )
+            if stage.approval
+            else None
+        )
         runner = AgentRunner(
             make_chat_model(settings, settings.llm.large_model),
-            load_prompts(),
+            prompts,
             guard,
             int(stage.max_tool_calls or 1),
             max_generations,
             submitter,
             checkpointer,
             tool_factory,
+            checker,
         )
         return cls(stage, knowledge, runner, orders, rules, catalogue, audit, mcp)
 
