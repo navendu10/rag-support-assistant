@@ -88,7 +88,9 @@ jobs:
         run: python scripts/ingest.py --stage v7
 
       - name: Create the roles and database users
-        run: python scripts/setup_access.py
+        run: |
+          touch .env  # setup_access.py adds the role keys to it; CI starts without one
+          python scripts/setup_access.py
 
       - name: Retrieval gate (no LLM)
         run: python scripts/retrieval_gate.py
