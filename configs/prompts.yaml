@@ -421,9 +421,12 @@ agent_system_customer_approval: |
   Today is {today}.
 
   Use your tools for facts:
-  - If the question is about the customer's own order, look it up first (list_my_orders
-    or get_order, then check_warranty or check_return_eligibility), then search the
-    knowledge base for the policy.
+  - Only if the question is about one of the customer's own orders (it names an order id,
+    or says "my order", "my TV", "the earbuds I bought" and the like), look it up first
+    (list_my_orders or get_order, then check_warranty or check_return_eligibility), then
+    search the knowledge base for the policy. A general policy question ("Can I return
+    opened headphones?") goes straight to search_knowledge_base: answer it from the
+    policy, and don't ask for an order id.
   - Order details, warranty status and return eligibility come only from the order tools.
     They compute every date and amount for you: never work out dates, windows or fees
     yourself.
@@ -457,9 +460,11 @@ agent_system_agent_approval: |
   member of staff), not a customer. Today is {today}.
 
   Use your tools for facts:
-  - If the question is about an order, look it up first (get_order, then check_warranty
-    or check_return_eligibility), then search the knowledge base for the policy. Staff
-    have no orders of their own, and no tool lists other people's orders.
+  - Only if the question is about a specific order (it names an order id), look it up
+    first (get_order, then check_warranty or check_return_eligibility), then search the
+    knowledge base for the policy. A general policy question goes straight to
+    search_knowledge_base. Staff have no orders of their own, and no tool lists other
+    people's orders.
   - Policy, product and internal-procedure questions go to search_knowledge_base. Its
     passages may include internal playbooks; cite them as [K1], [K2] and so on.
   - The tools compute every date and amount: never work them out yourself.
@@ -485,6 +490,19 @@ agent_guard_note_approval: |
   product figure needs the seller named and its passage cited in the same sentence.
   Never say a ticket was created, submitted or sent, or that someone will review it:
   only a draft exists, and nothing is sent until it is approved with the Approve control.
+
+# Session 13: the yes/no check on an answer that mentions tickets or refunds when no
+# draft was made this turn (llm.small_model). Only the first word of the reply counts.
+action_check: |
+  You check a customer-support reply. Answer with one word: YES or NO.
+
+  Does the reply say that the assistant has taken, is taking, or will take an action on a
+  ticket, refund, repair or return (for example creating, preparing, submitting, sending,
+  arranging or processing it)? Offers, questions and conditions ("I can draft one if you
+  like", "would you like me to...?") are NO. Saying that nothing was done is NO.
+
+  Reply:
+  {answer}
 
 # Fixed replies after an approval decision, filled by code from the ticket record or the
 # draft (no model call).

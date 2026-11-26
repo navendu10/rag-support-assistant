@@ -31,6 +31,7 @@ from rag_assistant.config import Settings, StageConfig
 from rag_assistant.embeddings import Embedder
 from rag_assistant.ingestion.store import MissingKeyError, open_client
 from rag_assistant.retrieval.factory import Retriever, make_retriever
+from rag_assistant.retrieval.ordering import rank_key
 from rag_assistant.retrieval.rerank import RRF_K
 from rag_assistant.retrieval.vector import RetrievedChunk
 from rag_assistant.schemas import Role, User
@@ -74,8 +75,9 @@ def merge_rrf(
 
     Each chunk scores the sum of ``1 / (rrf_k + rank)`` over the lists it appears in. The
     fused score, scaled so the best is 1.0, replaces the search score, because the lists'
-    own scores come from different collections and aren't comparable. Ties keep the
-    order of the first list.
+    own scores come from different collections and aren't comparable. Equal fused scores
+    are ordered like every other tie: newest effective date, then doc_id, then chunk
+    index (``retrieval/ordering.py``).
     """
     scores: dict[tuple[str, int], float] = {}
     first: dict[tuple[str, int], RetrievedChunk] = {}
@@ -87,7 +89,7 @@ def merge_rrf(
     if not scores:
         return []
     best = max(scores.values())
-    order = sorted(scores, key=lambda key: -scores[key])[:k]
+    order = sorted(scores, key=lambda key: rank_key(scores[key], first[key]))[:k]
     return [replace(first[key], score=scores[key] / best) for key in order]
 
 

@@ -21,6 +21,10 @@ llm:
   # Keep this fixed across stages so comparisons stay fair.
   reasoning_effort: low
   max_completion_tokens: 2048
+  # Session 13: RAGAS scoring only, on its own model and daily quota (JSON output checked:
+  # valid with thinking off). The judge and the query rewriter stay on small_model.
+  ragas_model: qwen/qwen3.8-27b
+  ragas_reasoning_effort: none
 
 # Client-side throttling per model. Groq free tier (checked 2026-10-20):
 # 30 requests/min, 8,000 tokens/min, 1,000 requests/day, 200K tokens/day.
@@ -45,6 +49,7 @@ paths:
 
 eval:
   recall_k: 5
+  correctness_prompt: judge_correctness   # Session 13: the calibrated judge prompt's key
 
 # Query rewriting (Session 6). The rewriter uses llm.small_model.
 query:
@@ -87,10 +92,17 @@ injection:
     - warranty for life
     - free replacement for life
     - never expires
-    # Session 11: a refund promise without a figure (the DeskGlow listing's "every buyer
-    # gets a full refund"); no store document makes one.
+  # Promises without a figure (Session 13; replaces Session 11's "full refund" claim
+  # phrases): allowed from a store source or tool result, or attributed to the seller with
+  # its listing cited, never as VoltCart's own. No store document makes one.
+  promise_terms:
     - full refund
     - refund in full
+    - money back
+    - money-back
+    - refund promise
+    - guarantee
+    - free replacement
   # A sentence naming one of these attributes its facts to the seller (layer 3, option B).
   attribution_terms: [seller, sold by, the listing says, according to the listing]
   # A sentence about one of these states VoltCart's own policy: it always needs a STORE

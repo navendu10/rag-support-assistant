@@ -274,8 +274,14 @@ def configure_cache(cfg: CacheSettings) -> None:
     set_llm_cache(SQLiteCache(database_path=str(path)))
 
 
-def make_chat_model(settings: Settings, model: str) -> ChatGroq:
-    """Build a throttled, retrying, cached ChatGroq for ``model``."""
+def make_chat_model(
+    settings: Settings, model: str, reasoning_effort: str | None = None
+) -> ChatGroq:
+    """Build a throttled, retrying, cached ChatGroq for ``model``.
+
+    ``reasoning_effort`` overrides ``llm.reasoning_effort`` for models with other values
+    (Qwen3 for RAGAS: ``"none"``).
+    """
     configure_cache(settings.cache)
     rl = settings.rate_limit
     policy = RetryPolicy(
@@ -288,7 +294,7 @@ def make_chat_model(settings: Settings, model: str) -> ChatGroq:
         model=model,
         api_key=settings.groq_api_key,
         temperature=settings.llm.temperature,
-        reasoning_effort=settings.llm.reasoning_effort,
+        reasoning_effort=reasoning_effort or settings.llm.reasoning_effort,
         max_tokens=settings.llm.max_completion_tokens,
         timeout=settings.llm.timeout_seconds,
         max_retries=0,  # retries happen in ThrottledTransport

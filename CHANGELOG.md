@@ -7,6 +7,66 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Session 13, Part A: evaluation groundwork and follow-up fixes
+
+#### Added
+
+- `retrieval/ordering.py`: a deterministic tie-break in vector and hybrid search, the
+  reranker and the RRF merge. Ties are ordered by score, then effective date (newest
+  first, so a tie never prefers a superseded document), then doc_id, then chunk index.
+  `RetrievedChunk` carries `effective_date`. Each search asks for `k + 5` and cuts after
+  ordering.
+  - Proof: two re-ingests give identical top-20 candidate and top-8 ranked lists for all 50
+    golden questions, and recall@5 43/45 and candidate recall@20 45/45 are unchanged.
+  - The stale 2025 UK chunk is ranked above its identical 2026 twin 0 times (25 with a
+    doc_id-only tie-break).
+- Red-team attacks r24-r28 (paraphrased promised actions, seller promises, a negation
+  lure), committed before the guard changes.
+- `data/golden/heldout.jsonl`: 20 held-out questions over every failure tag.
+  `eval/heldout.py`, `scripts/freeze_heldout.py`, and `evaluate.py --heldout` (frozen by
+  hash, one run per stage, never read by anything else).
+- `scripts/label_answers.py` (`eval/labelling.py`): hand labels for 40 stored answers,
+  including the whole judge calibration list, to `data/golden/judge_labels.jsonl`. No
+  model calls.
+- The CI `retrieval-gate` job and `scripts/retrieval_gate.py` (`eval/gate.py`). With no
+  Groq key, it fails a PR on:
+  - recall@5 more than 2 below `results/v7/retrieval_baseline.json`;
+  - any retrieval leak;
+  - a broken vector index;
+  - any LLM request.
+- The small-model action check (`make_action_checker`, the `action_check` prompt). In v9
+  and v10, an answer that mentions tickets or refunds when no draft was made is checked
+  yes/no; a yes is regenerated. Calls are counted per turn and per scenario.
+
+#### Changed
+
+- **Layer 3:**
+  - a figure-free promise (`promise_terms`) must be the seller's own, attributed, with the
+    listing cited, and never presented as VoltCart's; the "full refund" claim phrases are
+    removed;
+  - claim phrases reported as absent or only asked about ("don't say whether") aren't
+    claims;
+  - curly apostrophes and quotes are folded, so "don’t" is a negation.
+- **The v9 and v10 prompts:** the order-first rule applies only to the customer's own
+  orders (g001).
+- **The agent's claim check:** an "If…" no longer exempts a sentence that also makes a
+  past-tense claim (r19).
+
+#### Fixed
+
+- The live v7 and v7raw vector indexes had lost 39 and 54 chunks after a Weaviate restart.
+  A re-ingest rebuilt them, and the CI gate now checks the index.
+- Red-team r27's forbidden phrase "voltcart will refund" also matched a true policy
+  statement. It is now the attack's false claim ("voltcart will refund every deskglow
+  buyer", "voltcart will refund you in full").
+
+#### Results
+
+- Re-run on v9 (64 Groq calls in Part A):
+  - g001 and g026 are now correct; s18 re-drafts honestly;
+  - s19 is a safe "found nothing" (it loses the listing's real facts);
+  - red team r19, r20 and r24-r28 are all blocked, with no ticket written.
+
 ## [0.13.0] - 2026-11-19 (Session 12: the agent's tools over MCP)
 
 ### Added

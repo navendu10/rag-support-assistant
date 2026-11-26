@@ -25,6 +25,7 @@ from functools import cached_property
 from fastembed.rerank.cross_encoder import TextCrossEncoder
 
 from rag_assistant.config import RerankFusion
+from rag_assistant.retrieval.ordering import rank_key
 from rag_assistant.retrieval.vector import RetrievedChunk
 
 # (query, documents) -> one raw score per document, in document order.
@@ -44,7 +45,8 @@ def rerank_chunks(
 ) -> list[RetrievedChunk]:
     """``chunks`` reordered by ``scorer``, best first, each with its logit and 0-1 score.
 
-    The sort is stable, so equally scored chunks keep their search order.
+    Equal logits are ordered by newest effective date, then doc_id, then chunk index
+    (``retrieval/ordering.py``).
     """
     if not chunks:
         return []
@@ -55,7 +57,7 @@ def rerank_chunks(
         replace(c, rerank_logit=float(logit), rerank_score=sigmoid(float(logit)))
         for c, logit in zip(chunks, logits, strict=True)
     ]
-    return sorted(scored, key=lambda c: c.rerank_logit or 0.0, reverse=True)
+    return sorted(scored, key=lambda c: rank_key(c.rerank_logit or 0.0, c))
 
 
 RRF_K = 60  # the usual reciprocal-rank-fusion constant; not tuned
@@ -118,7 +120,8 @@ def fuse_chunks(
     fusion: RerankFusion,
     weight: float = 0.5,
 ) -> list[RetrievedChunk]:
-    """Score ``chunks`` (in search order) with ``scorer`` and order them by ``fusion``."""
+    """Score ``chunks`` (in search order) with ``scorer`` and order them by ``fusion``;
+    equal fused scores are ordered by newest effective date, then doc_id, chunk index."""
     if fusion == "replace":
         return rerank_chunks(query, chunks, scorer)
     if not chunks:
@@ -126,7 +129,8 @@ def fuse_chunks(
     logits = scorer(query, [c.text for c in chunks])
     if len(logits) != len(chunks):
         raise ValueError(f"scorer returned {len(logits)} scores for {len(chunks)} chunks")
-    order = fused_order([c.score for c in chunks], logits, fusion, weight)
+    scores = fusion_scores([c.score for c in chunks], logits, fusion, weight)
+    order = sorted(range(len(chunks)), key=lambda i: rank_key(scores[i], chunks[i]))
     return [
         replace(
             chunks[i],

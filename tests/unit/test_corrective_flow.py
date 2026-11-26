@@ -467,7 +467,9 @@ def test_invalid_structured_output_hands_off_end_to_end(monkeypatch: pytest.Monk
 def _guard() -> OutputGuard:
     """The configured output guard."""
     i = load_injection_settings()
-    return OutputGuard(i.claim_phrases, i.attribution_terms, i.voltcart_policy_terms)
+    return OutputGuard(
+        i.claim_phrases, i.attribution_terms, i.voltcart_policy_terms, i.promise_terms
+    )
 
 
 LIFETIME = GroundedResult("It has a lifetime warranty [1].", (1,), True, True, 1)

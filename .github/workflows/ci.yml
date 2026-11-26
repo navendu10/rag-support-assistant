@@ -36,3 +36,61 @@ jobs:
 
       - name: Unit tests
         run: pytest tests/unit
+
+  # Session 13: retrieval regressions and leaks, with no LLM and no Groq key. A fresh
+  # Weaviate (the repo's docker-compose.yml) gets the generated data ingested as v7; every
+  # golden question is searched with v7's stored rewrite as its user. Fails if recall@5
+  # drops more than 2 below results/v7/retrieval_baseline.json, if any internal chunk
+  # reaches a customer, if a chunk is missing from the vector index, or if any LLM request
+  # is made. The admin key below only protects this job's throwaway container.
+  retrieval-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WEAVIATE_ADMIN_KEY: ci-only-admin-key-not-a-secret
+      GROQ_API_KEY: ci-placeholder-no-llm-calls
+      FASTEMBED_CACHE_PATH: ${{ github.workspace }}/.fastembed_cache
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Cache the FastEmbed models
+        uses: actions/cache@v4
+        with:
+          path: .fastembed_cache
+          key: fastembed-${{ hashFiles('configs/base.yaml', 'configs/stages/v7.yaml') }}
+
+      - name: Start Weaviate
+        run: |
+          docker compose up -d weaviate
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/v1/.well-known/ready && exit 0
+            sleep 2
+          done
+          docker compose logs weaviate
+          exit 1
+
+      - name: Generate the dummy data
+        run: python scripts/generate_data.py
+
+      - name: Ingest v7 (FastEmbed vectors)
+        run: python scripts/ingest.py --stage v7
+
+      - name: Create the roles and database users
+        run: |
+          touch .env  # setup_access.py adds the role keys to it; CI starts without one
+          python scripts/setup_access.py
+
+      - name: Retrieval gate (no LLM)
+        run: python scripts/retrieval_gate.py

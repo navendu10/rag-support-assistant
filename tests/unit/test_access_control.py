@@ -242,7 +242,8 @@ def test_merged_retriever_passes_query_codes_and_filters_to_every_collection() -
     flt = object()
     merged = MergedRetriever([Recorder("pub"), Recorder("int")])
     result = merged.search("q", 5, extra_codes=("AB-PRO",), filters=flt)  # type: ignore[arg-type]
-    assert [c.doc_id for c in result] == ["pub", "int"]
+    # Both are rank 1 in their list, so their fused scores tie: doc_id decides (Session 13).
+    assert [c.doc_id for c in result] == ["int", "pub"]
     assert calls[0] == calls[1] | {}  # identical arguments
     assert calls[0] == {"query": "q", "k": 5, "extra_codes": ("AB-PRO",), "filters": flt}
 

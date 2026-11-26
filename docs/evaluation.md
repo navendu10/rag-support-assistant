@@ -19,6 +19,9 @@ python scripts/redteam.py --stage v7 --layers 1,2,3      # injection red team (S
 python scripts/compare_rewrite_retrieval.py --stage v7 --rewrites-from v6   # rewrite effect, no LLM
 python scripts/evaluate_agent.py --stage v8 [--ids s01,s07]  # agent scenarios (Session 10)
 python scripts/evaluate_agent.py --stage v9                    # + approval scenarios (Session 11)
+python scripts/retrieval_gate.py                               # CI gate: v7 recall + leaks, no LLM
+python scripts/label_answers.py                                # hand labels for 40 stored answers
+python scripts/freeze_heldout.py                               # once, after the owner's 5 questions
 python scripts/compare_stages.py                         # before/after table across stages
 python scripts/compare_stages.py --by-tag                # plus one per-tag table per metric
 python scripts/sweep_alpha.py --stage v2                 # hybrid alpha/fusion sweep (retrieval only)
@@ -311,6 +314,128 @@ On the golden set, v8's recall and leak metrics come from the agent's **last**
 knowledge-base call (`AgentPipeline` fills the answer's context from it). A question
 answered without one has no retrieval to score. Each row also stores the agent's route
 (`agent`: tools, calls, generations, step limit, outcome).
+
+### A deterministic tie-break (Session 13)
+
+Equal scores used to keep whatever order Weaviate returned. After the Session 11
+re-ingest, identical HTML and print twins (`returns-uk-2026#1` and
+`returns-uk-2026-print#1`, the same score) swapped places in 13 golden questions.
+
+**The rule.** Every retrieval path now orders by **score, then the document's effective
+date (newest first), then doc_id, then chunk index** (`retrieval/ordering.py`), so a tie
+never prefers a superseded document:
+
+- vector and hybrid search;
+- the reranker's sort and the fused order;
+- the RRF merge across collections.
+
+**The cut-off.** Each search asks Weaviate for `k + 5`, orders the results, then cuts to
+`k`, so a tie at the cut-off is decided here and not by Weaviate.
+
+**The proof** (v7, stored rewrites, no LLM):
+
+| | Recall@5 | Candidate recall@20 | Candidate lists (top 20) | Ranked lists (top 8) |
+|---|---|---|---|---|
+| Before the tie-break | 43/45 | 45/45 | - | - |
+| After, re-ingest 1 vs re-ingest 2 | 43/45 | 45/45 | identical, 50/50 | identical, 50/50 |
+
+The new order changed 3 candidate sets and 4 ranked top-8 sets, each by one twin at the
+cut-off (rank 8 or candidate 20). Document-level recall is unchanged.
+
+**Why the date comes first.** The first version broke ties by doc_id alone, and
+`returns-uk-2025-print` sorts before `returns-uk-2026`. The UK policy's chunks 2-4 are
+word for word the same in both versions, so they tie. Across the golden questions, that
+version placed the stale 2025 chunk above its identical 2026 twin **25** times; ordering
+by date first places it there **0** times.
+
+**A broken vector index found on the way.** Before the proof, 39 of the 156 chunks in
+`Chunks_v7_public` (54 of 161 in v7raw), including every US returns chunk, could not be
+found by their own vectors. The data was intact, but the vector index wasn't, most likely
+since that morning's Weaviate restart, and recall had quietly fallen to 42/45. A
+re-ingest rebuilt it. The stored v7-v9 results came from a healthy index (their contexts
+hold the US returns chunks). The CI gate now checks that every chunk finds itself.
+
+### The held-out set (Session 13)
+
+`data/golden/heldout.jsonl` has 20 questions in the golden format (ids g101-g120), one or
+two per failure tag, written from the generated documents. Each was checked against the
+golden set: the highest word overlap with any golden question is 0.25. Several share a
+document with a golden question, which is unavoidable with this few documents, but each
+asks about a different fact. The project owner adds 5 more (g121-g125). Then:
+
+1. **Freeze it:** `python scripts/freeze_heldout.py` writes `data/golden/heldout.lock` with
+   the file's sha256. From then on `tests/unit/test_heldout.py` fails if the file changes;
+   before the lock exists, the test checks the format only.
+2. **Run it once:** `python scripts/evaluate.py --stage <stage> --heldout` writes to
+   `results/heldout/<stage>/`, and refuses a second run for the same stage, or a file that
+   no longer matches its lock.
+3. **Never tune on it.** Only `eval/heldout.py` and `scripts/freeze_heldout.py` name the
+   file (a test checks every script and config). Its one run is in Session 13 Part B.
+
+### Hand labels for the judges (Session 13)
+
+`python scripts/label_answers.py` shows 40 stored answers, one at a time:
+
+- every item on the judge calibration list below (25 items: golden rows and agent
+  scenarios, with their stage);
+- 15 golden rows sampled from v4-v10 with a fixed seed.
+
+For each it shows the question (and earlier turns), the reference, the answer, and its
+sources: the cited passages with doc id and trust, rebuilt offline; for scenarios, the
+tool calls and client decisions. The labeller types pass or fail and an optional note,
+appended to `data/golden/judge_labels.jsonl`. A session can be resumed, and no model is
+called. Part B compares the judges with these labels.
+
+### RAGAS metrics (Session 13 Part B)
+
+`python scripts/ragas_eval.py --stages v0,v7,v10` scores the **stored** golden answers and
+their rebuilt contexts. No new answers are made. RAGAS is 0.4.4: 0.4.3 doesn't import
+with our `langchain-community`.
+
+| Metric | How | Model |
+|---|---|---|
+| Faithfulness | the share of the answer's statements the context supports | Groq `qwen/qwen3.8-27b`, thinking off |
+| Answer relevancy | one question generated from the answer, compared with the asked one by embedding | the same model, FastEmbed embeddings |
+| Context precision | RAGAS's non-LLM variant: retrieved context vs the expected documents' chunks | none |
+| Context recall | the same, non-LLM | none |
+
+**The model.** RAGAS runs on its own model, `llm.ragas_model`, so it has its own daily
+quota. The judge and the query rewriter stay on `llm.small_model` (`gpt-oss-20b`). Qwen3
+returned valid JSON in a test, with thinking turned off (`ragas_reasoning_effort:
+none`).
+
+**How rows are kept.**
+
+- Each row records its model. Rows scored by any other model are discarded on resume (the
+  10 v0 rows first scored with `gpt-oss-20b` were), so all results come from one model.
+- A quota or connection error stops the run instead of being recorded as "not
+  applicable". RAGAS's own retries are off, because our client already retries rate
+  limits.
+- Rows without a context get no faithfulness or context metrics; rows without expected
+  documents get no context precision or recall.
+
+### The CI retrieval gate (Session 13)
+
+The `retrieval-gate` job in `.github/workflows/ci.yml` runs on every PR with **no Groq
+key**:
+
+1. it starts Weaviate from `docker-compose.yml`, with a throwaway admin key that exists
+   only in the workflow;
+2. it generates the dummy data, ingests v7 with FastEmbed (the models are cached between
+   runs) and creates the roles;
+3. it runs `scripts/retrieval_gate.py`, which searches every golden question with v7's
+   **stored** rewrite, as its user, with that role's key.
+
+**It fails if:**
+
+- recall@5 is more than 2 questions below `results/v7/retrieval_baseline.json` (43/45 with
+  the date tie-break; the misses are g009 and g049);
+- any internal chunk reaches a customer's ranked results or candidates;
+- any v7 chunk can't find itself by its own vector (a broken index);
+- any HTTP request reached the LLM provider (the transport's counters).
+
+Locally the gate takes about 90 s, including the index check. Change the baseline only
+deliberately: `python scripts/retrieval_gate.py --write-baseline`.
 
 ## Judges
 

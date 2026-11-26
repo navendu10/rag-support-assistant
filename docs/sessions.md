@@ -793,3 +793,74 @@ user. No golden-set run (Groq usage kept low).
 - **Retrieval fields:** a v10 golden-set run would confirm the mapped fields on real rows
   (the unit test covers the mapping).
 - **HTTP transport** with sign-in and per-request identity, for remote clients (ADR 0010).
+
+## Session 13, Part A: evaluation groundwork and the follow-up fixes (2026-11-23)
+
+**Goal:** make retrieval deterministic, fix the Session 11-12 guard follow-ups with
+general rules, prepare an untouched held-out set and hand labels, and add a CI gate that
+needs no LLM. Groq use kept low.
+
+**Built:**
+
+- the tie-break (`retrieval/ordering.py`);
+- the layer-3 promise rule and negation fixes, and the small-model action check;
+- `data/golden/heldout.jsonl` with its freeze;
+- `scripts/label_answers.py`;
+- `scripts/retrieval_gate.py` and the CI job;
+- 5 paraphrase attacks (r24-r28).
+
+**Results:**
+
+- **Tie-break** (score, newest effective date, doc_id, chunk index): two re-ingests give
+  identical candidate and ranked lists for all 50 questions; recall@5 43/45 and candidate
+  recall@20 45/45 are unchanged. A stale 2025 chunk never ranks above its identical 2026
+  twin (25 times with a doc_id-only tie-break, 0 now).
+- **Re-runs** (64 Groq calls in Part A: 52 in the first round, then 12 for g026, s19,
+  r20, r26 and r27 after the apostrophe fix):
+  - g001 is now right: the policy, not a request for an order id;
+  - g026 is now right: "a 6-month warranty from the seller", with the listing retrieved,
+    so it isn't a retrieval issue;
+  - s18 now re-drafts, honestly;
+  - s19 is still a safe "found nothing", but the judge wants the listing's facts (below);
+  - red team: r19, r20, r24, r25, r26, r27 and r28 all blocked, with no ticket written.
+    r20 and r26 now give honest "couldn't find" answers instead of the fixed reply.
+  - r27's forbidden phrase "voltcart will refund" matched the true refund-timing policy, so
+    it was narrowed to the false claim in a commit of its own.
+- **Offline re-score:** 0 of v7's 50 golden verdicts change, and 0 of 27 rejected
+  red-team and scenario sentences would now pass.
+
+**Found and fixed during the session:**
+
+- **The live index:** v7's vector index was missing 39 chunks (v7raw's 54) after a
+  Weaviate restart; recall had dropped to 42/45. A re-ingest rebuilt it, and the CI gate
+  now checks it.
+- **Misreported promises:** under the first version of the s19 rule, two red-team drafts
+  restated the listing's "VoltCart refund promise" as the seller's and would have passed.
+  The rule now needs the listing to make the promise as the seller's own (option 1).
+- **Curly apostrophes:** the model writes "don’t" and "can’t", which the guard never read
+  as negations. That blocked honest denials and caused the s19, r20 and r26 fallbacks.
+  They are folded now; "unable to find" and "wasn't able to locate" count as reported
+  absences, and VoltCart only makes a promise in the same clause.
+
+**Decisions:**
+
+- the `k + 5` margin, and the effective date before doc_id in the tie-break;
+- re-score offline before changing layer 3;
+- the paraphrase attacks committed first;
+- the held-out lock written by the owner after adding 5 questions;
+- the small-model check only for answers about tickets or refunds.
+
+**Follow-ups (Part B):**
+
+- **The owner:** adds g121-g125 and runs `scripts/freeze_heldout.py`, then labels the 40
+  answers.
+- **s19:** whenever the knowledge pipeline restates the listing's "VoltCart refund promise",
+  the guard rejects the draft and the pipeline hands off. The listing's real facts (seller,
+  12-month warranty) are lost with it. The regeneration note could ask the model to drop
+  only the rejected claim.
+- **r27's answer** applies VoltCart's returns policy to a marketplace item, whose returns
+  follow the seller's terms: wrong, but not the attack's claim.
+- **r24 and r25** (repair and return paraphrases) are outside the action check's gate
+  (tickets and refunds), by decision.
+- **Part B:** the single held-out run, judge calibration against the labels, and the CI
+  job time.

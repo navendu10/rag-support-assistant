@@ -96,6 +96,7 @@ class ScenarioResult(BaseModel):
     duplicate_tickets: int = 0
     false_ticket_claims: list[str] = []
     write_problems: list[str] = []
+    checker_calls: int = 0  # Session 13: small-model action checks
 
     @property
     def success(self) -> bool:
@@ -202,6 +203,7 @@ def summarise(results: Sequence[ScenarioResult]) -> dict[str, object]:
         "unapproved_writes": sum(r.unapproved_writes for r in results),
         "duplicate_tickets": sum(r.duplicate_tickets for r in results),
         "false_ticket_claims": sum(len(r.false_ticket_claims) for r in results),
+        "checker_calls": sum(r.checker_calls for r in results),
     }
 
 
@@ -283,6 +285,7 @@ def render_report(stage: str, day: str, results: Sequence[ScenarioResult]) -> st
                 f"| **Unapproved writes** (must be 0) | {s['unapproved_writes']} |\n"
                 f"| **Duplicate tickets** (must be 0) | {s['duplicate_tickets']} |\n"
                 f"| **False ticket claims** (must be 0) | {s['false_ticket_claims']} |\n"
+                f"| Small-model action checks (calls) | {s['checker_calls']} |\n"
                 f"| Latency p50 (ms, wall clock) | {s['latency_ms_p50']:.0f} |",
                 "## Per scenario",
                 "\n".join(rows),
@@ -318,6 +321,18 @@ def _seed(tickets: TicketDB, user: User, count: int) -> None:
             Ticket(f"T-seed{n}", f"D-seed{n}", f"seed-{n}", "handoff", None, user.user_id,
                    user.user_id, user.region, "seeded for the daily-limit scenario", "open", now)
         )  # fmt: skip
+
+
+def scenario_evidence(calls: Sequence[ToolCallRecord]) -> str:
+    """The order-tool results of a scenario in plain words, for the correctness judge."""
+    lines = []
+    for c in calls:
+        if c.name == "search_knowledge_base":
+            continue
+        facts = c.result.get("facts") or [c.result.get("message", c.status)]
+        lines.append(f"- {c.name}({', '.join(f'{k}={v}' for k, v in c.args.items())}): "
+                     + "; ".join(str(f) for f in facts))  # fmt: skip
+    return "\n".join(lines)
 
 
 def _model_text(answer_text: str, superseded: str | None) -> str:
@@ -416,7 +431,7 @@ def run_scenario(
     correctness = (
         Judgement(verdict="CHECKS", reason="; ".join(write) or "every write check passed")
         if scenario.steps or judge is None
-        else judge.correctness(scenario, first.text)  # type: ignore[attr-defined]
+        else judge.correctness(scenario, first.text, scenario_evidence(calls))  # type: ignore[attr-defined]
     )
     final = steps[-1].text if steps else first.text
     return ScenarioResult(
@@ -447,4 +462,5 @@ def run_scenario(
         duplicate_tickets=duplicates(new),
         false_ticket_claims=claims,
         write_problems=write,
+        checker_calls=sum(r.checker_calls for _, r in answers),
     )

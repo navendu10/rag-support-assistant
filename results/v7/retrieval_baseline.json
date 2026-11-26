@@ -1,0 +1,10 @@
+{
+  "recall_hits": 43,
+  "questions": 45,
+  "leaks": 0,
+  "misses": [
+    "g009",
+    "g049"
+  ],
+  "note": "v7, stored rewrites, tie-break on (Session 13)"
+}
