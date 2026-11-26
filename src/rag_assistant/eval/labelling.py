@@ -123,3 +123,59 @@ def unlabelled(items: Sequence[ItemRef], labels: Sequence[Label]) -> list[ItemRe
     """The items without a label yet (so a session can be resumed)."""
     done = {(x.stage, x.item_id) for x in labels}
     return [r for r in items if (r.stage, r.item_id) not in done]
+
+
+EXTRA = 14  # Session 13 Part B: answers the judge marked wrong, to balance the labels
+EXTRA_SEED = 1313
+
+
+def judge_rejected_refs(results_dir: Path, stages: Sequence[str] = SAMPLE_STAGES) -> list[ItemRef]:
+    """Stored golden rows of ``stages`` that the correctness judge marked INCORRECT."""
+    refs = []
+    for stage in stages:
+        path = results_dir / stage / "results.jsonl"
+        if not path.is_file():
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                row = json.loads(line)
+                if (row.get("correctness") or {}).get("verdict") == "INCORRECT":
+                    refs.append(ItemRef(stage, row["id"]))
+    return refs
+
+
+def with_rejected(
+    items: Sequence[ItemRef],
+    rejected: Sequence[ItemRef],
+    extra: int = EXTRA,
+    seed: int = EXTRA_SEED,
+) -> list[ItemRef]:
+    """``items`` followed by ``extra`` judge-rejected answers not already among them, one
+    per golden id where possible (a seeded sample, so the list is the same every time)."""
+    chosen = set(items)
+    pool = sorted(r for r in rejected if r not in chosen)
+    random.Random(seed).shuffle(pool)
+    picked: list[ItemRef] = []
+    seen_ids = {r.item_id for r in items}
+    for ref in pool:  # distinct questions first
+        if len(picked) < extra and ref.item_id not in seen_ids:
+            picked.append(ref)
+            seen_ids.add(ref.item_id)
+    for ref in pool:  # then any, if there weren't enough distinct ones
+        if len(picked) < extra and ref not in picked:
+            picked.append(ref)
+    return [*items, *picked]
+
+
+ITEMS_FILE = Path("data/golden/label_items.json")
+
+
+def save_items(path: Path, items: Sequence[ItemRef]) -> None:
+    """Freeze the item list, so later runs (new stored results) can't change it."""
+    data = [{"stage": r.stage, "item_id": r.item_id} for r in items]
+    path.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8", newline="\n")
+
+
+def load_items(path: Path) -> list[ItemRef]:
+    """The frozen item list."""
+    return [ItemRef(d["stage"], d["item_id"]) for d in json.loads(path.read_text("utf-8"))]

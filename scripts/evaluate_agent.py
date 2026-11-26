@@ -22,11 +22,10 @@ from datetime import date
 from pathlib import Path
 
 from rag_assistant.agent.graph import AgentPipeline
-from rag_assistant.config import get_settings, load_prompts, load_stage
+from rag_assistant.config import get_settings, load_stage
 from rag_assistant.eval.agent_eval import ScenarioResult, render_report, run_scenario
-from rag_assistant.eval.judge import Judge
+from rag_assistant.eval.runner import make_judge
 from rag_assistant.graph.handoff import MemoryTicketStore
-from rag_assistant.llm import make_chat_model
 from rag_assistant.schemas import load_agent_scenarios, load_users
 
 SCENARIOS = Path("data/golden/agent_scenarios.jsonl")
@@ -58,7 +57,7 @@ def main() -> int:
     wanted = {i.strip() for i in args.ids.split(",")} if args.ids else None
     users = {u.user_id: u for u in load_users(settings.paths.resolve(settings.paths.users_file))}
     owners = order_owners(settings.paths.resolve(settings.paths.generated_dir) / "orders.db")
-    judge = Judge(make_chat_model(settings, settings.llm.judge_model), load_prompts())
+    judge = make_judge(settings)
     out_dir = settings.paths.resolve(settings.paths.results_dir) / stage.name
     out_dir.mkdir(parents=True, exist_ok=True)
     stored_path = out_dir / "agent_results.jsonl"

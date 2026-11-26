@@ -1,0 +1,1493 @@
+{
+  "meta": {
+    "stage": "v10",
+    "date": "2026-11-26",
+    "filters": "",
+    "generation_model": "openai/gpt-oss-120b",
+    "judge_model": "openai/gpt-oss-20b",
+    "reasoning_effort": "low",
+    "top_k": 4,
+    "recall_k": 5,
+    "rerank_model": "Xenova/ms-marco-MiniLM-L-6-v2",
+    "fetch_k": 20,
+    "rewrite_model": "openai/gpt-oss-20b",
+    "history_turns": 6,
+    "region_filter": "user profile region + ALL",
+    "access_control": "per-audience collections; Weaviate key chosen by user role",
+    "grounding": "role-aware grounded prompt, cited structured output",
+    "injection": {
+      "sanitize_ingestion": true,
+      "tagged_sources": true,
+      "output_guard": true
+    },
+    "corrective_flow": "LangGraph: grade, broader retry, answer or handoff",
+    "min_score": 0.1,
+    "retry_fetch_k": 30,
+    "set": "held-out (frozen; one run)"
+  },
+  "overall": {
+    "questions": 25,
+    "recall_at_k": {
+      "count": 15,
+      "total": 22
+    },
+    "hit_at_1": {
+      "count": 14,
+      "total": 22
+    },
+    "mrr": {
+      "value": 0.659,
+      "total": 22
+    },
+    "correctness": {
+      "count": 14,
+      "total": 25
+    },
+    "retrieval_leaks": {
+      "count": 0,
+      "total": 23
+    },
+    "answer_leaks": {
+      "count": 0,
+      "total": 2
+    },
+    "answer_leaks_judged": {
+      "count": 0,
+      "total": 2
+    },
+    "injections": {
+      "count": 0,
+      "total": 3
+    },
+    "handoffs_route": {
+      "count": 0,
+      "total": 0
+    },
+    "handoffs": {
+      "count": 4,
+      "total": 4
+    },
+    "forbidden_phrases": {
+      "count": 1,
+      "total": 18
+    },
+    "judge_errors": 0,
+    "candidate_recall": {
+      "count": 19,
+      "total": 22
+    },
+    "rewrite_fallbacks": {
+      "count": 0,
+      "total": 23
+    },
+    "agent_internal_access": {
+      "count": 1,
+      "total": 2
+    },
+    "agent_internal_retrieval": {
+      "count": 1,
+      "total": 2
+    },
+    "agent_internal_context": {
+      "count": 1,
+      "total": 2
+    },
+    "security_events": {
+      "count": 0,
+      "total": 25
+    },
+    "rewrite_flagged": {
+      "count": 3,
+      "total": 23
+    },
+    "false_handoffs": {
+      "count": 10,
+      "total": 21
+    },
+    "invented_content": {
+      "count": 3,
+      "total": 25
+    },
+    "citations_valid": {
+      "count": 0,
+      "total": 0
+    },
+    "grounded_reattempts": {
+      "count": 0,
+      "total": 0
+    },
+    "flow_retries": {
+      "count": 0,
+      "total": 0
+    },
+    "flow_retries_answerable": {
+      "count": 0,
+      "total": 0
+    },
+    "flow_handoffs": {
+      "count": 0,
+      "total": 0
+    },
+    "retries_low_score": {
+      "count": 0,
+      "total": 0
+    },
+    "retries_not_found": {
+      "count": 0,
+      "total": 0
+    },
+    "retries_rescued": {
+      "count": 0,
+      "total": 0
+    },
+    "guard_triggers": {
+      "count": 0,
+      "total": 0
+    },
+    "guard_triggers_answerable": {
+      "count": 0,
+      "total": 0
+    },
+    "guard_handoffs": {
+      "count": 0,
+      "total": 0
+    },
+    "latency_ms": {
+      "p50": 20392.4,
+      "p95": 38037.0,
+      "generate_excludes_waits": false
+    }
+  },
+  "by_tag": {
+    "chunking": {
+      "questions": 2,
+      "recall_at_k": {
+        "count": 1,
+        "total": 2
+      },
+      "hit_at_1": {
+        "count": 1,
+        "total": 2
+      },
+      "mrr": {
+        "value": 0.5,
+        "total": 2
+      },
+      "correctness": {
+        "count": 1,
+        "total": 2
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 2
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 2,
+        "total": 2
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 2
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 2
+      },
+      "rewrite_flagged": {
+        "count": 1,
+        "total": 2
+      },
+      "false_handoffs": {
+        "count": 1,
+        "total": 2
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 2
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 35707.8,
+        "p95": 56127.3,
+        "generate_excludes_waits": false
+      }
+    },
+    "product_code": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 3,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 3,
+        "total": 3
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 3
+      },
+      "correctness": {
+        "count": 2,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 1,
+        "total": 1
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 3,
+        "total": 3
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 3
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 3
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 3
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 2
+      },
+      "invented_content": {
+        "count": 1,
+        "total": 3
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 12797.4,
+        "p95": 14211.5,
+        "generate_excludes_waits": false
+      }
+    },
+    "ranking": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 1,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 1,
+        "total": 3
+      },
+      "mrr": {
+        "value": 0.333,
+        "total": 3
+      },
+      "correctness": {
+        "count": 0,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 1,
+        "total": 3
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 2
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 3
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 2
+      },
+      "false_handoffs": {
+        "count": 3,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 3
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 20392.4,
+        "p95": 36439.8,
+        "generate_excludes_waits": false
+      }
+    },
+    "query_region": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 2,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 2,
+        "total": 3
+      },
+      "mrr": {
+        "value": 0.667,
+        "total": 3
+      },
+      "correctness": {
+        "count": 1,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 1,
+        "total": 3
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 3,
+        "total": 3
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 3
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 3
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 3
+      },
+      "false_handoffs": {
+        "count": 2,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 3
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 36501.1,
+        "p95": 37051.8,
+        "generate_excludes_waits": false
+      }
+    },
+    "stale": {
+      "questions": 2,
+      "recall_at_k": {
+        "count": 1,
+        "total": 2
+      },
+      "hit_at_1": {
+        "count": 0,
+        "total": 2
+      },
+      "mrr": {
+        "value": 0.25,
+        "total": 2
+      },
+      "correctness": {
+        "count": 0,
+        "total": 2
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 2
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 1,
+        "total": 2
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 1
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 2
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 1
+      },
+      "false_handoffs": {
+        "count": 1,
+        "total": 2
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 2
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 10529.8,
+        "p95": 19364.5,
+        "generate_excludes_waits": false
+      }
+    },
+    "leak": {
+      "questions": 2,
+      "recall_at_k": {
+        "count": 0,
+        "total": 0
+      },
+      "hit_at_1": {
+        "count": 0,
+        "total": 0
+      },
+      "mrr": {
+        "value": 0.0,
+        "total": 0
+      },
+      "correctness": {
+        "count": 2,
+        "total": 2
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 2
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 2
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 2
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 2,
+        "total": 2
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 0,
+        "total": 0
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 2
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 2
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 2
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 2
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 23311.2,
+        "p95": 34610.1,
+        "generate_excludes_waits": false
+      }
+    },
+    "hallucination": {
+      "questions": 2,
+      "recall_at_k": {
+        "count": 0,
+        "total": 1
+      },
+      "hit_at_1": {
+        "count": 0,
+        "total": 1
+      },
+      "mrr": {
+        "value": 0.0,
+        "total": 1
+      },
+      "correctness": {
+        "count": 2,
+        "total": 2
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 2
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 1,
+        "total": 1
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 2
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 1,
+        "total": 1
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 2
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 2
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 2
+      },
+      "false_handoffs": {
+        "count": 1,
+        "total": 1
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 2
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 19189.1,
+        "p95": 21456.9,
+        "generate_excludes_waits": false
+      }
+    },
+    "injection": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 3,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 3,
+        "total": 3
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 3
+      },
+      "correctness": {
+        "count": 2,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 3
+      },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 3
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 3,
+        "total": 3
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 3
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 3
+      },
+      "rewrite_flagged": {
+        "count": 1,
+        "total": 3
+      },
+      "false_handoffs": {
+        "count": 1,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 2,
+        "total": 3
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 5885.8,
+        "p95": 34152.8,
+        "generate_excludes_waits": false
+      }
+    },
+    "normal": {
+      "questions": 3,
+      "recall_at_k": {
+        "count": 3,
+        "total": 3
+      },
+      "hit_at_1": {
+        "count": 3,
+        "total": 3
+      },
+      "mrr": {
+        "value": 1.0,
+        "total": 3
+      },
+      "correctness": {
+        "count": 3,
+        "total": 3
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 3
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 0
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 3,
+        "total": 3
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 3
+      },
+      "agent_internal_access": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_retrieval": {
+        "count": 0,
+        "total": 0
+      },
+      "agent_internal_context": {
+        "count": 0,
+        "total": 0
+      },
+      "security_events": {
+        "count": 0,
+        "total": 3
+      },
+      "rewrite_flagged": {
+        "count": 1,
+        "total": 3
+      },
+      "false_handoffs": {
+        "count": 0,
+        "total": 3
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 3
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 24627.2,
+        "p95": 27801.3,
+        "generate_excludes_waits": false
+      }
+    },
+    "agent_access": {
+      "questions": 2,
+      "recall_at_k": {
+        "count": 1,
+        "total": 2
+      },
+      "hit_at_1": {
+        "count": 1,
+        "total": 2
+      },
+      "mrr": {
+        "value": 0.5,
+        "total": 2
+      },
+      "correctness": {
+        "count": 1,
+        "total": 2
+      },
+      "retrieval_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks": {
+        "count": 0,
+        "total": 0
+      },
+      "answer_leaks_judged": {
+        "count": 0,
+        "total": 0
+      },
+      "injections": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs_route": {
+        "count": 0,
+        "total": 0
+      },
+      "handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "forbidden_phrases": {
+        "count": 0,
+        "total": 0
+      },
+      "judge_errors": 0,
+      "candidate_recall": {
+        "count": 2,
+        "total": 2
+      },
+      "rewrite_fallbacks": {
+        "count": 0,
+        "total": 2
+      },
+      "agent_internal_access": {
+        "count": 1,
+        "total": 2
+      },
+      "agent_internal_retrieval": {
+        "count": 1,
+        "total": 2
+      },
+      "agent_internal_context": {
+        "count": 1,
+        "total": 2
+      },
+      "security_events": {
+        "count": 0,
+        "total": 2
+      },
+      "rewrite_flagged": {
+        "count": 0,
+        "total": 2
+      },
+      "false_handoffs": {
+        "count": 1,
+        "total": 2
+      },
+      "invented_content": {
+        "count": 0,
+        "total": 2
+      },
+      "citations_valid": {
+        "count": 0,
+        "total": 0
+      },
+      "grounded_reattempts": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_retries_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "flow_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_low_score": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_not_found": {
+        "count": 0,
+        "total": 0
+      },
+      "retries_rescued": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_triggers_answerable": {
+        "count": 0,
+        "total": 0
+      },
+      "guard_handoffs": {
+        "count": 0,
+        "total": 0
+      },
+      "latency_ms": {
+        "p50": 28672.3,
+        "p95": 31787.2,
+        "generate_excludes_waits": false
+      }
+    }
+  }
+}

@@ -77,6 +77,11 @@ class LLMSettings(BaseModel):
     timeout_seconds: float = Field(default=30, gt=0)
     reasoning_effort: Literal["low", "medium", "high"] | None = "low"
     max_completion_tokens: int = Field(default=2048, gt=0)
+    # Session 13: RAGAS scoring alone runs on its own small model, with its own daily
+    # quota; the judge and the query rewriter stay on small_model. Qwen3 models take
+    # "none" (no thinking, clean JSON) or "default".
+    ragas_model: str = Field(default="qwen/qwen3.8-27b", min_length=1)
+    ragas_reasoning_effort: Literal["none", "default"] | None = "none"
 
     @property
     def generation_model(self) -> str:
@@ -130,6 +135,8 @@ class EvalSettings(BaseModel):
     """Evaluation harness settings."""
 
     recall_k: int = Field(default=5, gt=0)
+    # Session 13: the correctness judge's prompt (a key in configs/prompts.yaml)
+    correctness_prompt: str = "judge_correctness"
 
 
 class QuerySettings(BaseModel):

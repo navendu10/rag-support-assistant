@@ -65,3 +65,19 @@ def test_labels_are_appended_and_a_session_resumes(tmp_path: Path) -> None:
     assert unlabelled(items, load_labels(path)) == [ItemRef("v9", "s02")]
     with pytest.raises(ValidationError):
         Label(stage="v7", item_id="g012", kind="golden", label="maybe")  # type: ignore[arg-type]
+
+
+def test_fourteen_judge_rejected_answers_follow_the_first_forty() -> None:
+    """Session 13 Part B: the labels get enough fails; the first 40 (already labelled)
+    don't move, and the 14 extra are judge-INCORRECT rows, distinct questions."""
+    from rag_assistant.eval.labelling import judge_rejected_refs, with_rejected
+
+    calibration = calibration_refs((PROJECT_ROOT / "docs" / "evaluation.md").read_text("utf-8"))
+    first = select_items(calibration, stored_refs(PROJECT_ROOT / "results"))
+    rejected = judge_rejected_refs(PROJECT_ROOT / "results")
+    items = with_rejected(first, rejected)
+    assert items[:40] == first and len(items) == 54 and len(set(items)) == 54
+    extra = items[40:]
+    assert set(extra) <= set(rejected)
+    assert len({r.item_id for r in extra}) == 14
+    assert items == with_rejected(first, rejected)  # reproducible

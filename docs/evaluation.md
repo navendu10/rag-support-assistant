@@ -386,6 +386,34 @@ tool calls and client decisions. The labeller types pass or fail and an optional
 appended to `data/golden/judge_labels.jsonl`. A session can be resumed, and no model is
 called. Part B compares the judges with these labels.
 
+### RAGAS metrics (Session 13 Part B)
+
+`python scripts/ragas_eval.py --stages v0,v7,v10` scores the **stored** golden answers and
+their rebuilt contexts. No new answers are made. RAGAS is 0.4.4: 0.4.3 doesn't import
+with our `langchain-community`.
+
+| Metric | How | Model |
+|---|---|---|
+| Faithfulness | the share of the answer's statements the context supports | Groq `qwen/qwen3.8-27b`, thinking off |
+| Answer relevancy | one question generated from the answer, compared with the asked one by embedding | the same model, FastEmbed embeddings |
+| Context precision | RAGAS's non-LLM variant: retrieved context vs the expected documents' chunks | none |
+| Context recall | the same, non-LLM | none |
+
+**The model.** RAGAS runs on its own model, `llm.ragas_model`, so it has its own daily
+quota. The judge and the query rewriter stay on `llm.small_model` (`gpt-oss-20b`). Qwen3
+returned valid JSON in a test, with thinking turned off (`ragas_reasoning_effort:
+none`).
+
+**How rows are kept.**
+
+- Each row records its model. Rows scored by any other model are discarded on resume (the
+  10 v0 rows first scored with `gpt-oss-20b` were), so all results come from one model.
+- A quota or connection error stops the run instead of being recorded as "not
+  applicable". RAGAS's own retries are off, because our client already retries rate
+  limits.
+- Rows without a context get no faithfulness or context metrics; rows without expected
+  documents get no context precision or recall.
+
 ### The CI retrieval gate (Session 13)
 
 The `retrieval-gate` job in `.github/workflows/ci.yml` runs on every PR with **no Groq

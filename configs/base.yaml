@@ -21,6 +21,10 @@ llm:
   # Keep this fixed across stages so comparisons stay fair.
   reasoning_effort: low
   max_completion_tokens: 2048
+  # Session 13: RAGAS scoring only, on its own model and daily quota (JSON output checked:
+  # valid with thinking off). The judge and the query rewriter stay on small_model.
+  ragas_model: qwen/qwen3.8-27b
+  ragas_reasoning_effort: none
 
 # Client-side throttling per model. Groq free tier (checked 2026-10-20):
 # 30 requests/min, 8,000 tokens/min, 1,000 requests/day, 200K tokens/day.
@@ -45,6 +49,7 @@ paths:
 
 eval:
   recall_k: 5
+  correctness_prompt: judge_correctness   # Session 13: the calibrated judge prompt's key
 
 # Query rewriting (Session 6). The rewriter uses llm.small_model.
 query:

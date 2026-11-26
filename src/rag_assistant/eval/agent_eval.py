@@ -323,6 +323,18 @@ def _seed(tickets: TicketDB, user: User, count: int) -> None:
         )  # fmt: skip
 
 
+def scenario_evidence(calls: Sequence[ToolCallRecord]) -> str:
+    """The order-tool results of a scenario in plain words, for the correctness judge."""
+    lines = []
+    for c in calls:
+        if c.name == "search_knowledge_base":
+            continue
+        facts = c.result.get("facts") or [c.result.get("message", c.status)]
+        lines.append(f"- {c.name}({', '.join(f'{k}={v}' for k, v in c.args.items())}): "
+                     + "; ".join(str(f) for f in facts))  # fmt: skip
+    return "\n".join(lines)
+
+
 def _model_text(answer_text: str, superseded: str | None) -> str:
     """The model's own words: without the fixed "earlier draft was cancelled" note."""
     return answer_text.split("\n\n", 1)[-1] if superseded else answer_text
@@ -419,7 +431,7 @@ def run_scenario(
     correctness = (
         Judgement(verdict="CHECKS", reason="; ".join(write) or "every write check passed")
         if scenario.steps or judge is None
-        else judge.correctness(scenario, first.text)  # type: ignore[attr-defined]
+        else judge.correctness(scenario, first.text, scenario_evidence(calls))  # type: ignore[attr-defined]
     )
     final = steps[-1].text if steps else first.text
     return ScenarioResult(

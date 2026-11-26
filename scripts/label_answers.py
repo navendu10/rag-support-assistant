@@ -2,15 +2,17 @@
 
 Usage:
     python scripts/label_answers.py            # resume where you stopped
-    python scripts/label_answers.py --list     # show the 40 items and which are labelled
+    python scripts/label_answers.py --list     # show the 54 items and which are labelled
 
-Shows 40 stored answers, one at a time: every item on the judge calibration list in
-docs/evaluation.md (golden rows and agent scenarios, with their stage), then a fixed
-random sample of golden rows from v4-v10. For each: the question (and earlier turns), the
-reference answer, the stored answer and its sources (the passages it cited, with doc id
-and trust; for agent scenarios, the tool calls and client decisions). Type p (pass),
-f (fail), s (skip) or q (quit), then an optional note. Labels are appended to
-data/golden/judge_labels.jsonl; already labelled items are skipped.
+Shows 54 stored answers, one at a time: every item on the judge calibration list in
+docs/evaluation.md (golden rows and agent scenarios, with their stage), a fixed random
+sample of golden rows from v4-v10 (40 in all), then 14 answers the judge marked wrong
+(Session 13 Part B, so the labels hold enough fails to measure agreement). For each:
+the question (and earlier turns), the reference answer, the stored answer and its
+sources (the passages it cited, with doc id and trust; for agent scenarios, the tool
+calls and client decisions). Type p (pass), f (fail), s (skip) or q (quit), then an
+optional note. Labels are appended to data/golden/judge_labels.jsonl; already labelled
+items are skipped. The item list is frozen in data/golden/label_items.json on first use.
 """
 
 from __future__ import annotations
@@ -24,15 +26,20 @@ from pathlib import Path
 from rag_assistant.config import PROJECT_ROOT, get_settings, load_stage
 from rag_assistant.eval.contexts import chunk_lookup, stored_context
 from rag_assistant.eval.labelling import (
+    ITEMS_FILE,
     LABELS_FILE,
     ItemRef,
     Label,
     append_label,
     calibration_refs,
+    judge_rejected_refs,
+    load_items,
     load_labels,
+    save_items,
     select_items,
     stored_refs,
     unlabelled,
+    with_rejected,
 )
 from rag_assistant.eval.metrics import ResultRow
 
@@ -103,14 +110,25 @@ def main() -> int:
     args = parse_args()
     results = PROJECT_ROOT / "results"
     calibration = calibration_refs((PROJECT_ROOT / "docs" / "evaluation.md").read_text("utf-8"))
-    items = select_items(calibration, stored_refs(results))
+    items_path = PROJECT_ROOT / ITEMS_FILE
+    if items_path.is_file():  # frozen: new stored results can't change the list
+        items = load_items(items_path)
+    else:
+        items = with_rejected(
+            select_items(calibration, stored_refs(results)), judge_rejected_refs(results)
+        )
+        save_items(items_path, items)
     labels_path = PROJECT_ROOT / LABELS_FILE
     labels = load_labels(labels_path)
     todo = unlabelled(items, labels)
     if args.list:
         for n, ref in enumerate(items, start=1):
             mark = " " if ref in todo else "x"
-            tag = "calibration" if ref in calibration else "sample"
+            tag = (
+                "calibration"
+                if ref in calibration
+                else ("sample" if items.index(ref) < 40 else "judge-rejected")
+            )
             print(f"[{mark}] {n:2d}. {ref.stage:<4} {ref.item_id}  {ref.kind:<8} {tag}")
         return 0
     references = _jsonl(PROJECT_ROOT / "data" / "golden" / "questions.jsonl")

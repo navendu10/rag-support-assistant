@@ -38,3 +38,17 @@
 {"stage":"v4","item_id":"g016","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
 {"stage":"v7","item_id":"g031","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
 {"stage":"v5","item_id":"g015","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v9","item_id":"g047","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v6a","item_id":"g045","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v9","item_id":"g039","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v7","item_id":"g003","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v5","item_id":"g011","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v6a","item_id":"g028","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v4","item_id":"g009","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v5","item_id":"g023","kind":"golden","label":"fail","note":"","labelled":"2026-11-26"}
+{"stage":"v6","item_id":"g046","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v8","item_id":"g032","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v6a","item_id":"g022","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v6a","item_id":"g031","kind":"golden","label":"pass","note":"","labelled":"2026-11-26"}
+{"stage":"v9","item_id":"g017","kind":"golden","label":"fail","note":"no citation","labelled":"2026-11-26"}
+{"stage":"v4","item_id":"g018","kind":"golden","label":"fail","note":"created answer without reference","labelled":"2026-11-26"}

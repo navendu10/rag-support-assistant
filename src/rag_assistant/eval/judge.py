@@ -54,21 +54,34 @@ def needs_leak_judge(failure_tag: str, user_role: str) -> bool:
 class Judge:
     """Grades answers with strict binary rubrics from ``configs/prompts.yaml``."""
 
-    def __init__(self, model: ChatGroq, prompts: dict[str, str]) -> None:
-        """Use ``model`` with the ``judge_correctness`` and ``judge_handoff`` prompts."""
+    def __init__(
+        self,
+        model: ChatGroq,
+        prompts: dict[str, str],
+        correctness_prompt: str = "judge_correctness",
+    ) -> None:
+        """Use ``model`` with the correctness prompt ``correctness_prompt`` (Session 13:
+        ``eval.correctness_prompt`` picks the calibrated one) and the other judge prompts."""
         self._model = model
-        self._correctness = prompts["judge_correctness"]
+        self._correctness = prompts[correctness_prompt]
         self._handoff = prompts["judge_handoff"]
         self._leak = prompts["judge_leak"]
         self._invented = prompts["judge_invented"]
 
-    def correctness(self, item: GoldenItem | AgentScenario, answer: str) -> Judgement:
-        """CORRECT / INCORRECT against the reference answer."""
+    def correctness(
+        self, item: GoldenItem | AgentScenario, answer: str, evidence: str = ""
+    ) -> Judgement:
+        """CORRECT / INCORRECT against the reference answer.
+
+        ``evidence`` (Session 13) is this turn's tool results in plain words, for agent
+        answers; a prompt without an ``{evidence}`` slot ignores it.
+        """
         prompt = self._correctness.format(
             history=format_history(item.history),
             question=item.question,
             reference=item.reference_answer,
             answer=answer,
+            evidence=evidence or "(none)",
         )
         return parse_verdict(complete(self._model, prompt), CORRECTNESS_LABELS)
 

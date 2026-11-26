@@ -128,6 +128,21 @@ def agent_record(answer: Answer) -> AgentRecord | None:
 KNOWLEDGE = "search_knowledge_base"
 
 
+def make_judge(settings: Settings) -> Judge:
+    """The judges, with the configured correctness prompt (``eval.correctness_prompt``)."""
+    return Judge(
+        make_chat_model(settings, settings.llm.judge_model),
+        load_prompts(),
+        settings.eval.correctness_prompt,
+    )
+
+
+def agent_evidence(answer: Answer) -> str:
+    """This turn's order-tool results in plain words (empty for non-agent stages)."""
+    record = agent_record(answer)
+    return "\n".join(f"- {line}" for line in record.tool_facts) if record else ""
+
+
 def tool_fact(name: str, args: dict, result: dict) -> str:
     """One order-tool call in plain words for the invented-content judge: its facts, or for
     ``list_my_orders`` every order with its product, delivery and status."""
@@ -216,7 +231,7 @@ def evaluate_item(
             [c.doc_id for c in answer.context],
             internal_ids,
         ),
-        correctness=judge.correctness(item, answer.text),
+        correctness=judge.correctness(item, answer.text, agent_evidence(answer)),
         handoff=judge.handoff(item, answer.text),
         leak_judgement=(
             judge.leak(item.question, answer.text, internal)
@@ -272,7 +287,7 @@ def answer_items(
 ) -> list[ResultRow]:
     """Answer and score ``items`` with the stage's pipeline, printing one line each."""
     users = {u.user_id: u for u in load_users(settings.paths.resolve(settings.paths.users_file))}
-    judge = Judge(make_chat_model(settings, settings.llm.judge_model), load_prompts())
+    judge = make_judge(settings)
     recall_k = settings.eval.recall_k
     internal = internal_reference(settings.paths.resolve(settings.paths.generated_dir))
     checker = RewriteChecker.from_settings(settings) if stage.query_rewrite else None
@@ -491,7 +506,7 @@ def add_leak_judgements(
     don't have its verdict yet make an LLM call (small model).
     """
     out_dir, _, rows, meta = _rescored_full_run(stage, settings)
-    judge = Judge(make_chat_model(settings, settings.llm.judge_model), load_prompts())
+    judge = make_judge(settings)
     internal = internal_reference(settings.paths.resolve(settings.paths.generated_dir))
     updated = []
     for row in rows:
@@ -515,7 +530,7 @@ def add_handoff_judgements(
     """
     out_dir, items, rows, meta = _rescored_full_run(stage, settings)
     by_id = {i.id: i for i in items}
-    judge = Judge(make_chat_model(settings, settings.llm.judge_model), load_prompts())
+    judge = make_judge(settings)
     updated = []
     for row in rows:
         if row.handoff is None:
@@ -540,7 +555,7 @@ def add_invented_judgements(
     """
     out_dir, _, rows, meta = _rescored_full_run(stage, settings)
     lookup = chunk_lookup(stage, settings.paths.resolve(settings.paths.generated_dir))
-    judge = Judge(make_chat_model(settings, settings.llm.judge_model), load_prompts())
+    judge = make_judge(settings)
     updated = []
     for row in rows:
         if row.invented is None:
