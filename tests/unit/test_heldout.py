@@ -85,3 +85,12 @@ def test_nothing_but_the_heldout_runner_reads_the_file() -> None:
         and any(n in p.read_text(encoding="utf-8", errors="ignore") for n in names)
     ]  # fmt: skip
     assert offenders == []
+
+
+def test_the_hash_ignores_line_endings_but_not_content(tmp_path: Path) -> None:
+    """A CRLF checkout (Windows) and an LF checkout (Linux CI) give the same hash."""
+    lf, crlf, edited = tmp_path / "lf.jsonl", tmp_path / "crlf.jsonl", tmp_path / "e.jsonl"
+    lf.write_bytes(b'{"a": 1}\n{"b": 2}\n')
+    crlf.write_bytes(b'{"a": 1}\r\n{"b": 2}\r\n')
+    edited.write_bytes(b'{"a": 1}\n{"b": 3}\n')
+    assert file_sha256(lf) == file_sha256(crlf) != file_sha256(edited)

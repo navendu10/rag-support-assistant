@@ -34,8 +34,12 @@ class HeldoutError(RuntimeError):
 
 
 def file_sha256(path: Path) -> str:
-    """The sha256 of ``path``'s bytes."""
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """The sha256 of ``path``'s bytes with line endings normalised to LF.
+
+    Git may check the file out with CRLF on Windows and LF on Linux CI; the lock must
+    match on both, while any change to the content still changes the hash.
+    """
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def freeze(path: Path = HELDOUT_FILE, lock: Path = LOCK_FILE) -> dict:
